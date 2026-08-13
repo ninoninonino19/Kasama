@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { haptics } from '../../lib/haptics';
+import { colors, ripple } from '../../lib/theme';
 
 /**
  * Floating action button pinned to the bottom-right.
@@ -28,7 +29,7 @@ export function Fab({
       className="absolute bottom-5 right-5"
       style={{
         // Lifted off the surface so it reads as floating above the list.
-        shadowColor: '#134540',
+        shadowColor: colors.brand[700],
         shadowOpacity: 0.28,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
@@ -42,14 +43,14 @@ export function Fab({
           haptics.tap();
           onPress();
         }}
-        android_ripple={{ color: '#ffffff30', borderless: false }}
+        android_ripple={{ color: ripple.light, borderless: false }}
         // 56dp is the platform minimum for a comfortable primary target.
         className={`h-14 flex-row items-center justify-center rounded-full bg-brand-500 active:bg-brand-600 ${
           label ? 'gap-2 px-5' : 'w-14'
         }`}
         style={Platform.OS === 'android' ? { overflow: 'hidden' } : undefined}
       >
-        <Ionicons name={icon} size={26} color="#FFFFFF" />
+        <Ionicons name={icon} size={26} color={colors.white} />
         {label ? <Text className="pr-1 text-base font-bold text-white">{label}</Text> : null}
       </Pressable>
     </View>

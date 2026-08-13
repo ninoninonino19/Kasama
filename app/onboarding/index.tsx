@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Screen } from '../../src/components/ui/Screen';
+import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 import { useProfile } from '../../src/store/useSessionStore';
 
@@ -67,7 +68,7 @@ function OptionCard({
   tone: 'brand' | 'coral';
 }) {
   const bg = tone === 'brand' ? 'bg-brand-100' : 'bg-coral-100';
-  const color = tone === 'brand' ? '#218578' : '#D64827';
+  const color = tone === 'brand' ? colors.brand[600] : colors.coral[600];
 
   return (
     <Pressable
@@ -82,7 +83,7 @@ function OptionCard({
         <Text className="text-base font-bold text-ink">{title}</Text>
         <Text className="mt-0.5 text-sm leading-5 text-ink-muted">{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#C9BDAD" />
+      <Ionicons name="chevron-forward" size={20} color={colors.ink.faint} />
     </Pressable>
   );
 }

@@ -15,6 +15,8 @@ import { messageFrom } from '../../src/hooks/useAsyncData';
 import { BILL_CATEGORIES, BILL_RECURRENCES, BILL_SUGGESTIONS } from '../../src/lib/categories';
 import type { BillCategory, BillRecurrence } from '../../src/lib/database.types';
 import { formatPeso, formatShortDate, splitEvenly, toDateString } from '../../src/lib/format';
+import { haptics } from '../../src/lib/haptics';
+import { colors } from '../../src/lib/theme';
 import { useHousehold, useMembers, useSessionStore } from '../../src/store/useSessionStore';
 
 export default function NewBillScreen() {
@@ -151,31 +153,41 @@ export default function NewBillScreen() {
 
         <View>
           <SectionTitle>Category</SectionTitle>
-          <View className="gap-2">
+          {/* A grid rather than five stacked rows: the whole set is visible at
+              once, so picking a category is a glance instead of a scroll. */}
+          <View className="flex-row flex-wrap gap-2">
             {BILL_CATEGORIES.map((meta) => {
               const selected = category === meta.value;
               return (
                 <Pressable
                   key={meta.value}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
                   accessibilityState={{ selected }}
-                  onPress={() => setCategory(meta.value)}
-                  className={`flex-row items-center gap-3 rounded-2xl border p-3 ${
-                    selected ? 'border-brand-400 bg-brand-50' : 'border-sand-200 bg-white'
+                  accessibilityLabel={`${meta.label}, ${meta.subtitle}`}
+                  onPress={() => {
+                    haptics.select();
+                    setCategory(meta.value);
+                  }}
+                  className={`min-h-[96px] w-[31%] items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 ${
+                    selected ? 'border-brand-500 bg-brand-50' : 'border-sand-200 bg-white'
                   }`}
                 >
                   <View
-                    className="h-10 w-10 items-center justify-center rounded-xl"
+                    className="h-11 w-11 items-center justify-center rounded-2xl"
                     style={{ backgroundColor: meta.background }}
                   >
-                    <Ionicons name={meta.icon} size={18} color={meta.tint} />
+                    <Ionicons name={meta.icon} size={20} color={meta.tint} />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-bold text-ink">{meta.label}</Text>
-                    <Text className="text-xs text-ink-muted">{meta.subtitle}</Text>
-                  </View>
+                  <Text className="text-center text-xs font-bold text-ink" numberOfLines={1}>
+                    {meta.label}
+                  </Text>
+                  <Text className="text-center text-[10px] text-ink-muted" numberOfLines={1}>
+                    {meta.subtitle}
+                  </Text>
                   {selected ? (
-                    <Ionicons name="checkmark-circle" size={20} color="#218578" />
+                    <View className="absolute right-1.5 top-1.5">
+                      <Ionicons name="checkmark-circle" size={16} color={colors.brand[600]} />
+                    </View>
                   ) : null}
                 </Pressable>
               );
@@ -201,10 +213,10 @@ export default function NewBillScreen() {
                   hitSlop={8}
                   onPress={() => setDueDate(null)}
                 >
-                  <Ionicons name="close-circle" size={18} color="#A99B89" />
+                  <Ionicons name="close-circle" size={18} color={colors.sand[500]} />
                 </Pressable>
               ) : null}
-              <Ionicons name="calendar-outline" size={20} color="#8A979B" />
+              <Ionicons name="calendar-outline" size={20} color={colors.ink.muted} />
             </View>
           </Pressable>
 
@@ -305,7 +317,7 @@ export default function NewBillScreen() {
                     <Ionicons
                       name={selected ? 'checkbox' : 'square-outline'}
                       size={22}
-                      color={selected ? '#218578' : '#C9BDAD'}
+                      color={selected ? colors.brand[600] : colors.ink.muted}
                     />
                   </Pressable>
 

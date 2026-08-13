@@ -48,10 +48,27 @@ module.exports = {
           800: '#4B423A',
           900: '#2C2722',
         },
+        // Muted amber — "due soon", the step between settled and overdue.
+        amber: {
+          50: '#FDF6E7',
+          100: '#FAECCC',
+          200: '#F2D9A0',
+          300: '#E4BC68',
+          400: '#D0A03A',
+          500: '#B5851F',
+          600: '#9A6B12',
+          700: '#7F5710',
+          800: '#66450D',
+          900: '#4E350A',
+        },
         ink: {
           DEFAULT: '#1F2A2E',
           soft: '#5A6A6F',
-          muted: '#8A979B',
+          // 4.8:1 on white and 4.6:1 on the sand canvas. The old #8A979B looked
+          // right but only reached 3.1:1, under the 4.5:1 the brief asks for.
+          muted: '#67757A',
+          // Decorative only — chevrons, dividers, disabled glyphs. Never text.
+          faint: '#A3AEB2',
         },
       },
       fontFamily: {

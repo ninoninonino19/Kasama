@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '../src/providers/SessionProvider';
+import { colors } from '../src/lib/theme';
 
 export default function RootLayout() {
   return (
@@ -16,7 +17,13 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: '#FCFAF7' },
+              contentStyle: { backgroundColor: colors.sand[50] },
+              // Warm the stack chrome to match the canvas — the default header
+              // is a cool system grey that reads as a different app.
+              headerStyle: { backgroundColor: colors.sand[50] },
+              headerTintColor: colors.brand[600],
+              headerTitleStyle: { color: colors.ink.DEFAULT, fontWeight: '700' },
+              headerShadowVisible: false,
             }}
           >
             <Stack.Screen name="index" />

@@ -3,6 +3,8 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { colors } from '../../lib/theme';
+
 type Props = TextInputProps & {
   label?: string;
   hint?: string;
@@ -43,7 +45,7 @@ export function TextField({
         {currency ? <Text className="mr-1 text-lg text-ink-soft">₱</Text> : null}
         <TextInput
           className="h-14 flex-1 text-base text-ink"
-          placeholderTextColor="#A99B89"
+          placeholderTextColor={colors.ink.muted}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           keyboardType={currency ? 'decimal-pad' : inputProps.keyboardType}
@@ -57,7 +59,7 @@ export function TextField({
             hitSlop={8}
             onPress={() => setRevealed((current) => !current)}
           >
-            <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color="#8A979B" />
+            <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.ink.muted} />
           </Pressable>
         ) : null}
       </View>

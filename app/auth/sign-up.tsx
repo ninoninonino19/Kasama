@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { Link } from 'expo-router';
 
 import { Button } from '../../src/components/ui/Button';
+import { Logo } from '../../src/components/ui/Logo';
 import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
@@ -54,8 +55,8 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View className="gap-2">
-            <View className="mb-2 h-16 w-16 items-center justify-center rounded-3xl bg-coral-400">
-              <Text className="text-2xl font-bold text-white">K</Text>
+            <View className="mb-2">
+              <Logo tone="coral" />
             </View>
             <Text className="text-3xl font-bold text-ink">Join Kasama</Text>
             <Text className="text-base leading-6 text-ink-soft">

@@ -9,6 +9,7 @@ import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
+import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 
 export default function JoinHouseholdScreen() {
@@ -51,7 +52,7 @@ export default function JoinHouseholdScreen() {
             hitSlop={8}
             className="h-10 w-10 items-center justify-center rounded-full bg-white"
           >
-            <Ionicons name="arrow-back" size={20} color="#1F2A2E" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
           </Pressable>
 
           <View className="gap-2">

@@ -1,6 +1,8 @@
 import { ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { colors } from '../lib/theme';
+
 import { Screen } from './ui/Screen';
 
 /**
@@ -12,7 +14,7 @@ export function SetupNotice() {
     <Screen>
       <ScrollView contentContainerClassName="gap-4 p-6">
         <View className="h-14 w-14 items-center justify-center rounded-2xl bg-brand-100">
-          <Ionicons name="construct-outline" size={26} color="#218578" />
+          <Ionicons name="construct-outline" size={26} color={colors.brand[600]} />
         </View>
         <Text className="text-2xl font-bold text-ink">Almost there</Text>
         <Text className="text-base leading-6 text-ink-soft">
