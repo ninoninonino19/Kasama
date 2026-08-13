@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 
 import { SetupNotice } from '../src/components/SetupNotice';
 import { isSupabaseConfigured } from '../src/lib/supabase';
+import { colors } from '../src/lib/theme';
 import { useSessionStore } from '../src/store/useSessionStore';
 
 /**
@@ -22,7 +23,7 @@ export default function Index() {
         <View className="h-16 w-16 items-center justify-center rounded-3xl bg-brand-500">
           <Text className="text-2xl font-bold text-white">K</Text>
         </View>
-        <ActivityIndicator color="#2FA396" />
+        <ActivityIndicator color={colors.brand[500]} />
       </View>
     );
   }

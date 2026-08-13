@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { isBillSettled, summariseBalance } from '../../src/api/bills';
+import { billStatus, isBillSettled, summariseBalance } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
@@ -13,6 +14,7 @@ import { haptics } from '../../src/lib/haptics';
 import { useBills } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso } from '../../src/lib/format';
+import { colors } from '../../src/lib/theme';
 import { useCurrentUserId } from '../../src/store/useSessionStore';
 
 type Filter = 'all' | 'unpaid' | 'paid';
@@ -31,12 +33,32 @@ export default function BillsScreen() {
   const visible = useMemo(() => {
     if (filter === 'all') return bills;
     const wantSettled = filter === 'paid';
-    return bills.filter((bill) => isBillSettled(bill) === wantSettled);
+    const matching = bills.filter((bill) => isBillSettled(bill) === wantSettled);
+    if (wantSettled) return matching;
+
+    // Unpaid bills are a to-do list, so order them by deadline rather than by
+    // when someone happened to log them. Bills with no due date sit at the end.
+    return matching.slice().sort((a, b) => {
+      if (a.due_date === b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return a.due_date.localeCompare(b.due_date);
+    });
   }, [bills, filter]);
 
   const balance = useMemo(
     () => (userId ? summariseBalance(bills, userId) : { owed: 0, owing: 0, net: 0 }),
     [bills, userId]
+  );
+
+  const counts = useMemo(() => {
+    const settled = bills.filter(isBillSettled).length;
+    return { all: bills.length, paid: settled, unpaid: bills.length - settled };
+  }, [bills]);
+
+  const overdueCount = useMemo(
+    () => bills.filter((bill) => billStatus(bill) === 'overdue').length,
+    [bills]
   );
 
   return (
@@ -50,11 +72,13 @@ export default function BillsScreen() {
         }
       />
 
+      {/* Counts on the filters save a tap to discover an empty tab. */}
       <View className="flex-row gap-2 px-5 pb-3">
         {(['unpaid', 'paid', 'all'] as Filter[]).map((option) => (
           <Chip
             key={option}
             label={option === 'unpaid' ? 'Unpaid' : option === 'paid' ? 'Settled' : 'All'}
+            count={counts[option]}
             selected={filter === option}
             onPress={() => {
               haptics.select();
@@ -63,6 +87,15 @@ export default function BillsScreen() {
           />
         ))}
       </View>
+
+      {overdueCount > 0 && filter !== 'paid' ? (
+        <View className="mx-5 mb-3 flex-row items-center gap-2 rounded-2xl border border-coral-200 bg-coral-50 px-4 py-3">
+          <Ionicons name="alert-circle" size={18} color={colors.coral[600]} />
+          <Text className="flex-1 text-sm font-semibold text-coral-700">
+            {overdueCount} {overdueCount === 1 ? 'bill is' : 'bills are'} past due
+          </Text>
+        </View>
+      ) : null}
 
       {loading ? (
         <ListSkeleton rows={4} />
@@ -80,7 +113,7 @@ export default function BillsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh()}
-              tintColor="#2FA396"
+              tintColor={colors.brand[500]}
             />
           }
           renderItem={({ item }) => (

@@ -8,6 +8,7 @@ import { Button } from '../../src/components/ui/Button';
 import { InlineError } from '../../src/components/ui/States';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { haptics } from '../../src/lib/haptics';
+import { colors } from '../../src/lib/theme';
 import { useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 
 const MAX_LENGTH = 500;
@@ -71,7 +72,7 @@ export default function NewAnnouncementScreen() {
           <TextInput
             className="flex-1 text-base leading-6 text-ink"
             placeholder="Ano'ng balita sa bahay? e.g. Deadline ng kuryente sa Friday, pa-GCash na lang sa akin."
-            placeholderTextColor="#A99B89"
+            placeholderTextColor={colors.ink.muted}
             value={content}
             onChangeText={(value) => setContent(value.slice(0, MAX_LENGTH))}
             multiline

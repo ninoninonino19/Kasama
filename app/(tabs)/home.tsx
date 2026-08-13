@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react';
+import type { ComponentProps } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { billOutstanding, isBillSettled, summariseBalance } from '../../src/api/bills';
+import { billOutstanding, billStatus, isBillSettled, summariseBalance } from '../../src/api/bills';
 import { openAssignment } from '../../src/api/chores';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Badge } from '../../src/components/ui/Chip';
@@ -16,6 +17,8 @@ import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { endOfWeek, formatPeso, formatRelativeDate, formatTimeAgo, toDateString, todayString } from '../../src/lib/format';
 import { categoryMeta } from '../../src/lib/categories';
 import { haptics } from '../../src/lib/haptics';
+import { BILL_STATUS } from '../../src/lib/status';
+import { colors } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useProfile } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments } from '../../src/types';
 
@@ -59,6 +62,14 @@ export default function HomeScreen() {
 
   const myChores = dueThisWeek.filter(({ assignment }) => assignment.user_id === userId);
 
+  // A household with nothing in it at all gets one "here's how this works"
+  // card instead of three stacked empty states, which read as a broken screen.
+  const isFreshHousehold =
+    !loading &&
+    (bills.data ?? []).length === 0 &&
+    (chores.data ?? []).length === 0 &&
+    (announcements.data ?? []).length === 0;
+
   // Depend on the refresh functions themselves, which useAsyncData keeps stable.
   // Depending on the hook results instead gives this callback a new identity on
   // every render, which turns the focus effect below into a refetch loop.
@@ -89,7 +100,7 @@ export default function HomeScreen() {
             onRefresh={() => {
               void Promise.all([refreshBills(), refreshChores(), refreshAnnouncements()]);
             }}
-            tintColor="#2FA396"
+            tintColor={colors.brand[500]}
           />
         }
       >
@@ -112,7 +123,7 @@ export default function HomeScreen() {
             }}
             className="h-11 w-11 items-center justify-center rounded-2xl bg-white active:bg-sand-100"
           >
-            <Ionicons name="settings-outline" size={20} color="#5A6A6F" />
+            <Ionicons name="settings-outline" size={20} color={colors.ink.soft} />
           </Pressable>
         </View>
 
@@ -158,162 +169,295 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Unpaid bills -------------------------------------------- */}
-            <View>
-              <View className="mb-2 flex-row items-center justify-between">
-                <SectionTitle className="mb-0">Unpaid bills</SectionTitle>
-                <Pressable accessibilityRole="button" onPress={() => router.push('/bills')}>
-                  <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
-                    See all
-                  </Text>
-                </Pressable>
+            {isFreshHousehold ? (
+              <GetStarted
+                onAddBill={() => router.push('/bills/new')}
+                onAddChore={() => router.push('/chores/new')}
+                onPost={() => router.push('/announcements')}
+              />
+            ) : (
+              <>
+              {/* Quick actions ------------------------------------------- */}
+              {/* Home has no FAB — these are the two things people open the app
+                  to do, so they get a fixed home next to the balance. */}
+              <View className="flex-row gap-3">
+                <QuickAction
+                  icon="receipt-outline"
+                  label="Add a bill"
+                  onPress={() => router.push('/bills/new')}
+                />
+                <QuickAction
+                  icon="checkmark-done-outline"
+                  label="Add a chore"
+                  onPress={() => router.push('/chores/new')}
+                />
               </View>
 
-              {unpaidBills.length === 0 ? (
-                <EmptyState
-                  icon="receipt-outline"
-                  title="Walang pending na bill"
-                  message="Add one when the next kuryente or WiFi bill arrives."
-                  actionLabel="Add a bill"
-                  onAction={() => router.push('/bills/new')}
-                />
-              ) : (
-                <View className="gap-2">
-                  {unpaidBills.map((bill) => {
-                    const meta = categoryMeta(bill.category);
-                    return (
-                      <Card key={bill.id} onPress={() => router.push(`/bills/${bill.id}`)}>
+              {/* Unpaid bills -------------------------------------------- */}
+              <View>
+                <View className="mb-2 flex-row items-center justify-between">
+                  <SectionTitle className="mb-0">Unpaid bills</SectionTitle>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/bills')}>
+                    <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
+                      See all
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {unpaidBills.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon="receipt-outline"
+                    title="Walang pending na bill"
+                    message="Add one when the next kuryente or WiFi bill arrives."
+                    actionLabel="Add a bill"
+                    onAction={() => router.push('/bills/new')}
+                  />
+                ) : (
+                  <View className="gap-2">
+                    {unpaidBills.map((bill) => {
+                      const meta = categoryMeta(bill.category);
+                      const status = billStatus(bill);
+                      const badge = BILL_STATUS[status];
+                      return (
+                        <Card key={bill.id} onPress={() => router.push(`/bills/${bill.id}`)}>
+                          <View className="flex-row items-center gap-3">
+                            <View
+                              className="h-10 w-10 items-center justify-center rounded-xl"
+                              style={{ backgroundColor: meta.background }}
+                            >
+                              <Ionicons name={meta.icon} size={18} color={meta.tint} />
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-sm font-bold text-ink" numberOfLines={1}>
+                                {bill.title}
+                              </Text>
+                              <Text className="text-xs text-ink-muted">
+                                {bill.due_date
+                                  ? `Due ${formatRelativeDate(bill.due_date)}`
+                                  : meta.subtitle}
+                              </Text>
+                            </View>
+                            {/* The amount stays neutral — the urgency lives in
+                                the pill, so an ordinary bill doesn't shout. */}
+                            <View className="items-end gap-1">
+                              <Text className="text-sm font-bold text-ink">
+                                {formatPeso(billOutstanding(bill))}
+                              </Text>
+                              {status === 'open' ? null : (
+                                <Badge label={badge.label} tone={badge.tone} icon={badge.icon} />
+                              )}
+                            </View>
+                          </View>
+                        </Card>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Chores this week ---------------------------------------- */}
+              <View>
+                <View className="mb-2 flex-row items-center justify-between">
+                  <SectionTitle className="mb-0">Chores this week</SectionTitle>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/chores')}>
+                    <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
+                      See all
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {dueThisWeek.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon="checkmark-done-outline"
+                    title="Walang chore ngayong linggo"
+                    message="Set up a rotation so walang pikunan sa hugas at walis."
+                    actionLabel="Add a chore"
+                    onAction={() => router.push('/chores/new')}
+                  />
+                ) : (
+                  <View className="gap-2">
+                    {dueThisWeek.slice(0, 4).map(({ chore, assignment, overdue }) => (
+                      <Card key={assignment.id}>
                         <View className="flex-row items-center gap-3">
-                          <View
-                            className="h-10 w-10 items-center justify-center rounded-xl"
-                            style={{ backgroundColor: meta.background }}
-                          >
-                            <Ionicons name={meta.icon} size={18} color={meta.tint} />
-                          </View>
+                          <Avatar
+                            name={assignment.profile?.display_name ?? 'Housemate'}
+                            userId={assignment.user_id}
+                            avatarUrl={assignment.profile?.avatar_url}
+                            size={34}
+                          />
                           <View className="flex-1">
-                            <Text className="text-sm font-bold text-ink" numberOfLines={1}>
-                              {bill.title}
-                            </Text>
-                            <Text className="text-xs text-ink-muted">
-                              {bill.due_date
-                                ? `Due ${formatRelativeDate(bill.due_date)}`
-                                : meta.subtitle}
+                            <Text className="text-sm font-bold text-ink">{chore.title}</Text>
+                            <Text
+                              className={`text-xs ${overdue ? 'text-coral-600' : 'text-ink-muted'}`}
+                            >
+                              {assignment.user_id === userId
+                                ? 'You'
+                                : (assignment.profile?.display_name ?? 'Housemate')}{' '}
+                              · {formatRelativeDate(assignment.due_date)}
                             </Text>
                           </View>
-                          <Text className="text-sm font-bold text-coral-600">
-                            {formatPeso(billOutstanding(bill))}
-                          </Text>
+                          {assignment.user_id === userId ? <Badge label="Ikaw" tone="brand" /> : null}
                         </View>
                       </Card>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            {/* Chores this week ---------------------------------------- */}
-            <View>
-              <View className="mb-2 flex-row items-center justify-between">
-                <SectionTitle className="mb-0">Chores this week</SectionTitle>
-                <Pressable accessibilityRole="button" onPress={() => router.push('/chores')}>
-                  <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
-                    See all
-                  </Text>
-                </Pressable>
+                    ))}
+                    {myChores.length > 0 ? (
+                      <Text className="px-1 text-xs text-ink-muted">
+                        {myChores.length} sa iyo ngayong linggo.
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
               </View>
 
-              {dueThisWeek.length === 0 ? (
-                <EmptyState
-                  icon="checkmark-done-outline"
-                  title="Walang chore ngayong linggo"
-                  message="Set up a rotation so walang pikunan sa hugas at walis."
-                  actionLabel="Add a chore"
-                  onAction={() => router.push('/chores/new')}
-                />
-              ) : (
-                <View className="gap-2">
-                  {dueThisWeek.slice(0, 4).map(({ chore, assignment, overdue }) => (
-                    <Card key={assignment.id}>
-                      <View className="flex-row items-center gap-3">
-                        <Avatar
-                          name={assignment.profile?.display_name ?? 'Housemate'}
-                          userId={assignment.user_id}
-                          avatarUrl={assignment.profile?.avatar_url}
-                          size={34}
-                        />
-                        <View className="flex-1">
-                          <Text className="text-sm font-bold text-ink">{chore.title}</Text>
-                          <Text
-                            className={`text-xs ${overdue ? 'text-coral-600' : 'text-ink-muted'}`}
-                          >
-                            {assignment.user_id === userId
-                              ? 'You'
-                              : (assignment.profile?.display_name ?? 'Housemate')}{' '}
-                            · {formatRelativeDate(assignment.due_date)}
+              {/* Latest announcements ------------------------------------ */}
+              <View>
+                <View className="mb-2 flex-row items-center justify-between">
+                  <SectionTitle className="mb-0">Latest announcements</SectionTitle>
+                  <Pressable accessibilityRole="button" onPress={() => router.push('/announcements')}>
+                    <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
+                      See all
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {(announcements.data ?? []).length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon="megaphone-outline"
+                    title="Wala pang balita"
+                    message="Post a quick update so alam ng lahat ang nangyayari sa bahay."
+                    actionLabel="Post one"
+                    onAction={() => router.push('/announcements')}
+                  />
+                ) : (
+                  <View className="gap-2">
+                    {(announcements.data ?? []).slice(0, 3).map((item) => (
+                      <Card key={item.id}>
+                        <View className="flex-row items-center gap-2">
+                          <Avatar
+                            name={item.profile?.display_name ?? 'Housemate'}
+                            userId={item.user_id}
+                            avatarUrl={item.profile?.avatar_url}
+                            size={24}
+                          />
+                          <Text className="flex-1 text-xs font-semibold text-ink-soft">
+                            {item.profile?.display_name ?? 'Housemate'}
+                          </Text>
+                          <Text className="text-xs text-ink-muted">
+                            {formatTimeAgo(item.created_at)}
                           </Text>
                         </View>
-                        {assignment.user_id === userId ? <Badge label="Ikaw" tone="brand" /> : null}
-                      </View>
-                    </Card>
-                  ))}
-                  {myChores.length > 0 ? (
-                    <Text className="px-1 text-xs text-ink-muted">
-                      {myChores.length} sa iyo ngayong linggo.
-                    </Text>
-                  ) : null}
-                </View>
-              )}
-            </View>
-
-            {/* Latest announcements ------------------------------------ */}
-            <View>
-              <View className="mb-2 flex-row items-center justify-between">
-                <SectionTitle className="mb-0">Latest announcements</SectionTitle>
-                <Pressable accessibilityRole="button" onPress={() => router.push('/announcements')}>
-                  <Text className="text-xs font-bold uppercase tracking-wider text-brand-600">
-                    See all
-                  </Text>
-                </Pressable>
+                        <Text className="mt-2 text-sm leading-5 text-ink" numberOfLines={3}>
+                          {item.content}
+                        </Text>
+                      </Card>
+                    ))}
+                  </View>
+                )}
               </View>
-
-              {(announcements.data ?? []).length === 0 ? (
-                <EmptyState
-                  icon="megaphone-outline"
-                  title="Wala pang balita"
-                  message="Post a quick update so alam ng lahat ang nangyayari sa bahay."
-                  actionLabel="Post one"
-                  onAction={() => router.push('/announcements')}
-                />
-              ) : (
-                <View className="gap-2">
-                  {(announcements.data ?? []).slice(0, 3).map((item) => (
-                    <Card key={item.id}>
-                      <View className="flex-row items-center gap-2">
-                        <Avatar
-                          name={item.profile?.display_name ?? 'Housemate'}
-                          userId={item.user_id}
-                          avatarUrl={item.profile?.avatar_url}
-                          size={24}
-                        />
-                        <Text className="flex-1 text-xs font-semibold text-ink-soft">
-                          {item.profile?.display_name ?? 'Housemate'}
-                        </Text>
-                        <Text className="text-xs text-ink-muted">
-                          {formatTimeAgo(item.created_at)}
-                        </Text>
-                      </View>
-                      <Text className="mt-2 text-sm leading-5 text-ink" numberOfLines={3}>
-                        {item.content}
-                      </Text>
-                    </Card>
-                  ))}
-                </View>
-              )}
-            </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function QuickAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => {
+        haptics.tap();
+        onPress();
+      }}
+      className="min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-sand-200 bg-white px-4 py-3 active:bg-sand-100"
+    >
+      <Ionicons name={icon} size={18} color={colors.brand[600]} />
+      <Text className="text-sm font-bold text-ink">{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * First-run panel. A brand-new household has nothing to summarise, so rather
+ * than three empty sections it gets one card that says what the app is for and
+ * points at the two things worth doing first.
+ */
+function GetStarted({
+  onAddBill,
+  onAddChore,
+  onPost,
+}: {
+  onAddBill: () => void;
+  onAddChore: () => void;
+  onPost: () => void;
+}) {
+  const steps = [
+    {
+      icon: 'receipt-outline' as const,
+      title: 'Log your first bill',
+      body: 'Kuryente, tubig, WiFi — Kasama splits it for everyone.',
+      onPress: onAddBill,
+    },
+    {
+      icon: 'checkmark-done-outline' as const,
+      title: 'Set up a chore',
+      body: 'Assign it once and it rotates around the house.',
+      onPress: onAddChore,
+    },
+    {
+      icon: 'megaphone-outline' as const,
+      title: 'Say kumusta',
+      body: 'Post an announcement so everyone sees it in one place.',
+      onPress: onPost,
+    },
+  ];
+
+  return (
+    <View className="gap-3">
+      <SectionTitle className="mb-0">Get started</SectionTitle>
+      <View className="gap-2 rounded-3xl border border-sand-200 bg-white p-2">
+        {steps.map((step, index) => (
+          <Pressable
+            key={step.title}
+            accessibilityRole="button"
+            accessibilityLabel={step.title}
+            onPress={() => {
+              haptics.tap();
+              step.onPress();
+            }}
+            className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl p-3 active:bg-sand-100 ${
+              index === 0 ? 'bg-brand-50' : ''
+            }`}
+          >
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-100">
+              <Ionicons name={step.icon} size={20} color={colors.brand[600]} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-ink">{step.title}</Text>
+              <Text className="mt-0.5 text-xs leading-4 text-ink-muted">{step.body}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
+          </Pressable>
+        ))}
+      </View>
+      <Text className="px-1 text-xs text-ink-muted">
+        Invite your housemates from Settings — they'll need the household code.
+      </Text>
+    </View>
   );
 }
 

@@ -15,6 +15,7 @@ import { TextField } from '../src/components/ui/TextField';
 import { messageFrom } from '../src/hooks/useAsyncData';
 import { haptics } from '../src/lib/haptics';
 import { formatShortDate } from '../src/lib/format';
+import { colors } from '../src/lib/theme';
 import { useSession } from '../src/providers/SessionProvider';
 import { useSessionStore } from '../src/store/useSessionStore';
 
@@ -248,18 +249,18 @@ export default function SettingsScreen() {
           onPress={confirmLeave}
           className="flex-row items-center gap-3 rounded-2xl border border-sand-200 bg-white p-4 active:bg-sand-100"
         >
-          <Ionicons name="exit-outline" size={20} color="#D64827" />
+          <Ionicons name="exit-outline" size={20} color={colors.coral[600]} />
           <Text className="flex-1 text-sm font-semibold text-ink">Leave household</Text>
-          <Ionicons name="chevron-forward" size={18} color="#C9BDAD" />
+          <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={confirmSignOut}
           className="flex-row items-center gap-3 rounded-2xl border border-sand-200 bg-white p-4 active:bg-sand-100"
         >
-          <Ionicons name="log-out-outline" size={20} color="#5A6A6F" />
+          <Ionicons name="log-out-outline" size={20} color={colors.ink.soft} />
           <Text className="flex-1 text-sm font-semibold text-ink">Log out</Text>
-          <Ionicons name="chevron-forward" size={18} color="#C9BDAD" />
+          <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
         </Pressable>
       </View>
 

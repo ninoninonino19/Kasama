@@ -15,6 +15,7 @@ import { messageFrom } from '../../src/hooks/useAsyncData';
 import { CHORE_RECURRENCES, CHORE_SUGGESTIONS } from '../../src/lib/categories';
 import type { ChoreRecurrence } from '../../src/lib/database.types';
 import { formatShortDate, toDateString } from '../../src/lib/format';
+import { colors } from '../../src/lib/theme';
 import { useHousehold, useMembers, useSessionStore } from '../../src/store/useSessionStore';
 
 export default function NewChoreScreen() {
@@ -147,7 +148,7 @@ export default function NewChoreScreen() {
                   <Ionicons
                     name={selected ? 'radio-button-on' : 'radio-button-off'}
                     size={20}
-                    color={selected ? '#218578' : '#C9BDAD'}
+                    color={selected ? colors.brand[600] : colors.ink.muted}
                   />
                 </Pressable>
               );
@@ -163,7 +164,7 @@ export default function NewChoreScreen() {
             className="flex-row items-center justify-between rounded-2xl border border-sand-300 bg-white px-4 py-4"
           >
             <Text className="text-base text-ink">{formatShortDate(dueDate)}</Text>
-            <Ionicons name="calendar-outline" size={20} color="#8A979B" />
+            <Ionicons name="calendar-outline" size={20} color={colors.ink.muted} />
           </Pressable>
 
           {showPicker ? (

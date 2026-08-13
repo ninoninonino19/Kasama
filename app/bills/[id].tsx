@@ -3,11 +3,13 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { billOutstanding, deleteBill, fetchBill, isBillSettled, setSplitPaid, settleWholeBill } from '../../src/api/bills';
+import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBillSettled, setSplitPaid, settleWholeBill } from '../../src/api/bills';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Chip';
 import { Card } from '../../src/components/ui/Card';
+import { ProgressBar } from '../../src/components/ui/ProgressBar';
+import { SwipeRow } from '../../src/components/ui/SwipeRow';
 import { SectionTitle } from '../../src/components/ui/Screen';
 import { ErrorState, InlineError, LoadingState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
@@ -15,6 +17,8 @@ import { haptics } from '../../src/lib/haptics';
 import { useRealtime } from '../../src/hooks/useRealtime';
 import { categoryMeta } from '../../src/lib/categories';
 import { formatPeso, formatRelativeDate, formatTimeAgo } from '../../src/lib/format';
+import { BILL_STATUS } from '../../src/lib/status';
+import { colors, ripple } from '../../src/lib/theme';
 import { useCurrentUserId, useSessionStore } from '../../src/store/useSessionStore';
 
 export default function BillDetailScreen() {
@@ -140,6 +144,9 @@ export default function BillDetailScreen() {
   const meta = categoryMeta(bill.category);
   const settled = isBillSettled(bill);
   const outstanding = billOutstanding(bill);
+  const progress = billProgress(bill);
+  const status = billStatus(bill);
+  const badge = BILL_STATUS[status];
   const canDelete = bill.created_by === userId || role === 'admin';
 
   return (
@@ -152,7 +159,7 @@ export default function BillDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void refresh()}
-            tintColor="#2FA396"
+            tintColor={colors.brand[500]}
           />
         }
       >
@@ -168,13 +175,12 @@ export default function BillDetailScreen() {
             {meta.label} · {meta.subtitle}
           </Text>
           <View className="mt-1 flex-row items-center gap-2">
-            {settled ? (
-              <Badge label="Fully settled" tone="success" />
-            ) : (
-              <Badge label={`${formatPeso(outstanding)} unpaid`} tone="warning" />
-            )}
+            <Badge label={badge.label} tone={badge.tone} icon={badge.icon} />
             {bill.recurrence !== 'none' ? (
-              <Badge label={bill.recurrence === 'weekly' ? 'Weekly' : 'Monthly'} />
+              <Badge
+                label={bill.recurrence === 'weekly' ? 'Weekly' : 'Monthly'}
+                icon="repeat"
+              />
             ) : null}
           </View>
           {bill.due_date ? (
@@ -182,6 +188,25 @@ export default function BillDetailScreen() {
               Due {formatRelativeDate(bill.due_date)}
             </Text>
           ) : null}
+
+          {/* Progress towards settled — the one number people come here for. */}
+          <View className="mt-3 w-full gap-1.5">
+            <ProgressBar
+              ratio={progress.ratio}
+              tone={status === 'overdue' ? 'coral' : status === 'due-soon' ? 'amber' : 'brand'}
+              height={8}
+            />
+            <View className="flex-row justify-between">
+              <Text className="text-xs font-semibold text-ink-soft">
+                {progress.paid} of {progress.total} paid
+              </Text>
+              {settled ? null : (
+                <Text className="text-xs font-semibold text-ink-soft">
+                  {formatPeso(outstanding)} left
+                </Text>
+              )}
+            </View>
+          </View>
         </Card>
 
         <View>
@@ -200,58 +225,81 @@ export default function BillDetailScreen() {
                   const isSelf = split.user_id === userId;
 
                   return (
-                    <Pressable
+                    <SwipeRow
                       key={split.id}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: split.paid }}
-                      accessibilityLabel={`${name} — ${formatPeso(Number(split.amount_owed))} ${
-                        split.paid ? 'paid' : 'unpaid'
-                      }`}
-                      accessibilityHint="Double tap to switch between paid and unpaid"
-                      android_ripple={{ color: '#2FA39620' }}
-                      onPress={() => void togglePaid(split.id, !split.paid)}
-                      className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl border p-4 ${
+                      left={
                         split.paid
-                          ? 'border-brand-200 bg-brand-50 active:bg-brand-100'
-                          : 'border-sand-200 bg-white active:bg-sand-100'
-                      }`}
+                          ? undefined
+                          : {
+                              label: 'Paid',
+                              icon: 'checkmark-circle',
+                              tone: 'brand',
+                              onTrigger: () => void togglePaid(split.id, true),
+                            }
+                      }
+                      right={
+                        split.paid
+                          ? {
+                              label: 'Unpay',
+                              icon: 'arrow-undo',
+                              tone: 'sand',
+                              onTrigger: () => void togglePaid(split.id, false),
+                            }
+                          : undefined
+                      }
                     >
-                      <Avatar
-                        name={name}
-                        userId={split.user_id}
-                        avatarUrl={split.profile?.avatar_url}
-                        size={40}
-                      />
-                      <View className="flex-1">
-                        <Text className="text-sm font-bold text-ink">
-                          {name}
-                          {isSelf ? ' (you)' : ''}
-                        </Text>
-                        <Text className="text-xs text-ink-muted">
-                          {split.paid && split.paid_at
-                            ? `Paid ${formatTimeAgo(split.paid_at)}`
-                            : 'Not yet paid'}
-                        </Text>
-                      </View>
-                      <Text
-                        className={`text-base font-bold ${
-                          split.paid ? 'text-brand-600' : 'text-ink'
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: split.paid }}
+                        accessibilityLabel={`${name} — ${formatPeso(Number(split.amount_owed))} ${
+                          split.paid ? 'paid' : 'unpaid'
+                        }`}
+                        accessibilityHint="Double tap to switch between paid and unpaid"
+                        android_ripple={{ color: ripple.brand }}
+                        onPress={() => void togglePaid(split.id, !split.paid)}
+                        className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl border p-4 ${
+                          split.paid
+                            ? 'border-brand-200 bg-brand-50 active:bg-brand-100'
+                            : 'border-sand-200 bg-white active:bg-sand-100'
                         }`}
                       >
-                        {formatPeso(Number(split.amount_owed))}
-                      </Text>
-                      <Ionicons
-                        name={split.paid ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={22}
-                        color={split.paid ? '#218578' : '#C9BDAD'}
-                      />
-                    </Pressable>
+                        <Avatar
+                          name={name}
+                          userId={split.user_id}
+                          avatarUrl={split.profile?.avatar_url}
+                          size={40}
+                        />
+                        <View className="flex-1">
+                          <Text className="text-sm font-bold text-ink">
+                            {name}
+                            {isSelf ? ' (you)' : ''}
+                          </Text>
+                          <Text className="text-xs text-ink-muted">
+                            {split.paid && split.paid_at
+                              ? `Paid ${formatTimeAgo(split.paid_at)}`
+                              : 'Not yet paid'}
+                          </Text>
+                        </View>
+                        <Text
+                          className={`text-base font-bold ${
+                            split.paid ? 'text-brand-600' : 'text-ink'
+                          }`}
+                        >
+                          {formatPeso(Number(split.amount_owed))}
+                        </Text>
+                        <Ionicons
+                          name={split.paid ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={22}
+                          color={split.paid ? colors.brand[600] : colors.sand[400]}
+                        />
+                      </Pressable>
+                    </SwipeRow>
                   );
                 })
             )}
           </View>
           <Text className="mt-2 px-1 text-xs text-ink-muted">
-            Tap a name to mark it paid or unpaid.
+            Tap a name to mark it paid or unpaid — or swipe the row across.
           </Text>
         </View>
 

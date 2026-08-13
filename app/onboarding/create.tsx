@@ -9,6 +9,7 @@ import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
+import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 import { useSessionStore } from '../../src/store/useSessionStore';
 
@@ -56,7 +57,7 @@ export default function CreateHouseholdScreen() {
             hitSlop={8}
             className="h-10 w-10 items-center justify-center rounded-full bg-white"
           >
-            <Ionicons name="arrow-back" size={20} color="#1F2A2E" />
+            <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
           </Pressable>
 
           <View className="gap-2">
@@ -97,7 +98,7 @@ export default function CreateHouseholdScreen() {
 
           <View className="mt-auto gap-3">
             <View className="flex-row items-start gap-2 rounded-2xl bg-brand-50 p-4">
-              <Ionicons name="information-circle-outline" size={18} color="#218578" />
+              <Ionicons name="information-circle-outline" size={18} color={colors.brand[600]} />
               <Text className="flex-1 text-sm leading-5 text-brand-700">
                 We'll generate a 6-character invite code you can send to your housemates.
               </Text>

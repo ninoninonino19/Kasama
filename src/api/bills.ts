@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { addDays, fromDateString, toDateString, todayString } from '../lib/format';
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
 import type { BalanceSummary, BillWithSplits } from '../types';
 
@@ -113,6 +114,32 @@ export function billOutstanding(bill: BillWithSplits): number {
   return bill.splits
     .filter((split) => !split.paid)
     .reduce((total, split) => total + Number(split.amount_owed), 0);
+}
+
+/** How many of the splits are settled — drives the "2 of 3 paid" indicator. */
+export function billProgress(bill: BillWithSplits): { paid: number; total: number; ratio: number } {
+  const total = bill.splits.length;
+  const paid = bill.splits.filter((split) => split.paid).length;
+  return { paid, total, ratio: total === 0 ? 0 : paid / total };
+}
+
+export type BillStatus = 'settled' | 'overdue' | 'due-soon' | 'open';
+
+/** Days from today at which an unpaid bill starts reading as urgent. */
+const DUE_SOON_DAYS = 3;
+
+/**
+ * One place that decides how a bill reads, so the dashboard, the list and the
+ * detail screen can never disagree about whether something is overdue.
+ */
+export function billStatus(bill: BillWithSplits, today = todayString()): BillStatus {
+  if (isBillSettled(bill)) return 'settled';
+  if (!bill.due_date) return 'open';
+
+  const due = bill.due_date.slice(0, 10);
+  if (due < today) return 'overdue';
+
+  return due <= toDateString(addDays(fromDateString(today), DUE_SOON_DAYS)) ? 'due-soon' : 'open';
 }
 
 export function summariseBalance(bills: BillWithSplits[], userId: string): BalanceSummary {

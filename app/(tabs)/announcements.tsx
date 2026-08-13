@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 
 import { deleteAnnouncement } from '../../src/api/announcements';
 import { Avatar } from '../../src/components/ui/Avatar';
-import { Fab } from '../../src/components/ui/Fab';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { EmptyState, ErrorState, InlineError } from '../../src/components/ui/States';
@@ -14,11 +13,13 @@ import { useAnnouncements } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
-import { useCurrentUserId, useHousehold, useSessionStore } from '../../src/store/useSessionStore';
+import { colors } from '../../src/lib/theme';
+import { useCurrentUserId, useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 
 export default function AnnouncementsScreen() {
   const router = useRouter();
   const household = useHousehold();
+  const profile = useProfile();
   const userId = useCurrentUserId();
   const role = useSessionStore((state) => state.role);
   const { data, loading, refreshing, error, refresh } = useAnnouncements();
@@ -70,13 +71,13 @@ export default function AnnouncementsScreen() {
         <FlatList
           data={announcements}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="gap-3 px-5 pb-28"
+          contentContainerClassName="gap-3 px-5 pb-4"
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh()}
-              tintColor="#2FA396"
+              tintColor={colors.brand[500]}
             />
           }
           renderItem={({ item }) => {
@@ -108,7 +109,7 @@ export default function AnnouncementsScreen() {
                       // 44pt tap area around a visually small control.
                       className="h-11 w-11 items-center justify-center rounded-full active:bg-sand-100"
                     >
-                      <Ionicons name="ellipsis-horizontal" size={18} color="#A99B89" />
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
                     </Pressable>
                   ) : null}
                 </View>
@@ -128,12 +129,55 @@ export default function AnnouncementsScreen() {
         />
       )}
 
-      <Fab
-        icon="create-outline"
-        label="Post"
-        accessibilityLabel="Post an announcement"
+      <ComposeBar
+        name={profile?.display_name ?? 'You'}
+        userId={userId ?? 'me'}
+        avatarUrl={profile?.avatar_url}
         onPress={() => router.push('/announcements/new')}
       />
     </Screen>
+  );
+}
+
+/**
+ * Compose affordance pinned under the feed, where a chat app puts it.
+ *
+ * It is a button dressed as an input rather than a live text field: writing
+ * happens on the full-screen composer, which has room for a few lines and
+ * doesn't have to share the bottom of the screen with the tab bar once the
+ * keyboard is up. Tapping anywhere along the bar goes straight there, which is
+ * a bigger and more obvious target than the floating button it replaces.
+ */
+function ComposeBar({
+  name,
+  userId,
+  avatarUrl,
+  onPress,
+}: {
+  name: string;
+  userId: string;
+  avatarUrl?: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <View className="border-t border-sand-200 bg-white px-4 py-3">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Post an announcement"
+        onPress={() => {
+          haptics.tap();
+          onPress();
+        }}
+        className="min-h-[48px] flex-row items-center gap-3 rounded-full border border-sand-300 bg-sand-50 py-2 pl-2 pr-2 active:bg-sand-100"
+      >
+        <Avatar name={name} userId={userId} avatarUrl={avatarUrl} size={32} />
+        <Text className="flex-1 text-sm text-ink-muted" numberOfLines={1}>
+          Ano'ng balita sa bahay?
+        </Text>
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-500">
+          <Ionicons name="send" size={16} color={colors.white} />
+        </View>
+      </Pressable>
+    </View>
   );
 }

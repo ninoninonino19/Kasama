@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { Link } from 'expo-router';
 
 import { Button } from '../../src/components/ui/Button';
+import { Logo } from '../../src/components/ui/Logo';
 import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
@@ -44,8 +45,8 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View className="gap-2">
-            <View className="mb-2 h-16 w-16 items-center justify-center rounded-3xl bg-brand-500">
-              <Text className="text-2xl font-bold text-white">K</Text>
+            <View className="mb-2">
+              <Logo />
             </View>
             <Text className="text-3xl font-bold text-ink">Welcome back!</Text>
             <Text className="text-base leading-6 text-ink-soft">

@@ -39,9 +39,20 @@ export function Skeleton({
 }
 
 /** Matches the shape of a BillRow / chore card so nothing shifts on load. */
-export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+export function ListSkeleton({
+  rows = 3,
+  /** Off when the caller already pads its own content, as the dashboard does. */
+  padded = true,
+}: {
+  rows?: number;
+  padded?: boolean;
+}) {
   return (
-    <View className="gap-3 px-5" accessibilityLabel="Loading" accessibilityRole="progressbar">
+    <View
+      className={`gap-3 ${padded ? 'px-5' : ''}`}
+      accessibilityLabel="Loading"
+      accessibilityRole="progressbar"
+    >
       {Array.from({ length: rows }).map((_, index) => (
         <View key={index} className="rounded-2xl border border-sand-200 bg-white p-4">
           <View className="flex-row items-center gap-3">
@@ -73,7 +84,13 @@ export function DashboardSkeleton() {
           <Skeleton width="47%" height={58} rounded={16} className="bg-white/20" />
         </View>
       </View>
-      <ListSkeleton rows={2} />
+      {/* Quick actions, so the row doesn't pop in under the balance card. */}
+      <View className="flex-row gap-3">
+        <Skeleton width="47%" height={52} rounded={16} />
+        <Skeleton width="47%" height={52} rounded={16} />
+      </View>
+      {/* The dashboard already pads its scroll content. */}
+      <ListSkeleton rows={2} padded={false} />
     </View>
   );
 }

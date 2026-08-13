@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { haptics } from '../../lib/haptics';
+import { colors, ripple } from '../../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'md' | 'lg';
@@ -53,20 +54,26 @@ export function Button({
         haptics.tap();
         onPress?.();
       }}
-      android_ripple={{ color: variant === 'primary' ? '#ffffff30' : '#2FA39620' }}
+      android_ripple={{ color: variant === 'primary' ? ripple.light : ripple.brand }}
       className={`flex-row items-center justify-center rounded-2xl ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
       } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#218578'} />
+        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.brand[600]} />
       ) : (
         <View className="flex-row items-center gap-2">
           {icon ? (
             <Ionicons
               name={icon}
               size={size === 'lg' ? 20 : 18}
-              color={variant === 'primary' ? '#FFFFFF' : variant === 'danger' ? '#D64827' : '#218578'}
+              color={
+                variant === 'primary'
+                  ? colors.white
+                  : variant === 'danger'
+                    ? colors.coral[600]
+                    : colors.brand[600]
+              }
             />
           ) : null}
           <Text
