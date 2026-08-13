@@ -233,8 +233,12 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- The creator of a household is automatically its first admin member. This also
--- lets `insert ... returning` succeed, since the select policy needs membership.
+-- The creator of a household is automatically its first admin member.
+--
+-- Note this fires at the END of the insert statement, which is too late for a
+-- `RETURNING` clause — the select policy is evaluated before it runs. That is
+-- why creating a household goes through public.create_household() instead of a
+-- direct insert; see the follow-up migration.
 create or replace function public.handle_new_household()
 returns trigger
 language plpgsql

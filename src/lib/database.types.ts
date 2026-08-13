@@ -230,6 +230,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      create_household: {
+        Args: { household_name: string };
+        Returns: Database['public']['Tables']['households']['Row'];
+      };
       join_household_by_code: {
         Args: { code: string };
         Returns: Database['public']['Tables']['households']['Row'];

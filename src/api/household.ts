@@ -45,15 +45,21 @@ export async function fetchMembers(householdId: string): Promise<MemberWithProfi
   return (data ?? []).filter((row) => row.profile) as unknown as MemberWithProfile[];
 }
 
-export async function createHousehold(name: string, userId: string): Promise<Household> {
-  const { data, error } = await supabase
-    .from('households')
-    .insert({ name: name.trim(), created_by: userId })
-    .select('*')
-    .single();
+/**
+ * Creating a household goes through a SECURITY DEFINER function rather than a
+ * direct insert. The app needs the generated invite code back, and Postgres
+ * applies the SELECT policy to `RETURNING` rows — which the creator cannot
+ * satisfy yet, because the trigger that makes them a member only fires at the
+ * end of the statement. The function creates the household and the membership
+ * together and returns the row.
+ */
+export async function createHousehold(name: string): Promise<Household> {
+  const { data, error } = await supabase.rpc('create_household', {
+    household_name: name.trim(),
+  });
 
   if (error) throw error;
-  return data;
+  return data as Household;
 }
 
 /**
