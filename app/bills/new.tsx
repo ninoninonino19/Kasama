@@ -29,15 +29,20 @@ export default function NewBillScreen() {
   const [recurrence, setRecurrence] = useState<BillRecurrence>('monthly');
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
-  const [participants, setParticipants] = useState<string[]>(() =>
-    members.map((member) => member.user_id)
-  );
+  // `null` means "nobody has touched this yet", so the default stays in sync
+  // with the member list even if it loads after this screen mounts.
+  const [chosenParticipants, setChosenParticipants] = useState<string[] | null>(null);
   const [customMode, setCustomMode] = useState(false);
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const amount = Number.parseFloat(amountText.replace(/,/g, '')) || 0;
+
+  const participants = useMemo(
+    () => chosenParticipants ?? members.map((member) => member.user_id),
+    [chosenParticipants, members]
+  );
 
   const evenShares = useMemo(
     () => splitEvenly(amount, participants.length),
@@ -65,11 +70,12 @@ export default function NewBillScreen() {
     title.trim().length > 0 && amount > 0 && participants.length > 0 && splitsBalance && !submitting;
 
   function toggleParticipant(memberId: string) {
-    setParticipants((current) =>
-      current.includes(memberId)
-        ? current.filter((id) => id !== memberId)
-        : [...current, memberId]
-    );
+    setChosenParticipants((current) => {
+      const base = current ?? members.map((member) => member.user_id);
+      return base.includes(memberId)
+        ? base.filter((id) => id !== memberId)
+        : [...base, memberId];
+    });
   }
 
   async function handleSubmit() {

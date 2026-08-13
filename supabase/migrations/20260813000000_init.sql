@@ -386,12 +386,21 @@ create policy "members readable by housemates"
   to authenticated
   using (public.is_household_member(household_id));
 
--- Direct self-insert is allowed so a member row can be created alongside a new
--- household; joining an existing household goes through join_household_by_code.
-create policy "members insert self"
+-- Membership is only ever created two ways: the trigger that makes the creator
+-- an admin, and join_household_by_code (both SECURITY DEFINER). This policy is
+-- the narrow fallback for the creator's own row — without the `created_by`
+-- check, anyone who learned a household's UUID could add themselves to it and
+-- skip the invite code entirely.
+create policy "members insert self into own household"
   on public.household_members for insert
   to authenticated
-  with check (user_id = auth.uid());
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.households h
+      where h.id = household_id and h.created_by = auth.uid()
+    )
+  );
 
 create policy "members role managed by admins"
   on public.household_members for update

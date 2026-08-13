@@ -17,13 +17,9 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#218578',
         tabBarInactiveTintColor: '#A99B89',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#EFE9E1',
-          height: 62,
-          paddingTop: 6,
-          paddingBottom: 8,
-        },
+        // Height and bottom inset are left to react-navigation, which already
+        // accounts for the home indicator on both platforms.
+        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#EFE9E1' },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         sceneStyle: { backgroundColor: '#FCFAF7' },
       }}

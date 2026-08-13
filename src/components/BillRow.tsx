@@ -27,7 +27,7 @@ export function BillRow({ bill, onPress }: { bill: BillWithSplits; onPress: () =
           <Text className="text-base font-bold text-ink" numberOfLines={1}>
             {bill.title}
           </Text>
-          <Text className="mt-0.5 text-xs text-ink-muted">
+          <Text className="mt-0.5 text-xs text-ink-muted" numberOfLines={1}>
             {meta.subtitle}
             {bill.due_date ? ` · Due ${formatRelativeDate(bill.due_date)}` : ''}
           </Text>
