@@ -55,7 +55,3 @@ export const useHousehold = () => useSessionStore((state) => state.household);
 export const useMembers = () => useSessionStore((state) => state.members);
 export const useProfile = () => useSessionStore((state) => state.profile);
 
-export function memberName(members: MemberWithProfile[], userId: string, selfId?: string | null) {
-  if (selfId && userId === selfId) return 'You';
-  return members.find((member) => member.user_id === userId)?.profile.display_name ?? 'Housemate';
-}

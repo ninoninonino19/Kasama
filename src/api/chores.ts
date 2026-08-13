@@ -96,15 +96,6 @@ export async function setAssignmentCompleted(
   if (insertError) throw insertError;
 }
 
-export async function reassign(assignmentId: string, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('chore_assignments')
-    .update({ user_id: userId })
-    .eq('id', assignmentId);
-
-  if (error) throw error;
-}
-
 // ---------------------------------------------------------------------------
 // Rotation helpers
 // ---------------------------------------------------------------------------
@@ -139,16 +130,3 @@ export function openAssignment(chore: ChoreWithAssignments): AssignmentWithProfi
   return chore.assignments.find((assignment) => !assignment.completed) ?? null;
 }
 
-export function assignmentsInRange(
-  chores: ChoreWithAssignments[],
-  start: Date,
-  end: Date
-): { chore: ChoreWithAssignments; assignment: AssignmentWithProfile }[] {
-  const from = toDateString(start);
-  const to = toDateString(end);
-
-  return chores
-    .flatMap((chore) => chore.assignments.map((assignment) => ({ chore, assignment })))
-    .filter(({ assignment }) => assignment.due_date >= from && assignment.due_date <= to)
-    .sort((a, b) => a.assignment.due_date.localeCompare(b.assignment.due_date));
-}

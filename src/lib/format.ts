@@ -9,12 +9,6 @@ export function formatPeso(amount: number): string {
   return `${sign}₱${grouped}.${fraction}`;
 }
 
-/** ₱1,250 — drops the centavos when they are zero. Used in tight spaces. */
-export function formatPesoCompact(amount: number): string {
-  const formatted = formatPeso(amount);
-  return formatted.endsWith('.00') ? formatted.slice(0, -3) : formatted;
-}
-
 /** `2026-08-13` in the device's local timezone (Postgres `date` columns). */
 export function toDateString(date: Date): string {
   const year = date.getFullYear();
