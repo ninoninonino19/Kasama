@@ -77,6 +77,7 @@ npx expo start --clear
 
 ```bash
 npm start          # then scan the QR code with Expo Go
+npm run tunnel     # same, but routed over the internet — see below
 npm run android
 npm run ios
 npm run web        # handy for quick UI checks
@@ -87,6 +88,43 @@ Useful checks:
 ```bash
 npm run typecheck  # tsc --noEmit
 ```
+
+### Troubleshooting Expo Go on Android
+
+Every native module this app uses (gesture-handler, reanimated, worklets, screens,
+safe-area-context, async-storage, datetimepicker and the `expo-*` packages) ships inside
+Expo Go, so no custom dev build is needed. If the QR code won't load, it is almost always
+one of these three:
+
+**1. Expo Go is a different SDK version.** The Play Store build of Expo Go supports one SDK
+at a time, and this project is on **SDK 57** (`expo@57`, React Native 0.86). If the phone
+says the project is incompatible, update Expo Go from the Play Store. If Expo Go has since
+moved past SDK 57, upgrade the project instead:
+
+```bash
+npx expo install --fix        # align packages with the installed SDK
+npx expo-doctor               # reports version mismatches
+```
+
+**2. The phone can't reach your computer.** By default Metro serves over the local network,
+so both devices have to be on the same Wi-Fi — and many dorm, campus and café networks block
+devices from talking to each other (client isolation), which looks like the QR scanning
+forever and timing out. Route around it:
+
+```bash
+npm run tunnel                # expo start --tunnel
+```
+
+The first run installs `@expo/ngrok` and is slower to refresh, but it works from any network,
+including mobile data.
+
+**3. A firewall is blocking port 8081.** On Windows, allow Node through the Windows Defender
+prompt (or `netsh advfirewall firewall add rule name="Metro" dir=in action=allow protocol=TCP
+localport=8081`). On Linux with ufw: `sudo ufw allow 8081/tcp`. The tunnel above sidesteps
+this too.
+
+Still stuck? `npx expo start --clear` clears a stale Metro cache, and the error shown *on the
+phone* is the useful one — it names which of the three you're hitting.
 
 ---
 
