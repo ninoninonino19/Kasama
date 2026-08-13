@@ -30,7 +30,7 @@ export default function CreateHouseholdScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await createHousehold(name, userId);
+      await createHousehold(name);
       // Layout guard sends us to the dashboard as soon as the household lands.
       await refreshHousehold();
     } catch (caught) {
