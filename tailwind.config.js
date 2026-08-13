@@ -2,6 +2,10 @@
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // Required on web: with Tailwind's default `media` strategy, NativeWind's
+  // color-scheme observer throws when the dev server injects the stylesheet.
+  // Kasama is a light-only app, so this flag just keeps that path quiet.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
