@@ -62,10 +62,15 @@ export default function NewChoreScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-sand-50"
     >
-      <ScrollView contentContainerClassName="gap-6 p-5 pb-10" keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerClassName="gap-6 p-5 pb-10"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View className="gap-4">
           <TextField
             label="Chore"
+            autoFocus
             placeholder="e.g. Hugas plato"
             value={title}
             onChangeText={setTitle}

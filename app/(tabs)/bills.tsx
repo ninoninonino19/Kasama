@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { isBillSettled, summariseBalance } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
-import { EmptyState, ErrorState, LoadingState } from '../../src/components/ui/States';
+import { EmptyState, ErrorState } from '../../src/components/ui/States';
+import { Fab } from '../../src/components/ui/Fab';
+import { ListSkeleton } from '../../src/components/ui/Skeleton';
+import { haptics } from '../../src/lib/haptics';
 import { useBills } from '../../src/hooks/useHouseholdData';
+import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso } from '../../src/lib/format';
 import { useCurrentUserId } from '../../src/store/useSessionStore';
 
@@ -19,6 +22,9 @@ export default function BillsScreen() {
   const userId = useCurrentUserId();
   const { data, loading, refreshing, error, refresh } = useBills();
   const [filter, setFilter] = useState<Filter>('unpaid');
+
+  // Returning from the "new bill" modal should show it straight away.
+  useRefreshOnFocus(refresh);
 
   const bills = useMemo(() => data ?? [], [data]);
 
@@ -42,16 +48,6 @@ export default function BillsScreen() {
             ? `You still owe ${formatPeso(balance.owed)}`
             : 'Wala kang utang — all clear!'
         }
-        right={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add a bill"
-            onPress={() => router.push('/bills/new')}
-            className="h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 active:bg-brand-600"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </Pressable>
-        }
       />
 
       <View className="flex-row gap-2 px-5 pb-3">
@@ -60,13 +56,16 @@ export default function BillsScreen() {
             key={option}
             label={option === 'unpaid' ? 'Unpaid' : option === 'paid' ? 'Settled' : 'All'}
             selected={filter === option}
-            onPress={() => setFilter(option)}
+            onPress={() => {
+              haptics.select();
+              setFilter(option);
+            }}
           />
         ))}
       </View>
 
       {loading ? (
-        <LoadingState label="Kinukuha ang bills…" />
+        <ListSkeleton rows={4} />
       ) : error && bills.length === 0 ? (
         <View className="px-5">
           <ErrorState message={error} onRetry={() => void refresh()} />
@@ -75,7 +74,8 @@ export default function BillsScreen() {
         <FlatList
           data={visible}
           keyExtractor={(bill) => bill.id}
-          contentContainerClassName="gap-3 px-5 pb-8"
+          contentContainerClassName="gap-3 px-5 pb-28"
+          keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -118,6 +118,8 @@ export default function BillsScreen() {
           }
         />
       )}
+
+      <Fab accessibilityLabel="Add a bill" onPress={() => router.push('/bills/new')} />
     </Screen>
   );
 }

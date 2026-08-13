@@ -13,6 +13,7 @@ import { SectionTitle } from '../src/components/ui/Screen';
 import { InlineError, LoadingState } from '../src/components/ui/States';
 import { TextField } from '../src/components/ui/TextField';
 import { messageFrom } from '../src/hooks/useAsyncData';
+import { haptics } from '../src/lib/haptics';
 import { formatShortDate } from '../src/lib/format';
 import { useSession } from '../src/providers/SessionProvider';
 import { useSessionStore } from '../src/store/useSessionStore';
@@ -81,6 +82,7 @@ export default function SettingsScreen() {
   async function copyCode() {
     if (!household) return;
     await Clipboard.setStringAsync(household.invite_code);
+    haptics.success();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -146,7 +148,8 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-sand-50" contentContainerClassName="gap-6 p-5 pb-12">
+    <ScrollView className="flex-1 bg-sand-50" contentContainerClassName="gap-6 p-5 pb-12"
+      keyboardDismissMode="on-drag">
       {error ? <InlineError message={error} /> : null}
 
       {/* Invite code ---------------------------------------------------- */}
