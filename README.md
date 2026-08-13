@@ -18,7 +18,7 @@ iOS and Android.
 
 | Concern | Choice |
 | --- | --- |
-| App framework | Expo SDK 57 + React Native 0.86, TypeScript |
+| App framework | Expo SDK 54 + React Native 0.81, TypeScript |
 | Navigation | Expo Router (file-based, typed routes) |
 | Styling | NativeWind v4 (Tailwind CSS v3) |
 | Backend | Supabase — Postgres, Auth (email/password), Realtime |
@@ -97,13 +97,14 @@ Expo Go, so no custom dev build is needed. If the QR code won't load, it is almo
 one of these three:
 
 **1. Expo Go is a different SDK version.** The Play Store build of Expo Go supports one SDK
-at a time, and this project is on **SDK 57** (`expo@57`, React Native 0.86). If the phone
-says the project is incompatible, update Expo Go from the Play Store. If Expo Go has since
-moved past SDK 57, upgrade the project instead:
+at a time. This project is pinned to **SDK 54** (`expo@54`, React Native 0.81) to match what
+Expo Go on Android currently ships — that pin is deliberate, so don't bump the Expo packages
+without checking the phone first. When Expo Go does move to a newer SDK:
 
 ```bash
-npx expo install --fix        # align packages with the installed SDK
-npx expo-doctor               # reports version mismatches
+npx expo install expo@^<new-sdk>   # then re-pin the rest
+npx expo install --fix             # align packages with the installed SDK
+npx expo-doctor                    # reports version mismatches
 ```
 
 **2. The phone can't reach your computer.** By default Metro serves over the local network,
