@@ -109,10 +109,15 @@ export default function NewBillScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-sand-50"
     >
-      <ScrollView contentContainerClassName="gap-6 p-5 pb-10" keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerClassName="gap-6 p-5 pb-10"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View className="gap-4">
           <TextField
             label="What's this for?"
+            autoFocus
             placeholder="e.g. Kuryente ng Agosto"
             value={title}
             onChangeText={setTitle}

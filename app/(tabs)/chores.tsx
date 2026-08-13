@@ -8,9 +8,13 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { Badge } from '../../src/components/ui/Chip';
 import { Card } from '../../src/components/ui/Card';
 import { Screen, ScreenHeader, SectionTitle } from '../../src/components/ui/Screen';
-import { EmptyState, ErrorState, InlineError, LoadingState } from '../../src/components/ui/States';
+import { EmptyState, ErrorState, InlineError } from '../../src/components/ui/States';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { useChores } from '../../src/hooks/useHouseholdData';
+import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
+import { Fab } from '../../src/components/ui/Fab';
+import { ListSkeleton } from '../../src/components/ui/Skeleton';
+import { haptics } from '../../src/lib/haptics';
 import { endOfWeek, formatRelativeDate, startOfWeek, toDateString, todayString } from '../../src/lib/format';
 import { useCurrentUserId, useMembers } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments, MemberWithProfile } from '../../src/types';
@@ -19,10 +23,11 @@ export default function ChoresScreen() {
   const router = useRouter();
   const userId = useCurrentUserId();
   const members = useMembers();
-  const { data, loading, refreshing, error, refresh } = useChores();
+  const { data, loading, refreshing, error, refresh, setData } = useChores();
 
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useRefreshOnFocus(refresh);
 
   const chores = useMemo(() => data ?? [], [data]);
 
@@ -56,20 +61,47 @@ export default function ChoresScreen() {
       );
   }, [chores, weekEnd]);
 
+  /**
+   * Ticks the box straight away rather than after the round trip — completing a
+   * chore should feel instant. The server may also queue the next turn in the
+   * rotation, so a silent refetch follows either way.
+   */
   const handleToggle = useCallback(
     async (chore: ChoreWithAssignments, assignment: AssignmentWithProfile, completed: boolean) => {
-      setBusyId(assignment.id);
+      haptics.select();
       setActionError(null);
+
+      setData(
+        (current) =>
+          current?.map((entry) =>
+            entry.id === chore.id
+              ? {
+                  ...entry,
+                  assignments: entry.assignments.map((item) =>
+                    item.id === assignment.id
+                      ? {
+                          ...item,
+                          completed,
+                          completed_at: completed ? new Date().toISOString() : null,
+                        }
+                      : item
+                  ),
+                }
+              : entry
+          ) ?? current
+      );
+
       try {
         await setAssignmentCompleted(chore, assignment, completed, members);
+        if (completed) haptics.success();
         await refresh({ silent: true });
       } catch (caught) {
+        haptics.error();
         setActionError(messageFrom(caught));
-      } finally {
-        setBusyId(null);
+        await refresh({ silent: true });
       }
     },
-    [members, refresh]
+    [members, refresh, setData]
   );
 
   const hasOpenWork = overdue.length + thisWeek.length + upcoming.length > 0;
@@ -83,27 +115,18 @@ export default function ChoresScreen() {
             ? `${overdue.length + thisWeek.length} due this week`
             : 'Walang pending — salamat, mga kasama!'
         }
-        right={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add a chore"
-            onPress={() => router.push('/chores/new')}
-            className="h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 active:bg-brand-600"
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </Pressable>
-        }
       />
 
       {loading ? (
-        <LoadingState label="Kinukuha ang chores…" />
+        <ListSkeleton rows={3} />
       ) : error && chores.length === 0 ? (
         <View className="px-5">
           <ErrorState message={error} onRetry={() => void refresh()} />
         </View>
       ) : (
         <ScrollView
-          contentContainerClassName="gap-6 px-5 pb-10"
+          contentContainerClassName="gap-6 px-5 pb-28"
+          keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -135,7 +158,6 @@ export default function ChoresScreen() {
                     assignment={assignment}
                     userId={userId}
                     members={members}
-                    busy={busyId === assignment.id}
                     overdue
                     onToggle={handleToggle}
                   />
@@ -155,7 +177,6 @@ export default function ChoresScreen() {
                     assignment={assignment}
                     userId={userId}
                     members={members}
-                    busy={busyId === assignment.id}
                     onToggle={handleToggle}
                   />
                 ))}
@@ -174,7 +195,6 @@ export default function ChoresScreen() {
                     assignment={assignment}
                     userId={userId}
                     members={members}
-                    busy={busyId === assignment.id}
                     onToggle={handleToggle}
                   />
                 ))}
@@ -208,9 +228,10 @@ export default function ChoresScreen() {
                     </View>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Mark as not done"
-                      hitSlop={8}
+                      accessibilityLabel={`Mark ${chore.title} as not done`}
+                      hitSlop={12}
                       onPress={() => void handleToggle(chore, assignment, false)}
+                      className="min-h-[44px] justify-center px-2"
                     >
                       <Text className="text-xs font-semibold text-ink-muted">Undo</Text>
                     </Pressable>
@@ -221,6 +242,8 @@ export default function ChoresScreen() {
           ) : null}
         </ScrollView>
       )}
+
+      <Fab accessibilityLabel="Add a chore" onPress={() => router.push('/chores/new')} />
     </Screen>
   );
 }
@@ -230,7 +253,6 @@ function ChoreCard({
   assignment,
   userId,
   members,
-  busy,
   overdue = false,
   onToggle,
 }: {
@@ -238,7 +260,6 @@ function ChoreCard({
   assignment: AssignmentWithProfile;
   userId: string | null;
   members: MemberWithProfile[];
-  busy: boolean;
   overdue?: boolean;
   onToggle: (
     chore: ChoreWithAssignments,
@@ -257,19 +278,18 @@ function ChoreCard({
     <View
       className={`rounded-2xl border p-4 ${
         overdue ? 'border-coral-200 bg-coral-50' : 'border-sand-200 bg-white'
-      } ${busy ? 'opacity-60' : ''}`}
+      }`}
     >
       <View className="flex-row items-center gap-3">
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityState={{ checked: assignment.completed, busy }}
+          accessibilityState={{ checked: assignment.completed }}
           accessibilityLabel={`Mark ${chore.title} as done`}
-          disabled={busy}
-          hitSlop={8}
+          hitSlop={16}
           onPress={() => onToggle(chore, assignment, true)}
-          className="h-7 w-7 items-center justify-center rounded-lg border-2 border-brand-400"
+          className="h-8 w-8 items-center justify-center rounded-lg border-2 border-brand-400 active:bg-brand-100"
         >
-          {assignment.completed ? <Ionicons name="checkmark" size={18} color="#218578" /> : null}
+          {assignment.completed ? <Ionicons name="checkmark" size={20} color="#218578" /> : null}
         </Pressable>
 
         <View className="flex-1">

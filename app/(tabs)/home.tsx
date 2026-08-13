@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -9,10 +9,13 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { Badge } from '../../src/components/ui/Chip';
 import { Card } from '../../src/components/ui/Card';
 import { Screen, SectionTitle } from '../../src/components/ui/Screen';
-import { EmptyState, ErrorState, LoadingState } from '../../src/components/ui/States';
+import { EmptyState, ErrorState } from '../../src/components/ui/States';
+import { DashboardSkeleton } from '../../src/components/ui/Skeleton';
 import { useAnnouncements, useBills, useChores } from '../../src/hooks/useHouseholdData';
+import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { endOfWeek, formatPeso, formatRelativeDate, formatTimeAgo, toDateString, todayString } from '../../src/lib/format';
 import { categoryMeta } from '../../src/lib/categories';
+import { haptics } from '../../src/lib/haptics';
 import { useCurrentUserId, useHousehold, useProfile } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments } from '../../src/types';
 
@@ -56,20 +59,38 @@ export default function HomeScreen() {
 
   const myChores = dueThisWeek.filter(({ assignment }) => assignment.user_id === userId);
 
-  function refreshAll() {
-    void bills.refresh();
-    void chores.refresh();
-    void announcements.refresh();
-  }
+  // Depend on the refresh functions themselves, which useAsyncData keeps stable.
+  // Depending on the hook results instead gives this callback a new identity on
+  // every render, which turns the focus effect below into a refetch loop.
+  const refreshBills = bills.refresh;
+  const refreshChores = chores.refresh;
+  const refreshAnnouncements = announcements.refresh;
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      refreshBills({ silent: true }),
+      refreshChores({ silent: true }),
+      refreshAnnouncements({ silent: true }),
+    ]);
+  }, [refreshBills, refreshChores, refreshAnnouncements]);
+
+  // The dashboard summarises the other three tabs, so it goes stale the fastest.
+  useRefreshOnFocus(refreshAll);
 
   const firstName = profile?.display_name.split(' ')[0] ?? 'kasama';
 
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="gap-6 px-5 pb-10 pt-2"
+        contentContainerClassName="gap-6 px-5 pb-24 pt-2"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor="#2FA396" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void Promise.all([refreshBills(), refreshChores(), refreshAnnouncements()]);
+            }}
+            tintColor="#2FA396"
+          />
         }
       >
         <View className="flex-row items-center justify-between">
@@ -85,7 +106,10 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"
-            onPress={() => router.push('/settings')}
+            onPress={() => {
+              haptics.tap();
+              router.push('/settings');
+            }}
             className="h-11 w-11 items-center justify-center rounded-2xl bg-white active:bg-sand-100"
           >
             <Ionicons name="settings-outline" size={20} color="#5A6A6F" />
@@ -93,10 +117,10 @@ export default function HomeScreen() {
         </View>
 
         {loading ? (
-          <LoadingState label="Inaayos ang dashboard…" />
+          <DashboardSkeleton />
         ) : (
           <>
-            {error ? <ErrorState message={error} onRetry={refreshAll} /> : null}
+            {error ? <ErrorState message={error} onRetry={() => void refreshAll()} /> : null}
 
             {/* Balance ------------------------------------------------- */}
             <View className="rounded-3xl bg-brand-600 p-5">

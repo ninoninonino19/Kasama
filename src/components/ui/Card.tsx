@@ -12,7 +12,12 @@ export function Card({ children, onPress, className = '' }: Props) {
 
   if (onPress) {
     return (
-      <Pressable accessibilityRole="button" onPress={onPress} className={`${base} active:bg-sand-50`}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        android_ripple={{ color: '#2FA39615' }}
+        className={`${base} active:bg-sand-50`}
+      >
         {children}
       </Pressable>
     );

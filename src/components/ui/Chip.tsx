@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
+import { haptics } from '../../lib/haptics';
+
 type ChipProps = {
   label: string;
   selected?: boolean;
@@ -15,14 +17,23 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
     </Text>
   );
 
-  const className = `items-center justify-center rounded-full border px-4 py-2 ${
+  // min-h-11 keeps every chip at the 44pt minimum touch target.
+  const className = `min-h-11 items-center justify-center rounded-full border px-4 py-2 ${
     selected ? 'border-brand-500 bg-brand-500' : 'border-sand-300 bg-white'
   }`;
 
   if (!onPress) return <View className={className}>{content}</View>;
 
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} className={className}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      className={`${className} active:opacity-80`}
+    >
       {content}
     </Pressable>
   );

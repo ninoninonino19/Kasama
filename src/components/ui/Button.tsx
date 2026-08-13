@@ -2,6 +2,8 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
+import { haptics } from '../../lib/haptics';
+
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'md' | 'lg';
 
@@ -47,7 +49,11 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
-      onPress={onPress}
+      onPress={() => {
+        haptics.tap();
+        onPress?.();
+      }}
+      android_ripple={{ color: variant === 'primary' ? '#ffffff30' : '#2FA39620' }}
       className={`flex-row items-center justify-center rounded-2xl ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
       } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}

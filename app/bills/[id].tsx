@@ -11,6 +11,7 @@ import { Card } from '../../src/components/ui/Card';
 import { SectionTitle } from '../../src/components/ui/Screen';
 import { ErrorState, InlineError, LoadingState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
+import { haptics } from '../../src/lib/haptics';
 import { useRealtime } from '../../src/hooks/useRealtime';
 import { categoryMeta } from '../../src/lib/categories';
 import { formatPeso, formatRelativeDate, formatTimeAgo } from '../../src/lib/format';
@@ -22,13 +23,12 @@ export default function BillDetailScreen() {
   const userId = useCurrentUserId();
   const role = useSessionStore((state) => state.role);
 
-  const { data: bill, loading, refreshing, error, refresh } = useAsyncData(
+  const { data: bill, loading, refreshing, error, refresh, setData } = useAsyncData(
     id ? () => fetchBill(id) : null,
     [id]
   );
 
   const [actionError, setActionError] = useState<string | null>(null);
-  const [busySplitId, setBusySplitId] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
 
   const silentRefresh = useCallback(() => {
@@ -41,16 +41,36 @@ export default function BillDetailScreen() {
     silentRefresh
   );
 
+  /**
+   * Flips the row immediately and reconciles with the server afterwards. A
+   * round trip on mobile data is long enough that waiting for it makes the
+   * checkbox feel broken; on failure we surface the error and refetch, which
+   * puts the row back the way the server sees it.
+   */
   async function togglePaid(splitId: string, paid: boolean) {
-    setBusySplitId(splitId);
+    haptics.select();
     setActionError(null);
+
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            splits: current.splits.map((split) =>
+              split.id === splitId
+                ? { ...split, paid, paid_at: paid ? new Date().toISOString() : null }
+                : split
+            ),
+          }
+        : current
+    );
+
     try {
       await setSplitPaid(splitId, paid);
       await refresh({ silent: true });
     } catch (caught) {
+      haptics.error();
       setActionError(messageFrom(caught));
-    } finally {
-      setBusySplitId(null);
+      await refresh({ silent: true });
     }
   }
 
@@ -58,11 +78,22 @@ export default function BillDetailScreen() {
     if (!bill) return;
     setSettling(true);
     setActionError(null);
+
+    const stamp = new Date().toISOString();
+    setData((current) =>
+      current
+        ? { ...current, splits: current.splits.map((split) => ({ ...split, paid: true, paid_at: split.paid_at ?? stamp })) }
+        : current
+    );
+
     try {
       await settleWholeBill(bill.id);
+      haptics.success();
       await refresh({ silent: true });
     } catch (caught) {
+      haptics.error();
       setActionError(messageFrom(caught));
+      await refresh({ silent: true });
     } finally {
       setSettling(false);
     }
@@ -70,6 +101,7 @@ export default function BillDetailScreen() {
 
   function confirmDelete() {
     if (!bill) return;
+    haptics.tap();
     Alert.alert('Delete this bill?', 'Mawawala rin ang lahat ng splits nito.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -166,21 +198,23 @@ export default function BillDetailScreen() {
                 .map((split) => {
                   const name = split.profile?.display_name ?? 'Housemate';
                   const isSelf = split.user_id === userId;
-                  const busy = busySplitId === split.id;
 
                   return (
                     <Pressable
                       key={split.id}
                       accessibilityRole="checkbox"
-                      accessibilityState={{ checked: split.paid, busy }}
+                      accessibilityState={{ checked: split.paid }}
                       accessibilityLabel={`${name} — ${formatPeso(Number(split.amount_owed))} ${
                         split.paid ? 'paid' : 'unpaid'
                       }`}
-                      disabled={busy}
+                      accessibilityHint="Double tap to switch between paid and unpaid"
+                      android_ripple={{ color: '#2FA39620' }}
                       onPress={() => void togglePaid(split.id, !split.paid)}
-                      className={`flex-row items-center gap-3 rounded-2xl border p-4 ${
-                        split.paid ? 'border-brand-200 bg-brand-50' : 'border-sand-200 bg-white'
-                      } ${busy ? 'opacity-60' : ''}`}
+                      className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl border p-4 ${
+                        split.paid
+                          ? 'border-brand-200 bg-brand-50 active:bg-brand-100'
+                          : 'border-sand-200 bg-white active:bg-sand-100'
+                      }`}
                     >
                       <Avatar
                         name={name}

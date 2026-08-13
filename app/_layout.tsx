@@ -32,6 +32,10 @@ export default function RootLayout() {
               name="chores/new"
               options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
             />
+            <Stack.Screen
+              name="announcements/new"
+              options={{ presentation: 'modal', headerShown: true, title: 'New announcement' }}
+            />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
           </Stack>
         </SessionProvider>
