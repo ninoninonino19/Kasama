@@ -45,6 +45,21 @@ export const colors = {
   mustard: '#E8B94A',
   brick: '#C05B45',
   sage: '#A9BFA0',
+  /**
+   * Derived: low-saturation fills of the three accents, for pill and banner
+   * backgrounds. The accents themselves are far too loud behind text.
+   */
+  wash: {
+    mustard: '#F8EACB',
+    brick: '#F5E0DA',
+    sage: '#E3ECDE',
+  },
+  /** Derived: darkened accents, each 4.5:1 or better on its own wash. */
+  deep: {
+    mustard: '#7A5B12',
+    brick: '#8E3D2C',
+    sage: '#33502C',
+  },
   /** Near-black used for the tab bar and other "hardware" chrome. */
   bezel: '#1B211A',
   white: '#FFFFFF',

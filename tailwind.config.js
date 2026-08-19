@@ -29,6 +29,19 @@ module.exports = {
         brick: '#C05B45',
         // Soft green — settled, calm accents, streak fills.
         sage: '#A9BFA0',
+        // Derived: low-saturation fills of the accents, for pill and banner
+        // backgrounds — the accents themselves are too loud behind text.
+        wash: {
+          mustard: '#F8EACB',
+          brick: '#F5E0DA',
+          sage: '#E3ECDE',
+        },
+        // Derived: darkened accents, each 4.5:1 or better on its own wash.
+        deep: {
+          mustard: '#7A5B12',
+          brick: '#8E3D2C',
+          sage: '#33502C',
+        },
         // Near-black for the tab bar and other "hardware" chrome.
         bezel: '#1B211A',
 

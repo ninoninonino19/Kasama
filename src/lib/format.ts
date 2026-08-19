@@ -103,14 +103,19 @@ export function initials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-/** Deterministic soft colour per user id, so avatars stay stable. */
+/**
+ * Deterministic soft colour per user id, so avatars stay stable across
+ * screens and sessions. Muted earth tones so a row of six faces sits on the
+ * paper without competing with the mustard and brick the status pills use;
+ * every foreground clears 4.5:1 on its own background.
+ */
 const AVATAR_COLORS = [
-  { bg: '#D7F2EE', fg: '#1C6A61' },
-  { bg: '#FFE5DC', fg: '#B0381D' },
-  { bg: '#FDF0CE', fg: '#8A6516' },
-  { bg: '#E3E9FB', fg: '#334D9C' },
-  { bg: '#EDE3F8', fg: '#65409C' },
-  { bg: '#DFF1DC', fg: '#3B6E33' },
+  { bg: '#DCE7D4', fg: '#33502C' },
+  { bg: '#F6E4C8', fg: '#7A5B12' },
+  { bg: '#F0DAD3', fg: '#8E3D2C' },
+  { bg: '#D9E2E4', fg: '#2F4B50' },
+  { bg: '#E7DEEA', fg: '#5A3F63' },
+  { bg: '#E3E6D6', fg: '#4A5334' },
 ];
 
 export function avatarColors(seed: string) {
