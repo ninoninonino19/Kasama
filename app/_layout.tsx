@@ -96,7 +96,7 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="announcements/new"
-              options={{ presentation: 'modal', headerShown: true, title: 'New announcement' }}
+              options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
             />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
           </Stack>
