@@ -193,7 +193,15 @@ export default function BillDetailScreen() {
           <View className="mt-3 w-full gap-1.5">
             <ProgressBar
               ratio={progress.ratio}
-              tone={status === 'overdue' ? 'brick' : status === 'due-soon' ? 'mustard' : 'moss'}
+              tone={
+                status === 'settled'
+                  ? 'sage'
+                  : status === 'overdue'
+                    ? 'brick'
+                    : status === 'due-soon'
+                      ? 'mustard'
+                      : 'moss'
+              }
               height={8}
             />
             <View className="flex-row justify-between">

@@ -74,7 +74,7 @@ export function BillRow({
       </View>
 
       <View className="mt-3 gap-2 border-t border-line pt-2.5">
-        <ProgressBar ratio={progress.ratio} tone={status === 'settled' ? 'moss' : tone} />
+        <ProgressBar ratio={progress.ratio} tone={status === 'settled' ? 'sage' : tone} />
         <View className="flex-row items-center justify-between gap-2">
           <Text className="flex-1 font-ui text-xs text-ink-muted" numberOfLines={1}>
             {progress.paid} of {progress.total} paid

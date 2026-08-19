@@ -1,9 +1,12 @@
 import { View } from 'react-native';
 
-type Tone = 'moss' | 'mustard' | 'brick';
+type Tone = 'moss' | 'sage' | 'mustard' | 'brick';
 
 const FILL: Record<Tone, string> = {
   moss: 'bg-moss',
+  // A finished bar in full moss is the darkest thing on the card, which puts
+  // the loudest mark on the one row that needs nothing from you.
+  sage: 'bg-sage',
   mustard: 'bg-mustard',
   brick: 'bg-brick',
 };
