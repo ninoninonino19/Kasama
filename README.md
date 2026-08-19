@@ -21,6 +21,7 @@ iOS and Android.
 | App framework | Expo SDK 54 + React Native 0.81, TypeScript |
 | Navigation | Expo Router (file-based, typed routes) |
 | Styling | NativeWind v4 (Tailwind CSS v3) |
+| Type | Manrope, Caveat and IBM Plex Mono via `expo-font` (see *Design system*) |
 | Backend | Supabase — Postgres, Auth (email/password), Realtime |
 | Client state | Zustand (`src/store/useSessionStore.ts`) |
 | Session storage | `@supabase/supabase-js` + AsyncStorage |
@@ -137,19 +138,93 @@ app/                        # Expo Router routes
   index.tsx                 # entry redirect (auth → onboarding → tabs)
   auth/                     # sign-in, sign-up
   onboarding/               # create a household, or join with an invite code
-  (tabs)/                   # Home, Bills, Chores, Feed
+  (tabs)/                   # Home, Bills, Chores, Board
   bills/new.tsx, [id].tsx   # add a bill, per-person split detail
   chores/new.tsx            # add a chore
   settings.tsx              # household, members, invite code, leave / log out
 src/
   api/                      # Supabase queries, grouped by feature
-  components/ui/            # Button, Card, TextField, Avatar, states…
+  components/ui/            # NoteCard, Tape, Pill, Avatar, BoardTabBar, states…
   hooks/                    # useAsyncData, useRealtime, useHouseholdData
-  lib/                      # supabase client, formatting, categories, DB types
+  lib/                      # theme tokens, supabase client, formatting, DB types
   providers/                # SessionProvider (auth + household bootstrap)
   store/                    # Zustand session store
 supabase/migrations/        # schema + RLS + realtime setup
 ```
+
+---
+
+## Design system — "the shared fridge board"
+
+Kasama's job is to digitise something people already have: the whiteboard or the pile of
+sticky notes on a shared fridge. So cards read like pinned notes, the board reads like
+handwriting, and anything with a ledger quality — pesos, due dates, timestamps — is set in
+mono.
+
+**Tokens** live in two places that must stay in step: `src/lib/theme.ts` for values that
+have to be passed as props (icon tints, `RefreshControl`, placeholder text) and
+`tailwind.config.js` for the class names. Same hexes, same names.
+
+| Token | Use |
+| --- | --- |
+| `page` / `canvas` | The fridge door behind the notes; `canvas` is the scrolling screen |
+| `paper` | Every card. The one surface colour in the system |
+| `line` | Hairline borders and dividers |
+| `ink` / `ink-soft` / `ink-muted` | Text, in descending emphasis. `ink-faint` is decorative only |
+| `moss` / `moss-light` | Primary actions, active tab, "done" |
+| `mustard` | Money, "due soon", the default washi tape |
+| `brick` | Overdue, destructive, anything needing chasing |
+| `sage` | Settled, calm accents, streaks |
+| `wash-*` / `deep-*` | Derived pale fills and their readable foregrounds, for pills and banners |
+| `bezel` | Warm near-black, used for shadows rather than pure black |
+
+**Type.** React Native matches a custom face by family name alone, so every weight is
+registered separately and reached by family, not by `font-bold`:
+
+| Class | Face | Use |
+| --- | --- | --- |
+| `font-sans` `font-ui` `font-ui-semibold` `font-ui-bold` `font-ui-black` | Manrope | All UI text |
+| `font-hand` `font-hand-bold` | Caveat | Greetings, board posts, "ikaw ito!" — never buttons or labels |
+| `font-mono` `font-mono-bold` | IBM Plex Mono | Peso amounts, due dates, timestamps |
+
+Caveat is a delight, not a voice: if it starts appearing on labels and buttons it stops
+being special and starts being hard to read. The faces load through `expo-font` in
+`app/_layout.tsx`, behind the native splash — a handwriting-led layout that reflows after
+first paint reads as a rendering bug.
+
+**Components.** `NoteCard` is the base surface (paper, hairline border, warm shadow,
+optional `Tape` and a fraction of a degree of pin skew). `Tape` is the decorative strip at a
+card's top-left, hidden from screen readers. `Pill` is the status badge. `Avatar` carries a
+paper ring so faces can overlap. `BoardTabBar` replaces react-navigation's default bar.
+Status never rides on colour alone — every pill pairs its tone with a word and a glyph.
+
+### Where the design outran the schema
+
+Three things the design asks for have no column behind them. All three are derived on the
+client today, and each has a real fix if it becomes something the app promises rather than
+decorates:
+
+| Design element | Today | If it needs to be real |
+| --- | --- | --- |
+| Chore streaks | `choreStreaks()` walks each housemate's past turns newest-first and counts the ticked ones. Sensitive to how much history is loaded, and un-ticking an old turn retroactively breaks the streak | A `chore_streaks` view, or a counter maintained by the same path that queues the next turn |
+| Tape colour per note | Hashed from the note's id — stable for the life of the post, no two adjacent notes reliably matching | An `announcements.tape_color` column, set when the note is written |
+| Pinned notes | Not supported; the board is newest-first | An `announcements.pinned` boolean, sorted ahead of the rest |
+
+None of these were built: this pass deliberately doesn't touch the schema, RLS or auth.
+
+### Not yet designed
+
+The design covers Home, Bills, Chores and the Board. These still wear the old teal palette
+(they render correctly and share the new type and canvas, but their accents haven't been
+redrawn) and want a design pass of their own rather than an improvised one:
+
+- Onboarding / join household
+- Add-expense flow, including equal vs. custom split
+- Profile and household settings
+- Sign-in and sign-up
+
+The deprecated teal scales at the bottom of `src/lib/theme.ts` exist only for those screens.
+Nothing new should reach for them.
 
 ---
 
@@ -264,3 +339,6 @@ Remaining steps, none of which can be done from this repo alone:
 - Avatar uploads via Supabase Storage
 - Automatic generation of the next recurring *bill* (chores already rotate on completion)
 - Settlement history / "who paid whom" ledger
+- A design pass over onboarding, the add-expense flow and settings (see *Not yet designed*)
+- Stored chore streaks, per-note tape colour and pinned notes (see *Where the design outran
+  the schema*)
