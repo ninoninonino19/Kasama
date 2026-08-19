@@ -9,7 +9,7 @@ import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSw
 
 import { colors } from '../../lib/theme';
 
-type Tone = 'brand' | 'sand';
+type Tone = 'moss' | 'muted';
 
 export type SwipeActionConfig = {
   label: string;
@@ -22,8 +22,8 @@ export type SwipeActionConfig = {
 const PANEL_WIDTH = 92;
 
 const TONE_BG: Record<Tone, string> = {
-  brand: 'bg-brand-500',
-  sand: 'bg-sand-400',
+  moss: 'bg-moss',
+  muted: 'bg-ink-muted',
 };
 
 /**
@@ -54,11 +54,14 @@ export function SwipeRow({
 
   const panel = (action: SwipeActionConfig) => (
     <View
-      className={`items-center justify-center rounded-2xl ${TONE_BG[action.tone]}`}
+      className={`items-center justify-center rounded-xl ${TONE_BG[action.tone]}`}
       style={{ width: PANEL_WIDTH }}
     >
-      <Ionicons name={action.icon} size={22} color={colors.white} />
-      <Text className="mt-1 px-1 text-center text-[11px] font-bold text-white" numberOfLines={1}>
+      <Ionicons name={action.icon} size={22} color={colors.paper} />
+      <Text
+        className="mt-1 px-1 text-center font-ui-bold text-[11px] text-paper"
+        numberOfLines={1}
+      >
         {action.label}
       </Text>
     </View>

@@ -337,7 +337,7 @@ function ChoreCard({
           : {
               label: 'Done',
               icon: 'checkmark-circle',
-              tone: 'brand',
+              tone: 'moss',
               onTrigger: () => onToggle(chore, assignment, true),
             }
       }
@@ -346,7 +346,7 @@ function ChoreCard({
           ? {
               label: 'Undo',
               icon: 'arrow-undo',
-              tone: 'sand',
+              tone: 'muted',
               onTrigger: () => onToggle(chore, assignment, false),
             }
           : undefined

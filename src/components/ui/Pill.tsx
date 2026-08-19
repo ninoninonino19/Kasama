@@ -10,13 +10,16 @@ import { colors } from '../../lib/theme';
  * loses the one distinction the screen exists to make. `alert` is that fourth
  * tone: brick where `warn` is mustard.
  */
-export type PillTone = 'muted' | 'warn' | 'alert' | 'ok';
+export type PillTone = 'muted' | 'warn' | 'alert' | 'ok' | 'strong';
 
 const TONES: Record<PillTone, { container: string; label: string; icon: string }> = {
   muted: { container: 'bg-page', label: 'text-ink-muted', icon: colors.ink.muted },
   warn: { container: 'bg-wash-mustard', label: 'text-deep-mustard', icon: colors.deep.mustard },
   alert: { container: 'bg-wash-brick', label: 'text-deep-brick', icon: colors.deep.brick },
   ok: { container: 'bg-wash-sage', label: 'text-deep-sage', icon: colors.deep.sage },
+  // Solid moss. Reserved for "this one is yours" — a wash isn't emphatic
+  // enough when the whole point is to pick your row out of the list.
+  strong: { container: 'bg-moss', label: 'text-paper', icon: colors.paper },
 };
 
 /**

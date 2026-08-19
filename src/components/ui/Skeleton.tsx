@@ -32,7 +32,7 @@ export function Skeleton({
 
   return (
     <Animated.View
-      className={`bg-sand-200 ${className}`}
+      className={`bg-page ${className}`}
       style={{ width, height, borderRadius: rounded, opacity: pulse }}
     />
   );
@@ -54,7 +54,7 @@ export function ListSkeleton({
       accessibilityRole="progressbar"
     >
       {Array.from({ length: rows }).map((_, index) => (
-        <View key={index} className="rounded-2xl border border-sand-200 bg-white p-4">
+        <View key={index} className="rounded-xl border border-line bg-paper p-4">
           <View className="flex-row items-center gap-3">
             <Skeleton width={44} height={44} rounded={16} />
             <View className="flex-1 gap-2">
@@ -76,12 +76,12 @@ export function ListSkeleton({
 export function DashboardSkeleton() {
   return (
     <View className="gap-6">
-      <View className="gap-3 rounded-3xl bg-brand-600/90 p-5">
-        <Skeleton width="35%" height={10} className="bg-white/30" />
-        <Skeleton width="55%" height={28} className="bg-white/30" />
+      <View className="gap-3 rounded-2xl bg-moss/90 p-5">
+        <Skeleton width="35%" height={10} className="bg-paper/30" />
+        <Skeleton width="55%" height={28} className="bg-paper/30" />
         <View className="mt-2 flex-row gap-3">
-          <Skeleton width="47%" height={58} rounded={16} className="bg-white/20" />
-          <Skeleton width="47%" height={58} rounded={16} className="bg-white/20" />
+          <Skeleton width="47%" height={58} rounded={16} className="bg-paper/20" />
+          <Skeleton width="47%" height={58} rounded={16} className="bg-paper/20" />
         </View>
       </View>
       {/* Quick actions, so the row doesn't pop in under the balance card. */}

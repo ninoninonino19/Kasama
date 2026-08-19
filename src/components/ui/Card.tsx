@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function Card({ children, onPress, className = '' }: Props) {
-  const base = `rounded-2xl border border-sand-200 bg-white p-4 ${className}`;
+  const base = `rounded-xl border border-line bg-paper p-4 ${className}`;
 
   if (onPress) {
     return (
@@ -18,7 +18,7 @@ export function Card({ children, onPress, className = '' }: Props) {
         accessibilityRole="button"
         onPress={onPress}
         android_ripple={{ color: ripple.card }}
-        className={`${base} active:bg-sand-50`}
+        className={`${base} active:bg-page`}
       >
         {children}
       </Pressable>

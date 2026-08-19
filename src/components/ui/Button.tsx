@@ -20,17 +20,24 @@ type Props = {
 };
 
 const CONTAINER: Record<Variant, string> = {
-  primary: 'bg-brand-500 active:bg-brand-600',
-  secondary: 'bg-white border border-sand-300 active:bg-sand-100',
-  ghost: 'bg-transparent active:bg-sand-100',
-  danger: 'bg-coral-50 border border-coral-200 active:bg-coral-100',
+  primary: 'bg-moss active:bg-bezel',
+  secondary: 'bg-paper border border-line active:bg-page',
+  ghost: 'bg-transparent active:bg-page',
+  danger: 'bg-wash-brick border border-brick/30 active:bg-wash-brick/70',
 };
 
 const LABEL: Record<Variant, string> = {
-  primary: 'text-white',
+  primary: 'text-paper',
   secondary: 'text-ink',
-  ghost: 'text-brand-600',
-  danger: 'text-coral-600',
+  ghost: 'text-moss',
+  danger: 'text-deep-brick',
+};
+
+const ICON: Record<Variant, string> = {
+  primary: colors.paper,
+  secondary: colors.moss.DEFAULT,
+  ghost: colors.moss.DEFAULT,
+  danger: colors.deep.brick,
 };
 
 export function Button({
@@ -55,29 +62,19 @@ export function Button({
         onPress?.();
       }}
       android_ripple={{ color: variant === 'primary' ? ripple.light : ripple.brand }}
-      className={`flex-row items-center justify-center rounded-2xl ${
+      className={`flex-row items-center justify-center rounded-xl ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
       } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.brand[600]} />
+        <ActivityIndicator color={ICON[variant]} />
       ) : (
         <View className="flex-row items-center gap-2">
           {icon ? (
-            <Ionicons
-              name={icon}
-              size={size === 'lg' ? 20 : 18}
-              color={
-                variant === 'primary'
-                  ? colors.white
-                  : variant === 'danger'
-                    ? colors.coral[600]
-                    : colors.brand[600]
-              }
-            />
+            <Ionicons name={icon} size={size === 'lg' ? 20 : 18} color={ICON[variant]} />
           ) : null}
           <Text
-            className={`${LABEL[variant]} ${size === 'lg' ? 'text-base' : 'text-sm'} font-semibold`}
+            className={`font-ui-bold ${LABEL[variant]} ${size === 'lg' ? 'text-base' : 'text-sm'}`}
           >
             {label}
           </Text>

@@ -8,8 +8,8 @@ import { Button } from './Button';
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <View className="flex-1 items-center justify-center gap-3 py-16">
-      <ActivityIndicator color={colors.brand[500]} />
-      <Text className="text-sm text-ink-muted">{label}</Text>
+      <ActivityIndicator color={colors.moss.DEFAULT} />
+      <Text className="font-ui text-sm text-ink-muted">{label}</Text>
     </View>
   );
 }
@@ -22,12 +22,12 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <View className="items-center gap-3 rounded-2xl border border-coral-200 bg-coral-50 p-6">
-      <Ionicons name="cloud-offline-outline" size={28} color={colors.coral[600]} />
-      <Text className="text-center text-base font-semibold text-coral-700">
+    <View className="items-center gap-3 rounded-xl border border-brick/30 bg-wash-brick p-6">
+      <Ionicons name="cloud-offline-outline" size={28} color={colors.deep.brick} />
+      <Text className="text-center font-ui-bold text-base text-deep-brick">
         Hindi ma-load — something went wrong
       </Text>
-      <Text className="text-center text-sm text-coral-700">{message}</Text>
+      <Text className="text-center font-ui text-sm text-deep-brick">{message}</Text>
       {onRetry ? (
         <Button label="Try again" variant="secondary" size="md" onPress={onRetry} className="mt-1" />
       ) : null}
@@ -59,17 +59,17 @@ export function EmptyState({
 }: EmptyStateProps) {
   if (compact) {
     const body = (
-      <View className="min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-dashed border-sand-300 bg-white/60 px-4 py-3">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-100">
-          <Ionicons name={icon} size={18} color={colors.brand[600]} />
+      <View className="min-h-[64px] flex-row items-center gap-3 rounded-xl border border-dashed border-line bg-paper/70 px-4 py-3">
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-wash-sage">
+          <Ionicons name={icon} size={18} color={colors.moss.DEFAULT} />
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-ink">{title}</Text>
-          <Text className="mt-0.5 text-xs leading-4 text-ink-muted" numberOfLines={2}>
+          <Text className="font-ui-bold text-sm text-ink">{title}</Text>
+          <Text className="mt-0.5 font-ui text-xs leading-4 text-ink-muted" numberOfLines={2}>
             {message}
           </Text>
         </View>
-        {onAction ? <Ionicons name="add-circle" size={22} color={colors.brand[500]} /> : null}
+        {onAction ? <Ionicons name="add-circle" size={22} color={colors.moss.light} /> : null}
       </View>
     );
 
@@ -88,12 +88,14 @@ export function EmptyState({
   }
 
   return (
-    <View className="items-center gap-3 rounded-3xl border border-dashed border-sand-300 bg-white/70 px-6 py-10">
-      <View className="h-14 w-14 items-center justify-center rounded-full bg-brand-100">
-        <Ionicons name={icon} size={26} color={colors.brand[600]} />
+    <View className="items-center gap-3 rounded-2xl border border-dashed border-line bg-paper/70 px-6 py-10">
+      <View className="h-14 w-14 items-center justify-center rounded-full bg-wash-sage">
+        <Ionicons name={icon} size={26} color={colors.moss.DEFAULT} />
       </View>
-      <Text className="text-center text-base font-semibold text-ink">{title}</Text>
-      <Text className="text-center text-sm leading-5 text-ink-muted">{message}</Text>
+      {/* The one handwritten line on an otherwise quiet screen — an empty
+          board should feel like a blank note, not an error. */}
+      <Text className="text-center font-hand-bold text-2xl leading-7 text-ink">{title}</Text>
+      <Text className="text-center font-ui text-sm leading-5 text-ink-muted">{message}</Text>
       {actionLabel && onAction ? (
         <Button label={actionLabel} size="md" onPress={onAction} className="mt-2 px-6" />
       ) : null}
@@ -104,9 +106,9 @@ export function EmptyState({
 /** Thin banner for errors that shouldn't replace already-loaded content. */
 export function InlineError({ message }: { message: string }) {
   return (
-    <View className="flex-row items-center gap-2 rounded-xl bg-coral-50 px-3 py-2">
-      <Ionicons name="alert-circle-outline" size={16} color={colors.coral[600]} />
-      <Text className="flex-1 text-sm text-coral-700">{message}</Text>
+    <View className="flex-row items-center gap-2 rounded-lg bg-wash-brick px-3 py-2">
+      <Ionicons name="alert-circle-outline" size={16} color={colors.deep.brick} />
+      <Text className="flex-1 font-ui text-sm text-deep-brick">{message}</Text>
     </View>
   );
 }
