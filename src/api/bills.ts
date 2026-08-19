@@ -163,3 +163,67 @@ export function summariseBalance(bills: BillWithSplits[], userId: string): Balan
 
   return { owed, owing, net: owing - owed };
 }
+
+export type SettleUpEntry = {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  /** Positive: this housemate owes me. Negative: I owe them. */
+  net: number;
+};
+
+/**
+ * Who owes whom, netted per housemate — the "settle up" line the Bills screen
+ * leads with.
+ *
+ * Debts here are always between the signed-in user and one other person: a
+ * split is owed to whoever fronted the bill, so a bill nobody in the pair
+ * created contributes nothing. The payer's own split is inserted already paid
+ * by `createBill`, which is also where their profile comes from — a bill whose
+ * payer has since left the household falls back to a generic name rather than
+ * dropping the debt.
+ */
+export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry[] {
+  const totals = new Map<string, SettleUpEntry>();
+
+  const bump = (
+    otherId: string,
+    profile: { display_name: string; avatar_url: string | null } | null,
+    delta: number
+  ) => {
+    const existing = totals.get(otherId);
+    if (existing) {
+      existing.net += delta;
+      // A later bill may be the one that knows their name.
+      if (existing.name === 'Housemate' && profile) existing.name = profile.display_name;
+      return;
+    }
+    totals.set(otherId, {
+      userId: otherId,
+      name: profile?.display_name ?? 'Housemate',
+      avatarUrl: profile?.avatar_url ?? null,
+      net: delta,
+    });
+  };
+
+  for (const bill of bills) {
+    const payer = bill.splits.find((split) => split.user_id === bill.created_by);
+
+    for (const split of bill.splits) {
+      if (split.paid) continue;
+      const amount = Number(split.amount_owed);
+      if (amount === 0) continue;
+
+      if (split.user_id === userId && bill.created_by !== userId) {
+        bump(bill.created_by, payer?.profile ?? null, -amount);
+      } else if (bill.created_by === userId && split.user_id !== userId) {
+        bump(split.user_id, split.profile, amount);
+      }
+    }
+  }
+
+  return [...totals.values()]
+    // Sub-centavo residue from an uneven split isn't a debt worth showing.
+    .filter((entry) => Math.abs(entry.net) >= 0.01)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+}
