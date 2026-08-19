@@ -3,10 +3,15 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { nextAssigneeId, openAssignment, setAssignmentCompleted } from '../../src/api/chores';
+import {
+  choreStreaks,
+  nextAssigneeId,
+  openAssignment,
+  setAssignmentCompleted,
+} from '../../src/api/chores';
 import { Avatar } from '../../src/components/ui/Avatar';
-import { Badge } from '../../src/components/ui/Chip';
-import { Card } from '../../src/components/ui/Card';
+import { NoteCard } from '../../src/components/ui/NoteCard';
+import { Pill } from '../../src/components/ui/Pill';
 import { Screen, ScreenHeader, SectionTitle } from '../../src/components/ui/Screen';
 import { EmptyState, ErrorState, InlineError } from '../../src/components/ui/States';
 import { SwipeRow } from '../../src/components/ui/SwipeRow';
@@ -16,13 +21,23 @@ import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { Fab } from '../../src/components/ui/Fab';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { haptics } from '../../src/lib/haptics';
-import { endOfWeek, formatRelativeDate, startOfWeek, toDateString, todayString } from '../../src/lib/format';
+import {
+  addDays,
+  endOfWeek,
+  formatRelativeDate,
+  fromDateString,
+  startOfWeek,
+  toDateString,
+  todayString,
+} from '../../src/lib/format';
 import { colors } from '../../src/lib/theme';
 import { useCurrentUserId, useMembers } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments, MemberWithProfile } from '../../src/types';
 
 /** How long a just-ticked chore stays in place before it moves to "Done". */
 const PAYOFF_MS = 1600;
+
+type Entry = { chore: ChoreWithAssignments; assignment: AssignmentWithProfile };
 
 export default function ChoresScreen() {
   const router = useRouter();
@@ -31,6 +46,8 @@ export default function ChoresScreen() {
   const { data, loading, refreshing, error, refresh, setData } = useChores();
 
   const [actionError, setActionError] = useState<string | null>(null);
+  /** `null` means the whole week — the day strip's leftmost option. */
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   // Assignments ticked in the last moment. They stay in their original section,
   // struck through, instead of vanishing into "Done this week" the instant the
   // box is tapped — the brief asks for a visible payoff, and a row that
@@ -88,6 +105,31 @@ export default function ChoresScreen() {
           assignment.due_date <= weekEnd
       );
   }, [celebrating, chores, weekEnd]);
+
+  /** Every open turn falling on each day of the current week, for the strip. */
+  const countsByDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const entry of [...thisWeek, ...overdue]) {
+      const day = entry.assignment.due_date;
+      counts[day] = (counts[day] ?? 0) + 1;
+    }
+    return counts;
+  }, [overdue, thisWeek]);
+
+  const streaks = useMemo(() => choreStreaks(chores, today), [chores, today]);
+
+  // Anything already listed under Overdue is left out — a past day's turns are
+  // on screen above, and showing them twice makes the list look longer than the
+  // work actually is.
+  const selectedEntries = useMemo(
+    () =>
+      selectedDay
+        ? [...thisWeek, ...upcoming].filter(
+            (entry) => entry.assignment.due_date === selectedDay
+          )
+        : [],
+    [selectedDay, thisWeek, upcoming]
+  );
 
   /**
    * Ticks the box straight away rather than after the round trip — completing a
@@ -151,14 +193,29 @@ export default function ChoresScreen() {
   // towards "still to do" in the header.
   const stillDue = [...overdue, ...thisWeek].filter(({ assignment }) => !assignment.completed).length;
 
+  const renderList = (entries: Entry[], overdueSection = false) => (
+    <View className="gap-2.5">
+      {entries.map(({ chore, assignment }, index) => (
+        <ChoreCard
+          key={assignment.id}
+          chore={chore}
+          assignment={assignment}
+          userId={userId}
+          members={members}
+          overdue={overdueSection || assignment.due_date < today}
+          rotate={index % 2 === 0 ? -0.4 : 0.4}
+          onToggle={handleToggle}
+        />
+      ))}
+    </View>
+  );
+
   return (
     <Screen>
       <ScreenHeader
         title="Chores"
         subtitle={
-          stillDue > 0
-            ? `${stillDue} due this week`
-            : 'Walang pending — salamat, mga kasama!'
+          stillDue > 0 ? `${stillDue} due this week` : 'Walang pending — salamat, mga kasama!'
         }
       />
 
@@ -176,16 +233,28 @@ export default function ChoresScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh()}
-              tintColor={colors.brand[500]}
+              tintColor={colors.moss.DEFAULT}
             />
           }
         >
           {actionError ? <InlineError message={actionError} /> : null}
 
+          {chores.length > 0 ? (
+            <View className="gap-4">
+              <WeekPicker
+                today={today}
+                counts={countsByDay}
+                selected={selectedDay}
+                onSelect={setSelectedDay}
+              />
+              <StreakRow members={members} streaks={streaks} userId={userId} />
+            </View>
+          ) : null}
+
           {hasOpenWork ? (
             <View className="-mb-3 flex-row items-center gap-1.5">
               <Ionicons name="hand-left-outline" size={13} color={colors.ink.muted} />
-              <Text className="flex-1 text-xs text-ink-muted">
+              <Text className="flex-1 font-ui text-xs text-ink-muted">
                 Tap the box — or swipe a chore across — to tick it off.
               </Text>
             </View>
@@ -194,67 +263,53 @@ export default function ChoresScreen() {
           {chores.length === 0 ? (
             <EmptyState
               icon="sparkles-outline"
-              title="No chores yet — set up your first one"
+              title="No chores yet"
               message="Hugas plato, walis, labada… assign it once and Kasama rotates it around the house."
               actionLabel="Add a chore"
               onAction={() => router.push('/chores/new')}
             />
           ) : null}
 
+          {/* Overdue never hides behind a day: something three days late is the
+              one thing that has to stay on screen whichever day you tapped. */}
           {overdue.length > 0 ? (
             <View>
               <SectionTitle>Overdue</SectionTitle>
-              <View className="gap-2">
-                {overdue.map(({ chore, assignment }) => (
-                  <ChoreCard
-                    key={assignment.id}
-                    chore={chore}
-                    assignment={assignment}
-                    userId={userId}
-                    members={members}
-                    overdue
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </View>
+              {renderList(overdue, true)}
             </View>
           ) : null}
 
-          {thisWeek.length > 0 ? (
+          {selectedDay ? (
             <View>
-              <SectionTitle>This week</SectionTitle>
-              <View className="gap-2">
-                {thisWeek.map(({ chore, assignment }) => (
-                  <ChoreCard
-                    key={assignment.id}
-                    chore={chore}
-                    assignment={assignment}
-                    userId={userId}
-                    members={members}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </View>
+              <SectionTitle>{formatRelativeDate(selectedDay)}</SectionTitle>
+              {selectedEntries.length > 0 ? (
+                renderList(selectedEntries)
+              ) : selectedDay >= today ? (
+                <EmptyState
+                  compact
+                  icon="cafe-outline"
+                  title="Walang nakatakda"
+                  message="Nothing falls on this day. Enjoy it."
+                />
+              ) : null}
             </View>
-          ) : null}
+          ) : (
+            <>
+              {thisWeek.length > 0 ? (
+                <View>
+                  <SectionTitle>This week</SectionTitle>
+                  {renderList(thisWeek)}
+                </View>
+              ) : null}
 
-          {upcoming.length > 0 ? (
-            <View>
-              <SectionTitle>Coming up</SectionTitle>
-              <View className="gap-2">
-                {upcoming.map(({ chore, assignment }) => (
-                  <ChoreCard
-                    key={assignment.id}
-                    chore={chore}
-                    assignment={assignment}
-                    userId={userId}
-                    members={members}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
+              {upcoming.length > 0 ? (
+                <View>
+                  <SectionTitle>Coming up</SectionTitle>
+                  {renderList(upcoming)}
+                </View>
+              ) : null}
+            </>
+          )}
 
           {chores.length > 0 && !hasOpenWork ? (
             <EmptyState
@@ -267,15 +322,15 @@ export default function ChoresScreen() {
           {doneThisWeek.length > 0 ? (
             <View>
               <SectionTitle>Done this week</SectionTitle>
-              <View className="gap-2">
+              <View className="gap-2.5">
                 {doneThisWeek.map(({ chore, assignment }) => (
-                  <Card key={assignment.id} className="flex-row items-center gap-3 opacity-80">
-                    <Ionicons name="checkmark-circle" size={22} color={colors.brand[600]} />
+                  <NoteCard key={assignment.id} className="flex-row items-center gap-3 opacity-80">
+                    <Ionicons name="checkmark-circle" size={22} color={colors.deep.sage} />
                     <View className="flex-1">
-                      <Text className="text-sm font-semibold text-ink line-through">
+                      <Text className="font-ui-semibold text-sm text-ink line-through">
                         {chore.title}
                       </Text>
-                      <Text className="text-xs text-ink-muted">
+                      <Text className="font-mono text-[11px] text-ink-muted">
                         {assignment.profile?.display_name ?? 'Housemate'} ·{' '}
                         {formatRelativeDate(assignment.due_date)}
                       </Text>
@@ -287,9 +342,9 @@ export default function ChoresScreen() {
                       onPress={() => void handleToggle(chore, assignment, false)}
                       className="min-h-[44px] justify-center px-2"
                     >
-                      <Text className="text-xs font-semibold text-ink-muted">Undo</Text>
+                      <Text className="font-ui-semibold text-xs text-ink-muted">Undo</Text>
                     </Pressable>
-                  </Card>
+                  </NoteCard>
                 ))}
               </View>
             </View>
@@ -302,12 +357,183 @@ export default function ChoresScreen() {
   );
 }
 
+const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+/**
+ * The current week as seven cells, with the whole week as the leading option.
+ *
+ * It filters rather than scrolls: on a household with a daily rotation the
+ * unfiltered list runs well past a screen, and "what's on for Thursday" is the
+ * question a rota actually gets asked. Tapping the selected day again returns
+ * to the whole week, so the filter can't strand anyone.
+ */
+function WeekPicker({
+  today,
+  counts,
+  selected,
+  onSelect,
+}: {
+  today: string;
+  counts: Record<string, number>;
+  selected: string | null;
+  onSelect: (day: string | null) => void;
+}) {
+  const days = useMemo(() => {
+    const monday = startOfWeek();
+    return Array.from({ length: 7 }, (_, index) => toDateString(addDays(monday, index)));
+  }, []);
+
+  return (
+    <View className="flex-row items-stretch gap-1.5">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: selected === null }}
+        accessibilityLabel="Show the whole week"
+        onPress={() => {
+          haptics.select();
+          onSelect(null);
+        }}
+        className={`min-h-[56px] justify-center rounded-xl border px-3 ${
+          selected === null ? 'border-moss bg-moss' : 'border-line bg-paper'
+        }`}
+      >
+        <Text
+          className={`font-ui-bold text-[11px] uppercase tracking-wider ${
+            selected === null ? 'text-paper' : 'text-ink-muted'
+          }`}
+        >
+          All{'\n'}week
+        </Text>
+      </Pressable>
+
+      {days.map((day, index) => {
+        const isSelected = day === selected;
+        const isToday = day === today;
+        const count = counts[day] ?? 0;
+
+        return (
+          <Pressable
+            key={day}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={`${formatRelativeDate(day)}, ${count} ${
+              count === 1 ? 'chore' : 'chores'
+            }`}
+            onPress={() => {
+              haptics.select();
+              onSelect(isSelected ? null : day);
+            }}
+            className={`min-h-[56px] flex-1 items-center justify-center gap-0.5 rounded-xl border ${
+              isSelected
+                ? 'border-moss bg-moss'
+                : isToday
+                  ? 'border-moss-light bg-paper'
+                  : 'border-line bg-paper'
+            }`}
+          >
+            <Text
+              className={`font-ui-bold text-[10px] uppercase ${
+                isSelected ? 'text-paper/80' : 'text-ink-muted'
+              }`}
+            >
+              {WEEKDAY_INITIALS[index]}
+            </Text>
+            <Text
+              className={`font-mono-bold text-sm ${isSelected ? 'text-paper' : 'text-ink'}`}
+            >
+              {fromDateString(day).getDate()}
+            </Text>
+            {/* A dot rather than a number: at this width a count is illegible,
+                and the row underneath says exactly how many. */}
+            <View
+              className={`h-1.5 w-1.5 rounded-full ${
+                count === 0 ? 'bg-transparent' : isSelected ? 'bg-mustard' : 'bg-moss-light'
+              }`}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
+ * Per-housemate streaks — consecutive finished turns, derived from the
+ * assignment history rather than stored. See `choreStreaks` for what that
+ * costs.
+ *
+ * Deliberately understated: a leaderboard between people who share a kitchen
+ * turns a chore rota into a scoreboard, and nobody wants to lose one at home.
+ */
+function StreakRow({
+  members,
+  streaks,
+  userId,
+}: {
+  members: MemberWithProfile[];
+  streaks: Record<string, number>;
+  userId: string | null;
+}) {
+  const withStreaks = members.filter((member) => (streaks[member.user_id] ?? 0) > 0);
+  if (withStreaks.length === 0) return null;
+
+  return (
+    <NoteCard tape={colors.sage} className="gap-3 pt-5">
+      <Text className="font-ui-bold text-[11px] uppercase tracking-[1.2px] text-ink-muted">
+        On a roll
+      </Text>
+      <View className="flex-row flex-wrap gap-x-4 gap-y-3">
+        {withStreaks.map((member) => {
+          const streak = streaks[member.user_id] ?? 0;
+          const name =
+            member.user_id === userId ? 'You' : member.profile.display_name.split(' ')[0];
+
+          return (
+            <View key={member.id} className="flex-row items-center gap-2">
+              <Avatar
+                name={member.profile.display_name}
+                userId={member.user_id}
+                avatarUrl={member.profile.avatar_url}
+                size={28}
+              />
+              <View>
+                <Text className="font-ui-semibold text-xs text-ink" numberOfLines={1}>
+                  {name}
+                </Text>
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="flame" size={11} color={colors.deep.mustard} />
+                  <Text className="font-mono-bold text-[11px] text-deep-mustard">
+                    {streak} in a row
+                  </Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </NoteCard>
+  );
+}
+
+/** The one handwritten note on the screen: this turn is yours. */
+function TurnTag() {
+  return (
+    <View
+      className="rounded-md bg-mustard px-2.5 py-0.5"
+      style={{ transform: [{ rotate: '-3deg' }] }}
+    >
+      <Text className="font-hand-bold text-base leading-5 text-ink">ikaw ito!</Text>
+    </View>
+  );
+}
+
 function ChoreCard({
   chore,
   assignment,
   userId,
   members,
   overdue = false,
+  rotate = 0,
   onToggle,
 }: {
   chore: ChoreWithAssignments;
@@ -315,6 +541,7 @@ function ChoreCard({
   userId: string | null;
   members: MemberWithProfile[];
   overdue?: boolean;
+  rotate?: number;
   onToggle: (
     chore: ChoreWithAssignments,
     assignment: AssignmentWithProfile,
@@ -329,6 +556,8 @@ function ChoreCard({
   const upNext = members.find((member) => member.user_id === upNextId);
   const rotates = chore.recurrence !== 'once' && members.length > 1;
 
+  const tape = done ? colors.sage : overdue ? colors.brick : isMine ? colors.mustard : colors.moss.light;
+
   return (
     <SwipeRow
       left={
@@ -337,7 +566,7 @@ function ChoreCard({
           : {
               label: 'Done',
               icon: 'checkmark-circle',
-              tone: 'brand',
+              tone: 'moss',
               onTrigger: () => onToggle(chore, assignment, true),
             }
       }
@@ -346,20 +575,16 @@ function ChoreCard({
           ? {
               label: 'Undo',
               icon: 'arrow-undo',
-              tone: 'sand',
+              tone: 'muted',
               onTrigger: () => onToggle(chore, assignment, false),
             }
           : undefined
       }
     >
-      <View
-        className={`rounded-2xl border p-4 ${
-          done
-            ? 'border-brand-200 bg-brand-50'
-            : overdue
-              ? 'border-coral-200 bg-coral-50'
-              : 'border-sand-200 bg-white'
-        }`}
+      <NoteCard
+        tape={tape}
+        rotate={rotate}
+        className={`pt-5 ${done ? 'bg-wash-sage' : overdue ? 'bg-wash-brick' : ''}`}
       >
         <View className="flex-row items-center gap-3">
           <Pressable
@@ -370,54 +595,54 @@ function ChoreCard({
             hitSlop={16}
             onPress={() => onToggle(chore, assignment, !done)}
             className={`h-8 w-8 items-center justify-center rounded-lg border-2 ${
-              done ? 'border-brand-500 bg-brand-500' : 'border-brand-400 active:bg-brand-100'
+              done ? 'border-moss bg-moss' : 'border-moss-light active:bg-wash-sage'
             }`}
           >
-            {done ? <Ionicons name="checkmark" size={20} color={colors.white} /> : null}
+            {done ? <Ionicons name="checkmark" size={20} color={colors.paper} /> : null}
           </Pressable>
 
           <View className="flex-1">
             <Text
-              className={`text-base font-bold ${done ? 'text-ink-soft line-through' : 'text-ink'}`}
+              className={`font-ui-bold text-base ${done ? 'text-ink-soft line-through' : 'text-ink'}`}
             >
               {chore.title}
             </Text>
             {chore.description ? (
-              <Text className="mt-0.5 text-xs text-ink-muted" numberOfLines={2}>
+              <Text className="mt-0.5 font-ui text-xs text-ink-muted" numberOfLines={2}>
                 {chore.description}
               </Text>
             ) : null}
           </View>
 
           {done ? (
-            <Badge label="Tapos!" tone="success" icon="checkmark-circle" />
+            <Pill label="Tapos!" tone="ok" icon="checkmark-circle" />
           ) : overdue ? (
-            <Badge label="Overdue" tone="danger" icon="alert-circle" />
+            <Pill label="Overdue" tone="alert" icon="alert-circle" />
           ) : isMine ? (
-            <Badge label="Ikaw" tone="brand" />
+            <TurnTag />
           ) : null}
         </View>
 
-        <View className="mt-3 flex-row items-center gap-2 border-t border-sand-200 pt-3">
+        <View className="mt-3 flex-row items-center gap-2 border-t border-line pt-3">
           <Avatar
             name={name}
             userId={assignment.user_id}
             avatarUrl={assignment.profile?.avatar_url}
             size={26}
           />
-          <Text className="text-xs text-ink-soft">
+          <Text className="font-mono text-[11px] text-ink-soft">
             {isMine ? 'You' : name} · {formatRelativeDate(assignment.due_date)}
           </Text>
           {rotates && upNext ? (
             <>
               <Ionicons name="arrow-forward" size={12} color={colors.ink.faint} />
-              <Text className="flex-1 text-xs text-ink-muted" numberOfLines={1}>
+              <Text className="flex-1 font-ui text-xs text-ink-muted" numberOfLines={1}>
                 Next: {upNext.user_id === userId ? 'you' : upNext.profile.display_name.split(' ')[0]}
               </Text>
             </>
           ) : null}
         </View>
-      </View>
+      </NoteCard>
     </SwipeRow>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { postAnnouncement } from '../../src/api/announcements';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
+import { Tape } from '../../src/components/ui/Tape';
 import { InlineError } from '../../src/components/ui/States';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { haptics } from '../../src/lib/haptics';
@@ -50,7 +51,7 @@ export default function NewAnnouncementScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-sand-50"
+      className="flex-1 bg-canvas"
     >
       <View className="flex-1 gap-4 p-5">
         <View className="flex-row items-center gap-3">
@@ -61,18 +62,23 @@ export default function NewAnnouncementScreen() {
             size={36}
           />
           <View className="flex-1">
-            <Text className="text-sm font-bold text-ink">
+            <Text className="font-ui-bold text-sm text-ink">
               {profile?.display_name ?? 'You'}
             </Text>
-            <Text className="text-xs text-ink-muted">posting to {household?.name}</Text>
+            <Text className="font-ui text-xs text-ink-muted">
+              pinning to {household?.name}
+            </Text>
           </View>
         </View>
 
-        <View className="flex-1 rounded-2xl border border-sand-300 bg-white p-4">
+        {/* The sheet you are about to pin, drawn the way it will look on the
+            board — same paper, same tape, same handwriting. */}
+        <View className="flex-1 rounded-xl border border-line bg-paper p-4 pt-5">
+          <Tape color={colors.mustard} />
           <TextInput
-            className="flex-1 text-base leading-6 text-ink"
+            className="flex-1 font-hand text-2xl leading-8 text-ink"
             placeholder="Ano'ng balita sa bahay? e.g. Deadline ng kuryente sa Friday, pa-GCash na lang sa akin."
-            placeholderTextColor={colors.ink.muted}
+            placeholderTextColor={colors.ink.faint}
             value={content}
             onChangeText={(value) => setContent(value.slice(0, MAX_LENGTH))}
             multiline
@@ -84,7 +90,9 @@ export default function NewAnnouncementScreen() {
 
         <View className="flex-row items-center justify-between">
           <Text
-            className={`text-xs ${remaining < 50 ? 'text-coral-600' : 'text-ink-muted'}`}
+            className={`font-mono text-xs ${
+              remaining < 50 ? 'text-deep-brick' : 'text-ink-muted'
+            }`}
           >
             {remaining} characters left
           </Text>
@@ -92,7 +100,13 @@ export default function NewAnnouncementScreen() {
 
         {error ? <InlineError message={error} /> : null}
 
-        <Button label="Post" icon="send" onPress={handlePost} loading={posting} disabled={!canPost} />
+        <Button
+          label="Pin it up"
+          icon="send"
+          onPress={handlePost}
+          loading={posting}
+          disabled={!canPost}
+        />
       </View>
     </KeyboardAvoidingView>
   );

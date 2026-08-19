@@ -193,7 +193,15 @@ export default function BillDetailScreen() {
           <View className="mt-3 w-full gap-1.5">
             <ProgressBar
               ratio={progress.ratio}
-              tone={status === 'overdue' ? 'coral' : status === 'due-soon' ? 'amber' : 'brand'}
+              tone={
+                status === 'settled'
+                  ? 'sage'
+                  : status === 'overdue'
+                    ? 'brick'
+                    : status === 'due-soon'
+                      ? 'mustard'
+                      : 'moss'
+              }
               height={8}
             />
             <View className="flex-row justify-between">
@@ -233,7 +241,7 @@ export default function BillDetailScreen() {
                           : {
                               label: 'Paid',
                               icon: 'checkmark-circle',
-                              tone: 'brand',
+                              tone: 'moss',
                               onTrigger: () => void togglePaid(split.id, true),
                             }
                       }
@@ -242,7 +250,7 @@ export default function BillDetailScreen() {
                           ? {
                               label: 'Unpay',
                               icon: 'arrow-undo',
-                              tone: 'sand',
+                              tone: 'muted',
                               onTrigger: () => void togglePaid(split.id, false),
                             }
                           : undefined

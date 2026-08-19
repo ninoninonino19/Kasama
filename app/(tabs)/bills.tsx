@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { billStatus, isBillSettled, summariseBalance } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
+import { SettleUpCard } from '../../src/components/SettleUpCard';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
 import { EmptyState, ErrorState } from '../../src/components/ui/States';
 import { Fab } from '../../src/components/ui/Fab';
@@ -73,7 +74,7 @@ export default function BillsScreen() {
       />
 
       {/* Counts on the filters save a tap to discover an empty tab. */}
-      <View className="flex-row gap-2 px-5 pb-3">
+      <View className="flex-row gap-2 px-5 pb-3 pt-1">
         {(['unpaid', 'paid', 'all'] as Filter[]).map((option) => (
           <Chip
             key={option}
@@ -89,9 +90,9 @@ export default function BillsScreen() {
       </View>
 
       {overdueCount > 0 && filter !== 'paid' ? (
-        <View className="mx-5 mb-3 flex-row items-center gap-2 rounded-2xl border border-coral-200 bg-coral-50 px-4 py-3">
-          <Ionicons name="alert-circle" size={18} color={colors.coral[600]} />
-          <Text className="flex-1 text-sm font-semibold text-coral-700">
+        <View className="mx-5 mb-3 flex-row items-center gap-2 rounded-xl border border-brick/30 bg-wash-brick px-4 py-3">
+          <Ionicons name="alert-circle" size={18} color={colors.deep.brick} />
+          <Text className="flex-1 font-ui-bold text-sm text-deep-brick">
             {overdueCount} {overdueCount === 1 ? 'bill is' : 'bills are'} past due
           </Text>
         </View>
@@ -113,11 +114,25 @@ export default function BillsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh()}
-              tintColor={colors.brand[500]}
+              tintColor={colors.moss.DEFAULT}
             />
           }
-          renderItem={({ item }) => (
-            <BillRow bill={item} onPress={() => router.push(`/bills/${item.id}`)} />
+          // The settle-up card scrolls with the receipts rather than pinning
+          // above them: once you're deep in the list you're reading bills, not
+          // balances, and a sticky summary just costs a third of the screen.
+          ListHeaderComponent={
+            userId && bills.length > 0 ? (
+              <View className="pb-1">
+                <SettleUpCard bills={bills} userId={userId} />
+              </View>
+            ) : null
+          }
+          renderItem={({ item, index }) => (
+            <BillRow
+              bill={item}
+              index={index}
+              onPress={() => router.push(`/bills/${item.id}`)}
+            />
           )}
           ListEmptyComponent={
             bills.length === 0 ? (
@@ -143,7 +158,7 @@ export default function BillsScreen() {
           ListFooterComponent={
             bills.length > 0 ? (
               <View className="mt-4 items-center">
-                <Text className="text-xs text-ink-muted">
+                <Text className="font-ui text-xs text-ink-muted">
                   {bills.length} bill{bills.length === 1 ? '' : 's'} in this household
                 </Text>
               </View>

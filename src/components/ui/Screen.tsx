@@ -13,7 +13,7 @@ export function Screen({ children, topInset = true, className = '' }: Props) {
   return (
     <SafeAreaView
       edges={topInset ? ['top', 'left', 'right'] : ['left', 'right']}
-      className={`flex-1 bg-sand-50 ${className}`}
+      className={`flex-1 bg-canvas ${className}`}
     >
       {children}
     </SafeAreaView>
@@ -32,8 +32,10 @@ export function ScreenHeader({
   return (
     <View className="flex-row items-end justify-between px-5 pb-3 pt-2">
       <View className="flex-1 pr-3">
-        <Text className="text-2xl font-bold text-ink">{title}</Text>
-        {subtitle ? <Text className="mt-0.5 text-sm text-ink-muted">{subtitle}</Text> : null}
+        <Text className="font-ui-black text-2xl text-ink">{title}</Text>
+        {subtitle ? (
+          <Text className="mt-0.5 font-ui text-sm text-ink-muted">{subtitle}</Text>
+        ) : null}
       </View>
       {right}
     </View>
@@ -42,7 +44,9 @@ export function ScreenHeader({
 
 export function SectionTitle({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <Text className={`mb-2 text-xs font-bold uppercase tracking-wider text-ink-muted ${className}`}>
+    <Text
+      className={`mb-2 font-ui-bold text-[11px] uppercase tracking-[1.2px] text-ink-muted ${className}`}
+    >
       {children}
     </Text>
   );

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { deleteAnnouncement } from '../../src/api/announcements';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { NoteCard } from '../../src/components/ui/NoteCard';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { EmptyState, ErrorState, InlineError } from '../../src/components/ui/States';
@@ -13,7 +14,7 @@ import { useAnnouncements } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
-import { colors } from '../../src/lib/theme';
+import { colors, tapeColorFor } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 
 export default function AnnouncementsScreen() {
@@ -33,7 +34,7 @@ export default function AnnouncementsScreen() {
 
   function confirmDelete(id: string) {
     haptics.tap();
-    Alert.alert('Delete this announcement?', 'Hindi na ito makikita ng iba.', [
+    Alert.alert('Take this note down?', 'Hindi na ito makikita ng iba.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -53,7 +54,7 @@ export default function AnnouncementsScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Feed" subtitle={household?.name ?? undefined} />
+      <ScreenHeader title="Board" subtitle={household?.name ?? undefined} />
 
       {actionError ? (
         <View className="px-5 pb-2">
@@ -71,21 +72,28 @@ export default function AnnouncementsScreen() {
         <FlatList
           data={announcements}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="gap-3 px-5 pb-4"
+          contentContainerClassName="gap-4 px-5 pb-4 pt-2"
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh()}
-              tintColor={colors.brand[500]}
+              tintColor={colors.moss.DEFAULT}
             />
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const name = item.profile?.display_name ?? 'Housemate';
             const canDelete = item.user_id === userId || role === 'admin';
 
             return (
-              <View className="rounded-2xl border border-sand-200 bg-white p-4">
+              <NoteCard
+                // The schema has no tape colour, so it is hashed from the note's
+                // id: stable for the life of the post, and no two adjacent notes
+                // reliably match. See the README note on making it a column.
+                tape={tapeColorFor(item.id)}
+                rotate={index % 2 === 0 ? -0.5 : 0.5}
+                className="pt-5"
+              >
                 <View className="flex-row items-center gap-3">
                   <Avatar
                     name={name}
@@ -94,35 +102,38 @@ export default function AnnouncementsScreen() {
                     size={36}
                   />
                   <View className="flex-1">
-                    <Text className="text-sm font-bold text-ink" numberOfLines={1}>
+                    <Text className="font-ui-bold text-sm text-ink" numberOfLines={1}>
                       {name}
                       {item.user_id === userId ? ' (you)' : ''}
                     </Text>
-                    <Text className="text-xs text-ink-muted">{formatTimeAgo(item.created_at)}</Text>
+                    <Text className="font-mono text-[11px] text-ink-muted">
+                      {formatTimeAgo(item.created_at)}
+                    </Text>
                   </View>
                   {canDelete ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Delete announcement from ${name}`}
+                      accessibilityLabel={`Take down the note from ${name}`}
                       hitSlop={12}
                       onPress={() => confirmDelete(item.id)}
                       // 44pt tap area around a visually small control.
-                      className="h-11 w-11 items-center justify-center rounded-full active:bg-sand-100"
+                      className="h-11 w-11 items-center justify-center rounded-full active:bg-page"
                     >
                       <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
                     </Pressable>
                   ) : null}
                 </View>
-                <Text className="mt-3 text-base leading-6 text-ink">{item.content}</Text>
-              </View>
+                {/* The whole point of the board: a note in someone's hand. */}
+                <Text className="mt-2 font-hand text-2xl leading-8 text-ink">{item.content}</Text>
+              </NoteCard>
             );
           }}
           ListEmptyComponent={
             <EmptyState
-              icon="megaphone-outline"
+              icon="reader-outline"
               title="Tahimik pa dito"
-              message="Post the first announcement — reminders sa bayad, bisita, o kung sino ang mag-aayos ng WiFi."
-              actionLabel="Post one"
+              message="Pin the first note — reminders sa bayad, bisita, o kung sino ang mag-aayos ng WiFi."
+              actionLabel="Write one"
               onAction={() => router.push('/announcements/new')}
             />
           }
@@ -142,11 +153,11 @@ export default function AnnouncementsScreen() {
 /**
  * Compose affordance pinned under the feed, where a chat app puts it.
  *
- * It is a button dressed as an input rather than a live text field: writing
+ * It is a button dressed as a blank note rather than a live text field: writing
  * happens on the full-screen composer, which has room for a few lines and
  * doesn't have to share the bottom of the screen with the tab bar once the
  * keyboard is up. Tapping anywhere along the bar goes straight there, which is
- * a bigger and more obvious target than the floating button it replaces.
+ * a bigger and more obvious target than a floating button.
  */
 function ComposeBar({
   name,
@@ -160,22 +171,22 @@ function ComposeBar({
   onPress: () => void;
 }) {
   return (
-    <View className="border-t border-sand-200 bg-white px-4 py-3">
+    <View className="border-t border-line bg-paper px-4 py-3">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Post an announcement"
+        accessibilityLabel="Write a note"
         onPress={() => {
           haptics.tap();
           onPress();
         }}
-        className="min-h-[48px] flex-row items-center gap-3 rounded-full border border-sand-300 bg-sand-50 py-2 pl-2 pr-2 active:bg-sand-100"
+        className="min-h-[48px] flex-row items-center gap-3 rounded-full border border-line bg-page py-2 pl-2 pr-2 active:opacity-80"
       >
-        <Avatar name={name} userId={userId} avatarUrl={avatarUrl} size={32} />
-        <Text className="flex-1 text-sm text-ink-muted" numberOfLines={1}>
+        <Avatar name={name} userId={userId} avatarUrl={avatarUrl} size={32} ring={false} />
+        <Text className="flex-1 font-hand text-xl text-ink-muted" numberOfLines={1}>
           Ano'ng balita sa bahay?
         </Text>
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-500">
-          <Ionicons name="send" size={16} color={colors.white} />
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-moss">
+          <Ionicons name="create" size={16} color={colors.paper} />
         </View>
       </Pressable>
     </View>

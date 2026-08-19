@@ -1,11 +1,14 @@
 import { View } from 'react-native';
 
-type Tone = 'brand' | 'amber' | 'coral';
+type Tone = 'moss' | 'sage' | 'mustard' | 'brick';
 
 const FILL: Record<Tone, string> = {
-  brand: 'bg-brand-500',
-  amber: 'bg-amber-400',
-  coral: 'bg-coral-400',
+  moss: 'bg-moss',
+  // A finished bar in full moss is the darkest thing on the card, which puts
+  // the loudest mark on the one row that needs nothing from you.
+  sage: 'bg-sage',
+  mustard: 'bg-mustard',
+  brick: 'bg-brick',
 };
 
 /**
@@ -14,7 +17,7 @@ const FILL: Record<Tone, string> = {
  */
 export function ProgressBar({
   ratio,
-  tone = 'brand',
+  tone = 'moss',
   height = 6,
 }: {
   ratio: number;
@@ -27,7 +30,7 @@ export function ProgressBar({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className="overflow-hidden rounded-full bg-sand-200"
+      className="overflow-hidden rounded-full bg-page"
       style={{ height }}
     >
       <View className={`h-full rounded-full ${FILL[tone]}`} style={{ width: `${clamped * 100}%` }} />

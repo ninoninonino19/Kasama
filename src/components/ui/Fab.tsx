@@ -29,8 +29,8 @@ export function Fab({
       className="absolute bottom-5 right-5"
       style={{
         // Lifted off the surface so it reads as floating above the list.
-        shadowColor: colors.brand[700],
-        shadowOpacity: 0.28,
+        shadowColor: colors.bezel,
+        shadowOpacity: 0.24,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
         elevation: 8,
@@ -45,13 +45,13 @@ export function Fab({
         }}
         android_ripple={{ color: ripple.light, borderless: false }}
         // 56dp is the platform minimum for a comfortable primary target.
-        className={`h-14 flex-row items-center justify-center rounded-full bg-brand-500 active:bg-brand-600 ${
+        className={`h-14 flex-row items-center justify-center rounded-full bg-moss active:bg-bezel ${
           label ? 'gap-2 px-5' : 'w-14'
         }`}
         style={Platform.OS === 'android' ? { overflow: 'hidden' } : undefined}
       >
-        <Ionicons name={icon} size={26} color={colors.white} />
-        {label ? <Text className="pr-1 text-base font-bold text-white">{label}</Text> : null}
+        <Ionicons name={icon} size={26} color={colors.paper} />
+        {label ? <Text className="pr-1 font-ui-bold text-base text-paper">{label}</Text> : null}
       </Pressable>
     </View>
   );

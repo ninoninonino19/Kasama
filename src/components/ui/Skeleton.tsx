@@ -32,7 +32,7 @@ export function Skeleton({
 
   return (
     <Animated.View
-      className={`bg-sand-200 ${className}`}
+      className={`bg-page ${className}`}
       style={{ width, height, borderRadius: rounded, opacity: pulse }}
     />
   );
@@ -54,7 +54,7 @@ export function ListSkeleton({
       accessibilityRole="progressbar"
     >
       {Array.from({ length: rows }).map((_, index) => (
-        <View key={index} className="rounded-2xl border border-sand-200 bg-white p-4">
+        <View key={index} className="rounded-xl border border-line bg-paper p-4">
           <View className="flex-row items-center gap-3">
             <Skeleton width={44} height={44} rounded={16} />
             <View className="flex-1 gap-2">
@@ -72,25 +72,35 @@ export function ListSkeleton({
   );
 }
 
-/** Balance card + two rows, for the dashboard. */
+/** The dashboard's shape: two summary notes, a board note, then the balance. */
 export function DashboardSkeleton() {
   return (
     <View className="gap-6">
-      <View className="gap-3 rounded-3xl bg-brand-600/90 p-5">
-        <Skeleton width="35%" height={10} className="bg-white/30" />
-        <Skeleton width="55%" height={28} className="bg-white/30" />
-        <View className="mt-2 flex-row gap-3">
-          <Skeleton width="47%" height={58} rounded={16} className="bg-white/20" />
-          <Skeleton width="47%" height={58} rounded={16} className="bg-white/20" />
+      {/* Today's chore and the next bill, in the order the screen shows them. */}
+      <ListSkeleton rows={2} padded={false} />
+      {/* The latest note — taller, because it carries three lines of Caveat. */}
+      <View className="gap-3 rounded-xl border border-line bg-paper p-4">
+        <View className="flex-row items-center gap-2">
+          <Skeleton width={24} height={24} rounded={12} />
+          <Skeleton width="35%" height={10} />
+        </View>
+        <Skeleton width="90%" height={16} />
+        <Skeleton width="70%" height={16} />
+      </View>
+      {/* Settle up. */}
+      <View className="items-center gap-3 rounded-xl border border-line bg-paper p-5">
+        <Skeleton width="30%" height={10} />
+        <Skeleton width="50%" height={28} />
+        <View className="mt-1 w-full flex-row gap-3">
+          <Skeleton width="48%" height={52} rounded={12} />
+          <Skeleton width="48%" height={52} rounded={12} />
         </View>
       </View>
-      {/* Quick actions, so the row doesn't pop in under the balance card. */}
+      {/* Quick actions, so the row doesn't pop in under the balance. */}
       <View className="flex-row gap-3">
         <Skeleton width="47%" height={52} rounded={16} />
         <Skeleton width="47%" height={52} rounded={16} />
       </View>
-      {/* The dashboard already pads its scroll content. */}
-      <ListSkeleton rows={2} padded={false} />
     </View>
   );
 }

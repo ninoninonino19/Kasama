@@ -2,8 +2,9 @@ import { Pressable, Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '../../lib/theme';
 import { haptics } from '../../lib/haptics';
+import { Pill } from './Pill';
+import type { PillTone } from './Pill';
 
 type ChipProps = {
   label: string;
@@ -16,18 +17,20 @@ type ChipProps = {
 export function Chip({ label, count, selected = false, onPress }: ChipProps) {
   const content = (
     <View className="flex-row items-center gap-1.5">
-      <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink-soft'}`}>
+      <Text
+        className={`font-ui-semibold text-sm ${selected ? 'text-paper' : 'text-ink-soft'}`}
+      >
         {label}
       </Text>
       {typeof count === 'number' ? (
         // A count on the filter itself saves a tap to find out a tab is empty.
         <View
           className={`min-w-[20px] items-center rounded-full px-1.5 py-0.5 ${
-            selected ? 'bg-white/25' : 'bg-sand-200'
+            selected ? 'bg-paper/25' : 'bg-page'
           }`}
         >
           <Text
-            className={`text-[11px] font-bold ${selected ? 'text-white' : 'text-ink-muted'}`}
+            className={`font-ui-bold text-[11px] ${selected ? 'text-paper' : 'text-ink-muted'}`}
           >
             {count}
           </Text>
@@ -38,7 +41,7 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
 
   // min-h-11 keeps every chip at the 44pt minimum touch target.
   const className = `min-h-11 items-center justify-center rounded-full border px-4 py-2 ${
-    selected ? 'border-brand-500 bg-brand-500' : 'border-sand-300 bg-white'
+    selected ? 'border-moss bg-moss' : 'border-line bg-paper'
   }`;
 
   if (!onPress) return <View className={className}>{content}</View>;
@@ -61,18 +64,22 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
 
 export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'brand';
 
-const TONES: Record<BadgeTone, { bg: string; fg: string; icon: string }> = {
-  neutral: { bg: 'bg-sand-100', fg: 'text-ink-muted', icon: colors.ink.muted },
-  success: { bg: 'bg-brand-100', fg: 'text-brand-700', icon: colors.brand[700] },
-  warning: { bg: 'bg-amber-100', fg: 'text-amber-700', icon: colors.amber[700] },
-  danger: { bg: 'bg-coral-100', fg: 'text-coral-700', icon: colors.coral[700] },
-  brand: { bg: 'bg-brand-500', fg: 'text-white', icon: colors.white },
+/** The pre-redesign tone names, still used by the screens outside the brief. */
+const LEGACY_TONES: Record<BadgeTone, PillTone> = {
+  neutral: 'muted',
+  success: 'ok',
+  warning: 'warn',
+  danger: 'alert',
+  brand: 'strong',
 };
 
 /**
- * Status pill. `icon` matters as much as the tone here: the brief asks that
- * status never rides on colour alone, so "Paid" carries a checkmark and
- * "Overdue" an alert glyph for anyone who can't tell the two fills apart.
+ * Compatibility wrapper around {@link Pill}.
+ *
+ * Auth, onboarding, settings and the bill detail screen are outside the design
+ * brief but still show status badges; rather than leave a second badge
+ * implementation drifting alongside the new one, `Badge` just translates the
+ * old tone names and hands off. New code should use `Pill` directly.
  */
 export function Badge({
   label,
@@ -80,15 +87,9 @@ export function Badge({
   icon,
 }: {
   label: string;
-  tone?: BadgeTone;
+  tone?: BadgeTone | PillTone;
   icon?: ComponentProps<typeof Ionicons>['name'];
 }) {
-  const style = TONES[tone];
-
-  return (
-    <View className={`flex-row items-center gap-1 rounded-full px-2.5 py-1 ${style.bg}`}>
-      {icon ? <Ionicons name={icon} size={12} color={style.icon} /> : null}
-      <Text className={`text-xs font-bold ${style.fg}`}>{label}</Text>
-    </View>
-  );
+  const resolved = tone in LEGACY_TONES ? LEGACY_TONES[tone as BadgeTone] : (tone as PillTone);
+  return <Pill label={label} tone={resolved} icon={icon} />;
 }

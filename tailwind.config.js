@@ -9,6 +9,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // --- "Shared fridge board" design system -------------------------
+        // The fridge door itself, behind the pinned notes.
+        page: '#EDEFE4',
+        // Slightly lighter canvas for scrolling screens.
+        canvas: '#F1F3EA',
+        // A pinned note. Every card in the system sits on this.
+        paper: '#FBFAF4',
+        // Hairline card border and divider.
+        line: '#E2E0D4',
+        // Deep green — primary actions, active tab, "done".
+        moss: {
+          DEFAULT: '#2F3D2C',
+          light: '#5C6E52',
+        },
+        // Warm yellow — money, "due soon", the default washi tape.
+        mustard: '#E8B94A',
+        // Terracotta — overdue, destructive, anything that needs chasing.
+        brick: '#C05B45',
+        // Soft green — settled, calm accents, streak fills.
+        sage: '#A9BFA0',
+        // Derived: low-saturation fills of the accents, for pill and banner
+        // backgrounds — the accents themselves are too loud behind text.
+        wash: {
+          mustard: '#F8EACB',
+          brick: '#F5E0DA',
+          sage: '#E3ECDE',
+        },
+        // Derived: darkened accents, each 4.5:1 or better on its own wash.
+        deep: {
+          mustard: '#7A5B12',
+          brick: '#8E3D2C',
+          sage: '#33502C',
+        },
+        // Near-black for the tab bar and other "hardware" chrome.
+        bezel: '#1B211A',
+
+        // --- Deprecated ---------------------------------------------------
+        // The original teal set, still used by the screens outside the design
+        // brief (auth, onboarding, settings, add/detail modals).
         // Soft teal — the primary accent. Warm enough to feel friendly, not corporate.
         brand: {
           50: '#EFFAF8',
@@ -61,18 +100,34 @@ module.exports = {
           800: '#66450D',
           900: '#4E350A',
         },
+        // Ink is shared by both palettes — the board system's near-black green
+        // reads correctly on the old sand canvas too, so there is no second
+        // scale to keep in sync. All three text tones clear 4.5:1 on `paper`.
         ink: {
-          DEFAULT: '#1F2A2E',
-          soft: '#5A6A6F',
-          // 4.8:1 on white and 4.6:1 on the sand canvas. The old #8A979B looked
-          // right but only reached 3.1:1, under the 4.5:1 the brief asks for.
-          muted: '#67757A',
+          DEFAULT: '#23281F',
+          // Derived: the system names one muted ink, but the app already
+          // separates readable secondary text from metadata.
+          soft: '#454C3F',
+          muted: '#5C6455',
           // Decorative only — chevrons, dividers, disabled glyphs. Never text.
-          faint: '#A3AEB2',
+          faint: '#9BA391',
         },
       },
+      // React Native matches a custom face by family name alone, so each weight
+      // is its own family here rather than a `font-bold` away. Keys deliberately
+      // avoid Tailwind's own `font-{weight}` utilities.
       fontFamily: {
-        sans: ['System'],
+        sans: ['Manrope_400Regular'],
+        ui: ['Manrope_500Medium'],
+        'ui-semibold': ['Manrope_600SemiBold'],
+        'ui-bold': ['Manrope_700Bold'],
+        'ui-black': ['Manrope_800ExtraBold'],
+        // Caveat. Greetings, board posts, "your turn!" — never dense UI text.
+        hand: ['Caveat_600SemiBold'],
+        'hand-bold': ['Caveat_700Bold'],
+        // IBM Plex Mono. Peso amounts, due dates, timestamps.
+        mono: ['IBMPlexMono_500Medium'],
+        'mono-bold': ['IBMPlexMono_600SemiBold'],
       },
       borderRadius: {
         xl: '16px',

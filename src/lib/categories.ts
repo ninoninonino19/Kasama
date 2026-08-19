@@ -15,46 +15,52 @@ export type CategoryMeta = {
   background: string;
 };
 
+/**
+ * Tints are drawn from the same earth range as the avatar palette, so a column
+ * of category chips sits inside the fridge-board system instead of importing a
+ * second one. Each pairing clears 4.5:1, and the glyph — not the hue — is what
+ * actually names the category.
+ */
 export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'rent',
     label: 'Rent',
     subtitle: 'Renta / Upa',
     icon: 'home-outline',
-    tint: '#1C6A61',
-    background: '#D7F2EE',
+    tint: '#33502C',
+    background: '#DCE7D4',
   },
   {
     value: 'utilities',
     label: 'Utilities',
     subtitle: 'Kuryente at Tubig',
     icon: 'flash-outline',
-    tint: '#8A6516',
-    background: '#FDF0CE',
+    tint: '#7A5B12',
+    background: '#F6E4C8',
   },
   {
     value: 'internet',
     label: 'Internet',
     subtitle: 'WiFi',
     icon: 'wifi-outline',
-    tint: '#334D9C',
-    background: '#E3E9FB',
+    tint: '#2F4B50',
+    background: '#D9E2E4',
   },
   {
     value: 'groceries',
     label: 'Groceries',
     subtitle: 'Palengke / Grocery',
     icon: 'basket-outline',
-    tint: '#3B6E33',
-    background: '#DFF1DC',
+    tint: '#4A5334',
+    background: '#E3E6D6',
   },
   {
     value: 'other',
     label: 'Other',
     subtitle: 'Iba pa',
     icon: 'ellipsis-horizontal-circle-outline',
-    tint: '#B0381D',
-    background: '#FFE5DC',
+    tint: '#8E3D2C',
+    background: '#F0DAD3',
   },
 ];
 
