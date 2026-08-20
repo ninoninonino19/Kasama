@@ -461,6 +461,23 @@ Remaining steps, none of which can be done from this repo alone:
 9. **Before launch, harden auth.** Turn *Confirm email* back on in Supabase, add your app's
    redirect URLs, and consider rate limiting on the auth endpoints.
 
+### Known limitation: a share is all-or-nothing
+
+`bill_splits.paid` is a boolean, so a housemate's share is either settled or it isn't.
+"I'll give you half now and the rest on payday" has nowhere to go — the usual workaround is
+marking it paid early, which quietly makes the ledger a record of promises rather than
+payments.
+
+Fixing it properly is a schema change with a wide blast radius: either an `amount_paid`
+column alongside `amount_owed` with `paid` derived from it, or a `bill_payments` table with
+one row per payment. Either way every money calculation moves —
+`isBillSettled`, `billOutstanding`, `billProgress`, `summariseBalance`, `settleUp`,
+`fetchLedger` and `pending_reminders` — plus the tick-box on the bill detail screen becomes
+an amount entry. It hasn't been done because it is a product decision, not an oversight:
+plenty of split apps keep shares atomic on purpose.
+
 ### Nice-to-haves not built yet
 
 - A design pass over onboarding, settings and the auth screens (see *Not yet designed*)
+- Partial payments (see above)
+- Comments or reactions on board notes — the board is post-and-read today
