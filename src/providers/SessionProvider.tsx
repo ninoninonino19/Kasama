@@ -9,9 +9,21 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useSessionStore } from '../store/useSessionStore';
 
 type SessionContextValue = {
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  /**
+   * Creates the account. Resolves with whether the address still has to be
+   * confirmed before it can be used — see the note on the implementation.
+   */
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string
+  ) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Redeems the six-digit code from the confirmation email; signs them in. */
+  confirmEmail: (email: string, code: string) => Promise<void>;
+  /** Sends a fresh confirmation code to an address that hasn't confirmed yet. */
+  resendConfirmation: (email: string) => Promise<void>;
   /** Emails a six-digit recovery code. Never reveals whether the address exists. */
   requestPasswordReset: (email: string) => Promise<void>;
   /** Redeems the code and sets the new password in one step — see the note below. */
@@ -120,13 +132,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       bootstrapError,
       refreshHousehold,
+      /**
+       * With "Confirm email" enabled, Supabase creates the user but withholds
+       * the session until the address is verified. That missing session — not
+       * anything on the user object — is the signal, and it is the same shape
+       * whether the address is genuinely new or already belongs to someone:
+       * Supabase deliberately answers identically so a stranger can't use this
+       * endpoint to discover who has an account. Sending both cases to the
+       * confirmation screen keeps that property intact.
+       */
       signUp: async (email, password, displayName) => {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: { data: { display_name: displayName.trim() } },
         });
         if (error) throw error;
+        return { needsConfirmation: data.session === null };
       },
       signIn: async (email, password) => {
         const { error } = await supabase.auth.signInWithPassword({
@@ -154,6 +176,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         store.getState().reset();
+      },
+      /**
+       * Redeeming the code confirms the address and signs them in, which the
+       * auth listener picks up from here — the same one-step shape the
+       * recovery flow uses, and for the same reason: a confirmed account with
+       * no session is a dead end the user has to climb out of by logging in
+       * again.
+       */
+      confirmEmail: async (email, code) => {
+        const { error } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: code.trim(),
+          type: 'signup',
+        });
+        if (error) throw error;
+      },
+      resendConfirmation: async (email) => {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: email.trim(),
+        });
+        if (error) throw error;
       },
       requestPasswordReset: async (email) => {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim());

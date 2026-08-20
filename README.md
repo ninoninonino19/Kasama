@@ -48,13 +48,23 @@ npm install
    npx supabase db push
    ```
 
-3. **Auth → Providers → Email**: enable email/password. For a smoother first run, turn
-   *Confirm email* off (with it on, users must confirm before they can log in — the sign-up
-   screen handles both cases).
-4. **Auth → Emails → Reset Password**: the in-app recovery flow asks for a six-digit code
-   rather than a link, so the template has to contain `{{ .Token }}`. Supabase's default
-   template only offers `{{ .ConfirmationURL }}`, which opens a browser and can't hand the
-   code back to the app. Replace the body with something like:
+3. **Auth → Providers → Email**: enable email/password. *Confirm email* can be left on —
+   the app takes an unconfirmed sign-up straight to a code screen and finishes registration
+   there. Turn it off only if you want sign-ups to skip verification entirely.
+4. **Auth → Emails**: both in-app flows ask for a six-digit code rather than a link, so
+   **two** templates have to contain `{{ .Token }}`. Supabase's defaults only offer
+   `{{ .ConfirmationURL }}`, which opens a browser — and a browser has no way to hand the
+   session back to the app.
+
+   **Confirm signup**:
+
+   ```html
+   <h2>Confirm your Kasama account</h2>
+   <p>Your code is <strong>{{ .Token }}</strong>. It expires in an hour.</p>
+   <p>If you didn't sign up, you can ignore this email.</p>
+   ```
+
+   **Reset Password**:
 
    ```html
    <h2>Reset your Kasama password</h2>
@@ -62,9 +72,10 @@ npm install
    <p>If you didn't ask for this, you can ignore this email.</p>
    ```
 
-   A code beats a link here because Expo Go serves the app from an `exp://` URL that changes
-   with your network, so link-based recovery would need re-allow-listing every time you moved
-   between Wi-Fi networks.
+   Leave either template as a bare link and that flow strands the user: the email arrives,
+   but it carries nothing they can type into the app. A code also survives Expo Go serving
+   the app from an `exp://` URL that changes with your network, which link-based flows would
+   need re-allow-listing for every time you moved between Wi-Fi networks.
 5. **Database → Replication**: the migration already adds the app tables to the
    `supabase_realtime` publication, so live updates work out of the box.
 

@@ -127,9 +127,13 @@ export default function RootLayout() {
                 name="settings/household"
                 options={{ headerShown: true, title: 'Household' }}
               />
-              {/* Recovery sits outside the `auth` group: that layout redirects
-                  away as soon as a session exists, and redeeming a recovery code
-                  creates one mid-flow. */}
+              {/* Confirmation and recovery both sit outside the `auth` group:
+                  that layout redirects away as soon as a session exists, and
+                  redeeming either code creates one mid-flow. */}
+              <Stack.Screen
+                name="confirm-email"
+                options={{ headerShown: true, title: 'Confirm email' }}
+              />
               <Stack.Screen
                 name="forgot-password"
                 options={{ headerShown: true, title: 'Reset password' }}
