@@ -43,6 +43,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#EDEFE4"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kasama uses your photos so you can put a face next to your name for your housemates."
+        }
       ]
     ],
     "experiments": {

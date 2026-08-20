@@ -11,6 +11,7 @@ import {
   setMemberRole,
   updateDisplayName,
 } from '../src/api/household';
+import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../src/api/avatars';
 import { Avatar } from '../src/components/ui/Avatar';
 import { Badge } from '../src/components/ui/Chip';
 import { Button } from '../src/components/ui/Button';
@@ -41,6 +42,7 @@ export default function SettingsScreen() {
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [savingName, setSavingName] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -206,6 +208,41 @@ export default function SettingsScreen() {
     );
   }
 
+  async function changePhoto() {
+    if (!userId) return;
+    haptics.tap();
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      const url = await pickAndUploadAvatar(userId);
+      // `null` means the picker was dismissed, which is not a failure.
+      if (url) {
+        haptics.success();
+        await refreshHousehold();
+      }
+    } catch (caught) {
+      haptics.error();
+      setError(caught instanceof AvatarError ? caught.message : messageFrom(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function clearPhoto() {
+    if (!userId) return;
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      await removeAvatar(userId);
+      await refreshHousehold();
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function confirmSignOut() {
     Alert.alert('Log out?', 'Kailangan mong mag-log in ulit next time.', [
       { text: 'Cancel', style: 'cancel' },
@@ -321,6 +358,38 @@ export default function SettingsScreen() {
       <View>
         <SectionTitle>Your profile</SectionTitle>
         <Card className="gap-3">
+          <View className="flex-row items-center gap-4">
+            <Avatar
+              name={profile?.display_name ?? 'You'}
+              userId={userId ?? 'me'}
+              avatarUrl={profile?.avatar_url}
+              size={64}
+            />
+            <View className="flex-1 gap-2">
+              <Button
+                label={profile?.avatar_url ? 'Change photo' : 'Add a photo'}
+                variant="secondary"
+                size="md"
+                icon="camera-outline"
+                loading={photoBusy}
+                onPress={changePhoto}
+              />
+              {profile?.avatar_url ? (
+                <Button
+                  label="Remove photo"
+                  variant="ghost"
+                  size="md"
+                  onPress={clearPhoto}
+                  disabled={photoBusy}
+                />
+              ) : (
+                <Text className="text-xs leading-4 text-ink-muted">
+                  Kung wala, ang initials mo ang ipapakita.
+                </Text>
+              )}
+            </View>
+          </View>
+
           <TextField label="Display name" value={displayName} onChangeText={setDisplayName} />
           {displayNameChanged ? (
             <Button

@@ -253,7 +253,12 @@ Nothing new should reach for them.
 | `bill_splits` | Per-person share of a bill and whether it's settled |
 | `chores` | Title, notes, recurrence |
 | `chore_assignments` | Whose turn it is, when it's due, whether it's done |
-| `announcements` | Household feed posts |
+| `announcements` | Household feed posts, whether they're pinned, and their tape colour |
+
+One **Storage bucket**, `avatars`, is created by
+`20260820020000_avatars_bucket.sql`. It's public — an avatar isn't a secret, and a public
+bucket lets `profiles.avatar_url` hold a plain durable URL rather than one that has to be
+signed on every render. Writes are locked to `<user-id>/…`, so "public" covers reading only.
 
 **Row level security** is on for every table. Access is granted only to members of the
 owning household, checked through `SECURITY DEFINER` helpers
@@ -280,10 +285,13 @@ supabase/tests/run.sh            # needs a local postgres you can create databas
 
 `supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
 (`auth.users`, `auth.uid()`, the Supabase roles, the realtime publication) so the real
-migrations run unmodified. `roll_recurring_bill_test.sql` covers the recurring-bill roll:
-that a partly paid bill doesn't roll, that a settled one lands on the right date with the
-original payer and their share prepaid, that re-settling is a no-op, that a non-member is
-refused, and that an undated recurring bill counts from today.
+migrations run unmodified. Three suites run today:
+
+| File | Covers |
+| --- | --- |
+| `roll_recurring_bill_test.sql` | A partly paid bill doesn't roll; a settled one lands on the right date with the original payer and their share prepaid; re-settling is a no-op; non-members are refused; one-offs never roll; an undated recurring bill counts from today |
+| `board_notes_test.sql` | `tape_color` rejects anything outside the palette tokens; a housemate can pin a note they didn't write but still can't edit it; pinned leads the feed and unpinning restores newest-first |
+| `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
 
 ### Regenerating types
 
@@ -367,7 +375,6 @@ Remaining steps, none of which can be done from this repo alone:
 ### Nice-to-haves not built yet
 
 - Push notifications for due bills and chore turns (`expo-notifications`)
-- Avatar uploads via Supabase Storage
 - Settlement history / "who paid whom" ledger
 - A design pass over onboarding, the add-expense flow and settings (see *Not yet designed*)
 - Stored chore streaks, per-note tape colour and pinned notes (see *Where the design outran
