@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { deleteAnnouncement } from '../../src/api/announcements';
+import { deleteAnnouncement, setAnnouncementPinned } from '../../src/api/announcements';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { NoteCard } from '../../src/components/ui/NoteCard';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
@@ -16,6 +16,7 @@ import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
 import { colors, tapeColorFor } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
+import type { AnnouncementWithAuthor } from '../../src/types';
 
 export default function AnnouncementsScreen() {
   const router = useRouter();
@@ -32,8 +33,42 @@ export default function AnnouncementsScreen() {
 
   const announcements = data ?? [];
 
-  function confirmDelete(id: string) {
+  /**
+   * The note's own menu. Pinning is open to the whole household — on a real
+   * fridge anyone can move a note to the top — while taking one down stays
+   * with its author and the admins.
+   */
+  function openNoteMenu(item: AnnouncementWithAuthor, canDelete: boolean) {
     haptics.tap();
+    const name = item.profile?.display_name ?? 'Housemate';
+
+    Alert.alert(name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: item.pinned ? 'Alisin sa itaas' : 'I-pin sa itaas',
+        onPress: async () => {
+          try {
+            await setAnnouncementPinned(item.id, !item.pinned);
+            await refresh({ silent: true });
+          } catch (caught) {
+            haptics.error();
+            setActionError(messageFrom(caught));
+          }
+        },
+      },
+      ...(canDelete
+        ? [
+            {
+              text: 'Tanggalin',
+              style: 'destructive' as const,
+              onPress: () => confirmDelete(item.id),
+            },
+          ]
+        : []),
+    ]);
+  }
+
+  function confirmDelete(id: string) {
     Alert.alert('Take this note down?', 'Hindi na ito makikita ng iba.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -87,12 +122,11 @@ export default function AnnouncementsScreen() {
 
             return (
               <NoteCard
-                // The schema has no tape colour, so it is hashed from the note's
-                // id: stable for the life of the post, and no two adjacent notes
-                // reliably match. See the README note on making it a column.
-                tape={tapeColorFor(item.id)}
+                // The author's chosen tape, falling back to a colour hashed
+                // from the id for notes written before the column existed.
+                tape={tapeColorFor(item.id, item.tape_color)}
                 rotate={index % 2 === 0 ? -0.5 : 0.5}
-                className="pt-5"
+                className={`pt-5 ${item.pinned ? 'border-moss-light' : ''}`}
               >
                 <View className="flex-row items-center gap-3">
                   <Avatar
@@ -106,22 +140,32 @@ export default function AnnouncementsScreen() {
                       {name}
                       {item.user_id === userId ? ' (you)' : ''}
                     </Text>
-                    <Text className="font-mono text-[11px] text-ink-muted">
-                      {formatTimeAgo(item.created_at)}
-                    </Text>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="font-mono text-[11px] text-ink-muted">
+                        {formatTimeAgo(item.created_at)}
+                      </Text>
+                      {/* A pinned note is out of date order, so it says why
+                          rather than just appearing to be the newest. */}
+                      {item.pinned ? (
+                        <View className="flex-row items-center gap-0.5">
+                          <Ionicons name="pin" size={11} color={colors.deep.mustard} />
+                          <Text className="font-ui-bold text-[10px] uppercase tracking-wider text-deep-mustard">
+                            Pinned
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-                  {canDelete ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Take down the note from ${name}`}
-                      hitSlop={12}
-                      onPress={() => confirmDelete(item.id)}
-                      // 44pt tap area around a visually small control.
-                      className="h-11 w-11 items-center justify-center rounded-full active:bg-page"
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
-                    </Pressable>
-                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Options for the note from ${name}`}
+                    hitSlop={12}
+                    onPress={() => openNoteMenu(item, canDelete)}
+                    // 44pt tap area around a visually small control.
+                    className="h-11 w-11 items-center justify-center rounded-full active:bg-page"
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
+                  </Pressable>
                 </View>
                 {/* The whole point of the board: a note in someone's hand. */}
                 <Text className="mt-2 font-hand text-2xl leading-8 text-ink">{item.content}</Text>

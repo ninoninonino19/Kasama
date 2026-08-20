@@ -226,7 +226,9 @@ export default function HomeScreen() {
                 {/* Latest from the board ----------------------------- */}
                 <View>
                   <View className="mb-2 flex-row items-center justify-between">
-                    <SectionTitle className="mb-0">Latest note</SectionTitle>
+                    {/* Not "latest": the feed puts pinned notes first, so the
+                        note leading the board may well be an older one. */}
+                    <SectionTitle className="mb-0">On the board</SectionTitle>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => router.push('/announcements')}
@@ -240,7 +242,7 @@ export default function HomeScreen() {
                   {latestPost ? (
                     <NoteCard
                       onPress={() => router.push('/announcements')}
-                      tape={tapeColorFor(latestPost.id)}
+                      tape={tapeColorFor(latestPost.id, latestPost.tape_color)}
                       rotate={-0.5}
                       className="pt-5"
                     >
@@ -254,6 +256,9 @@ export default function HomeScreen() {
                         <Text className="flex-1 font-ui-semibold text-xs text-ink-soft">
                           {latestPost.profile?.display_name ?? 'Housemate'}
                         </Text>
+                        {latestPost.pinned ? (
+                          <Ionicons name="pin" size={11} color={colors.deep.mustard} />
+                        ) : null}
                         <Text className="font-mono text-[11px] text-ink-muted">
                           {formatTimeAgo(latestPost.created_at)}
                         </Text>

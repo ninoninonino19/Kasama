@@ -13,6 +13,12 @@ export type MemberRole = 'admin' | 'member';
 export type BillCategory = 'rent' | 'utilities' | 'internet' | 'groceries' | 'other';
 export type BillRecurrence = 'none' | 'weekly' | 'monthly';
 export type ChoreRecurrence = 'once' | 'daily' | 'weekly' | 'monthly';
+/**
+ * `announcements.tape_color`. A check constraint rather than a Postgres enum,
+ * so adding a colour later is one ALTER instead of a type rewrite — but the
+ * union is still worth spelling out on this side.
+ */
+export type TapeColor = 'mustard' | 'sage' | 'brick' | 'moss';
 
 export type Database = {
   public: {
@@ -209,6 +215,9 @@ export type Database = {
           household_id: string;
           user_id: string;
           content: string;
+          pinned: boolean;
+          /** A palette token — see TAPE_TOKENS. Null on notes predating it. */
+          tape_color: TapeColor | null;
           created_at: string;
         };
         Insert: {
@@ -216,6 +225,8 @@ export type Database = {
           household_id: string;
           user_id: string;
           content: string;
+          pinned?: boolean;
+          tape_color?: TapeColor | null;
           created_at?: string;
         };
         Update: {
@@ -223,6 +234,8 @@ export type Database = {
           household_id?: string;
           user_id?: string;
           content?: string;
+          pinned?: boolean;
+          tape_color?: TapeColor | null;
           created_at?: string;
         };
         Relationships: [];
@@ -237,6 +250,10 @@ export type Database = {
       join_household_by_code: {
         Args: { code: string };
         Returns: Database['public']['Tables']['households']['Row'];
+      };
+      set_announcement_pinned: {
+        Args: { announcement_id: string; pinned: boolean };
+        Returns: undefined;
       };
       roll_recurring_bill: {
         Args: { source_bill_id: string };
