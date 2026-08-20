@@ -241,7 +241,17 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      chore_streaks: {
+        Row: {
+          household_id: string;
+          user_id: string;
+          /** Consecutive finished turns, newest-first. */
+          streak: number;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       create_household: {
         Args: { household_name: string };

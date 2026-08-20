@@ -214,17 +214,14 @@ Status never rides on colour alone — every pill pairs its tone with a word and
 
 ### Where the design outran the schema
 
-Three things the design asks for have no column behind them. All three are derived on the
-client today, and each has a real fix if it becomes something the app promises rather than
-decorates:
+Three things the design asked for had no column behind them. They were flagged rather than
+faked, and have since been built:
 
-| Design element | Today | If it needs to be real |
-| --- | --- | --- |
-| Chore streaks | `choreStreaks()` walks each housemate's past turns newest-first and counts the ticked ones. Sensitive to how much history is loaded, and un-ticking an old turn retroactively breaks the streak | A `chore_streaks` view, or a counter maintained by the same path that queues the next turn |
-| Tape colour per note | Hashed from the note's id — stable for the life of the post, no two adjacent notes reliably matching | An `announcements.tape_color` column, set when the note is written |
-| Pinned notes | Not supported; the board is newest-first | An `announcements.pinned` boolean, sorted ahead of the rest |
-
-None of these were built: this pass deliberately doesn't touch the schema, RLS or auth.
+| Design element | Where it lives now |
+| --- | --- |
+| Chore streaks | `chore_streaks`, a `security_invoker` view. Walking a housemate's turns newest-first, count the finished ones until a missed turn; a turn that is open but not yet late is skipped rather than treated as a break |
+| Tape colour per note | `announcements.tape_color`, a palette *token* rather than a hex, so re-tuning a colour isn't a data migration. Notes written before the column keep a colour hashed from their id |
+| Pinned notes | `announcements.pinned`, plus `set_announcement_pinned()`. Pinning is open to the whole household while editing stays with the author — see the migration for why those can't share one policy |
 
 ### Not yet designed
 
@@ -292,6 +289,7 @@ migrations run unmodified. Three suites run today:
 | `roll_recurring_bill_test.sql` | A partly paid bill doesn't roll; a settled one lands on the right date with the original payer and their share prepaid; re-settling is a no-op; non-members are refused; one-offs never roll; an undated recurring bill counts from today |
 | `board_notes_test.sql` | `tape_color` rejects anything outside the palette tokens; a housemate can pin a note they didn't write but still can't edit it; pinned leads the feed and unpinning restores newest-first |
 | `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
+| `chore_streaks_test.sql` | Consecutive finished turns count; a turn due today doesn't break a run; a missed turn ends it and older wins don't carry over; an overdue turn reads as zero rather than as no row; the view is `security_invoker` |
 
 ### Regenerating types
 

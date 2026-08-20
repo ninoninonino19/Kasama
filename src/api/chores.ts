@@ -185,61 +185,19 @@ export function openAssignment(chore: ChoreWithAssignments): AssignmentWithProfi
 }
 
 /**
- * How many turns in a row a housemate has finished, per user id.
+ * Consecutive finished turns per housemate, keyed by user id.
  *
- * NOTE — this is derived on the client, not stored. The schema records each
- * turn's `completed` flag and `due_date` but has no streak column, so a streak
- * here means "walking that person's past turns newest-first, how many are
- * ticked before the first one that isn't". A turn that is still open but not
- * yet late is skipped rather than counted as a break — you haven't lost a
- * streak at 9am on the morning something is due.
- *
- * Two consequences worth knowing before this ends up on a screen anyone
- * competes over:
- *
- *  - It only sees the assignments currently loaded. `fetchChores` pulls every
- *    assignment for the household, so today that is the full history; if that
- *    query ever gets a window, streaks silently cap at the window.
- *  - Un-ticking an old turn retroactively breaks the streak, which is correct
- *    but can surprise someone who tapped Undo on last month's dishes.
- *
- * If streaks become something the app promises rather than decorates, the
- * honest fix is a `chore_streaks` view (or a counter maintained by the same
- * trigger that queues the next turn) rather than growing this function — that
- * would be a schema change, which this design pass deliberately doesn't make.
+ * The counting rule lives in the `chore_streaks` view (see its migration), not
+ * here — deriving it in JS only worked on the one screen that happens to load
+ * every assignment, and put "how is a streak counted" inside a component.
  */
-export function choreStreaks(
-  chores: ChoreWithAssignments[],
-  today = todayString()
-): Record<string, number> {
-  const byUser = new Map<string, AssignmentWithProfile[]>();
+export async function fetchChoreStreaks(householdId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('chore_streaks')
+    .select('user_id, streak')
+    .eq('household_id', householdId);
 
-  for (const chore of chores) {
-    for (const assignment of chore.assignments) {
-      const bucket = byUser.get(assignment.user_id);
-      if (bucket) bucket.push(assignment);
-      else byUser.set(assignment.user_id, [assignment]);
-    }
-  }
+  if (error) throw error;
 
-  const streaks: Record<string, number> = {};
-
-  for (const [userId, assignments] of byUser) {
-    const history = [...assignments].sort((a, b) => b.due_date.localeCompare(a.due_date));
-
-    let streak = 0;
-    for (const assignment of history) {
-      if (assignment.completed) {
-        streak += 1;
-        continue;
-      }
-      // Still open but not yet late — doesn't count either way.
-      if (assignment.due_date >= today) continue;
-      break;
-    }
-
-    streaks[userId] = streak;
-  }
-
-  return streaks;
+  return Object.fromEntries((data ?? []).map((row) => [row.user_id, row.streak]));
 }
