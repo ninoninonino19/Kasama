@@ -16,7 +16,7 @@ import {
 import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../src/api/avatars';
 import { pushSupported, registerForPush } from '../src/lib/push';
 import { Avatar } from '../src/components/ui/Avatar';
-import { Badge } from '../src/components/ui/Chip';
+import { Pill } from '../src/components/ui/Pill';
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { SectionTitle } from '../src/components/ui/Screen';
@@ -104,7 +104,7 @@ export default function SettingsScreen() {
     if (!household) return;
     try {
       await Share.share({
-        message: `Sali ka sa "${household.name}" sa Kasama! Invite code: ${household.invite_code}`,
+        message: `Join "${household.name}" on Kasama. Invite code: ${household.invite_code}`,
       });
     } catch (caught) {
       setError(messageFrom(caught));
@@ -120,8 +120,8 @@ export default function SettingsScreen() {
     Alert.alert(
       'Leave this household?',
       lastAdmin
-        ? 'Ikaw lang ang admin. Kapag umalis ka, walang matitirang admin sa household.'
-        : 'Mawawala sa iyo ang bills, chores at feed ng bahay na ito.',
+        ? "You're the only admin. If you leave, the household is left without one."
+        : "You'll lose access to this household's bills, chores and board.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -158,14 +158,14 @@ export default function SettingsScreen() {
     const wouldStrandHousehold = isTheirAdmin && adminCount === 1;
 
     Alert.alert(name, wouldStrandHousehold
-      ? 'Siya lang ang admin. Gumawa muna ng ibang admin bago siya alisin o i-demote.'
-      : 'Ano ang gagawin?', [
+      ? 'They are the only admin. Make someone else an admin before removing or demoting them.'
+      : 'What would you like to do?', [
       { text: 'Cancel', style: 'cancel' },
       ...(wouldStrandHousehold
         ? []
         : [
             {
-              text: isTheirAdmin ? 'Gawing member' : 'Gawing admin',
+              text: isTheirAdmin ? 'Make them a member' : 'Make them an admin',
               onPress: async () => {
                 try {
                   await setMemberRole(household.id, member.user_id, isTheirAdmin ? 'member' : 'admin');
@@ -177,7 +177,7 @@ export default function SettingsScreen() {
               },
             },
             {
-              text: 'Alisin sa bahay',
+              text: 'Remove from household',
               style: 'destructive' as const,
               onPress: () => confirmRemove(member),
             },
@@ -190,12 +190,12 @@ export default function SettingsScreen() {
     const name = member.profile.display_name;
 
     Alert.alert(
-      `Alisin si ${name}?`,
-      'Mananatili ang mga bill at split niya — hindi mabubura ang utang kapag inalis mo siya. Mawawala lang ang access niya sa household.',
+      `Remove ${name}?`,
+      'Their bills and splits stay put — removing someone does not erase what they owe or are owed. They just lose access to the household.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Alisin',
+          text: 'Remove',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -257,7 +257,7 @@ export default function SettingsScreen() {
       try {
         const result = await registerForPush();
         if (result.status === 'denied') {
-          setError('Naka-off ang notifications para sa Kasama sa phone settings mo.');
+          setError('Notifications are turned off for Kasama in your phone settings.');
           return;
         }
         if (result.status === 'unsupported') {
@@ -280,7 +280,7 @@ export default function SettingsScreen() {
   }
 
   function confirmSignOut() {
-    Alert.alert('Log out?', 'Kailangan mong mag-log in ulit next time.', [
+    Alert.alert('Log out?', "You'll need to log in again next time.", [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Log out', style: 'destructive', onPress: () => void signOut() },
     ]);
@@ -288,18 +288,18 @@ export default function SettingsScreen() {
 
   if (!household) {
     return (
-      <View className="flex-1 items-center justify-center bg-sand-50 p-6">
+      <View className="flex-1 items-center justify-center bg-canvas p-6">
         {status === 'loading' ? (
           <LoadingState />
         ) : (
-          <Text className="text-base text-ink-soft">Wala kang household ngayon.</Text>
+          <Text className="font-ui text-base text-ink-soft">You are not in a household right now.</Text>
         )}
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-sand-50" contentContainerClassName="gap-6 p-5 pb-12"
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-6 p-5 pb-12"
       keyboardDismissMode="on-drag">
       {error ? <InlineError message={error} /> : null}
 
@@ -307,15 +307,15 @@ export default function SettingsScreen() {
       <View>
         <SectionTitle>Invite code</SectionTitle>
         <Card className="items-center gap-3 py-6">
-          <Text className="text-4xl font-bold tracking-[8px] text-ink">
+          <Text className="font-mono-bold text-4xl tracking-[8px] text-ink">
             {household.invite_code}
           </Text>
-          <Text className="text-center text-sm leading-5 text-ink-muted">
-            Ibigay ito sa kasama mo para makasali sila sa household.
+          <Text className="text-center font-ui text-sm leading-5 text-ink-muted">
+            Share this with your housemates so they can join the household.
           </Text>
           <View className="mt-1 flex-row gap-2">
             <Button
-              label={copied ? 'Copied!' : 'Copy'}
+              label={copied ? 'Copied' : 'Copy'}
               variant="secondary"
               size="md"
               icon={copied ? 'checkmark' : 'copy-outline'}
@@ -336,12 +336,12 @@ export default function SettingsScreen() {
             onChangeText={setName}
             editable={isAdmin}
             maxLength={60}
-            hint={isAdmin ? undefined : 'Admins lang ang pwedeng magpalit ng pangalan.'}
+            hint={isAdmin ? undefined : 'Only admins can change the household name.'}
           />
           {isAdmin && nameChanged ? (
             <Button label="Save name" size="md" onPress={handleRename} loading={savingName} />
           ) : null}
-          <Text className="text-xs text-ink-muted">
+          <Text className="font-ui text-xs text-ink-muted">
             Created {formatShortDate(household.created_at)}
           </Text>
         </Card>
@@ -351,7 +351,7 @@ export default function SettingsScreen() {
       <View>
         <SectionTitle>Housemates ({members.length})</SectionTitle>
         {isAdmin && members.length > 1 ? (
-          <Text className="mb-2 -mt-1 text-xs text-ink-muted">
+          <Text className="mb-2 -mt-1 font-ui text-xs text-ink-muted">
             Tap a housemate to make them an admin or remove them.
           </Text>
         ) : null}
@@ -371,15 +371,15 @@ export default function SettingsScreen() {
                     avatarUrl={member.profile.avatar_url}
                   />
                   <View className="flex-1">
-                    <Text className="text-sm font-bold text-ink">
+                    <Text className="font-ui-bold text-sm text-ink">
                       {member.profile.display_name}
                       {member.user_id === userId ? ' (you)' : ''}
                     </Text>
-                    <Text className="text-xs text-ink-muted">
+                    <Text className="font-ui text-xs text-ink-muted">
                       Joined {formatShortDate(member.joined_at)}
                     </Text>
                   </View>
-                  {member.role === 'admin' ? <Badge label="Admin" tone="success" /> : null}
+                  {member.role === 'admin' ? <Pill label="Admin" tone="ok" /> : null}
                   {manageable ? (
                     <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
                   ) : null}
@@ -419,8 +419,8 @@ export default function SettingsScreen() {
                   disabled={photoBusy}
                 />
               ) : (
-                <Text className="text-xs leading-4 text-ink-muted">
-                  Kung wala, ang initials mo ang ipapakita.
+                <Text className="font-ui text-xs leading-4 text-ink-muted">
+                  Without one, your initials are shown instead.
                 </Text>
               )}
             </View>
@@ -444,15 +444,15 @@ export default function SettingsScreen() {
         <Card className="gap-1">
           {(
             [
-              { key: 'push_bills', label: 'Bills at bayarin', hint: 'Bagong bill na may share ka.' },
-              { key: 'push_chores', label: 'Chores', hint: 'Kapag ikaw ang susunod sa rota.' },
-              { key: 'push_board', label: 'Board notes', hint: 'Bawat bagong note sa board.' },
+              { key: 'push_bills', label: 'Bills', hint: 'A new bill you have a share in.' },
+              { key: 'push_chores', label: 'Chores', hint: "When it's your turn in the rota." },
+              { key: 'push_board', label: 'Board notes', hint: 'Every new note on the board.' },
             ] as { key: keyof PushPreferences; label: string; hint: string }[]
           ).map((row) => (
             <View key={row.key} className="min-h-[56px] flex-row items-center gap-3 py-1">
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-ink">{row.label}</Text>
-                <Text className="mt-0.5 text-xs text-ink-muted">{row.hint}</Text>
+                <Text className="font-ui-semibold text-sm text-ink">{row.label}</Text>
+                <Text className="mt-0.5 font-ui text-xs text-ink-muted">{row.hint}</Text>
               </View>
               <Switch
                 value={Boolean(profile?.[row.key])}
@@ -464,9 +464,9 @@ export default function SettingsScreen() {
             </View>
           ))}
           {!pushSupported ? (
-            <Text className="mt-1 text-xs leading-5 text-ink-muted">
-              Hindi naghahatid ng push ang Expo Go simula SDK 53. Kailangan ng development
-              build para gumana ito — tingnan ang README.
+            <Text className="mt-1 font-ui text-xs leading-5 text-ink-muted">
+              Expo Go stopped delivering push notifications in SDK 53. A development build is
+              needed for these to work — see the README.
             </Text>
           ) : null}
         </Card>
@@ -478,24 +478,24 @@ export default function SettingsScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={confirmLeave}
-          className="flex-row items-center gap-3 rounded-2xl border border-sand-200 bg-white p-4 active:bg-sand-100"
+          className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
         >
-          <Ionicons name="exit-outline" size={20} color={colors.coral[600]} />
-          <Text className="flex-1 text-sm font-semibold text-ink">Leave household</Text>
+          <Ionicons name="exit-outline" size={20} color={colors.deep.brick} />
+          <Text className="flex-1 font-ui-semibold text-sm text-ink">Leave household</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={confirmSignOut}
-          className="flex-row items-center gap-3 rounded-2xl border border-sand-200 bg-white p-4 active:bg-sand-100"
+          className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
         >
           <Ionicons name="log-out-outline" size={20} color={colors.ink.soft} />
-          <Text className="flex-1 text-sm font-semibold text-ink">Log out</Text>
+          <Text className="flex-1 font-ui-semibold text-sm text-ink">Log out</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
         </Pressable>
       </View>
 
-      <Text className="text-center text-xs text-ink-muted">Kasama v1.0.0</Text>
+      <Text className="text-center font-ui text-xs text-ink-muted">Kasama v1.0.0</Text>
     </ScrollView>
   );
 }

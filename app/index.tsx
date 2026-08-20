@@ -19,11 +19,11 @@ export default function Index() {
 
   if (status === 'loading') {
     return (
-      <View className="flex-1 items-center justify-center gap-4 bg-sand-50">
-        <View className="h-16 w-16 items-center justify-center rounded-3xl bg-brand-500">
-          <Text className="text-2xl font-bold text-white">K</Text>
+      <View className="flex-1 items-center justify-center gap-4 bg-canvas">
+        <View className="h-16 w-16 items-center justify-center rounded-3xl bg-moss">
+          <Text className="font-ui-black text-2xl text-paper">K</Text>
         </View>
-        <ActivityIndicator color={colors.brand[500]} />
+        <ActivityIndicator color={colors.moss.DEFAULT} />
       </View>
     );
   }

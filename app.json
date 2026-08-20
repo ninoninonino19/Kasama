@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#EDEFE4"
+      "backgroundColor": "#F2F4EA"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "package": "com.kasama.app",
       "adaptiveIcon": {
-        "backgroundColor": "#D7F2EE",
+        "backgroundColor": "#E3ECDE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -41,7 +41,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#EDEFE4"
+          "backgroundColor": "#F2F4EA"
         }
       ],
       [

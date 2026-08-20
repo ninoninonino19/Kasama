@@ -65,7 +65,7 @@ export default function EditChoreScreen() {
     haptics.tap();
     Alert.alert(
       'Delete this chore?',
-      'Mawawala rin ang buong history nito — kasama ang mga natapos nang turn.',
+      'Its whole history goes with it, including every turn already completed.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -80,7 +80,7 @@ export default function EditChoreScreen() {
             } catch (caught) {
               haptics.error();
               setDeleting(false);
-              Alert.alert('Hindi ma-delete', messageFrom(caught));
+              Alert.alert("Couldn't delete this chore", messageFrom(caught));
             }
           },
         },
@@ -123,7 +123,7 @@ export default function EditChoreScreen() {
         <View className="gap-6">
           {history.length > 0 ? (
             <View className="border-t border-line pt-6">
-              <SectionTitle>Mga nakaraang turn</SectionTitle>
+              <SectionTitle>Past turns</SectionTitle>
               <View className="gap-2">
                 {history.map((assignment) => (
                   <HistoryRow key={assignment.id} assignment={assignment} userId={userId} />
@@ -135,8 +135,8 @@ export default function EditChoreScreen() {
           <View className="gap-2 border-t border-line pt-6">
           {turn ? null : (
             <Text className="font-ui text-xs leading-5 text-ink-muted">
-              Walang bukas na turn ngayon, kaya ang assignee at due date sa itaas ay hindi
-              ise-save. Magkakaroon ulit ng turn pagka-tapos ng susunod na round.
+              There is no open turn right now, so the assignee and due date above won't be
+              saved. A new turn appears once the next round comes around.
             </Text>
           )}
           <Button

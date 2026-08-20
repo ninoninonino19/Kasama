@@ -213,14 +213,16 @@ have to be passed as props (icon tints, `RefreshControl`, placeholder text) and
 
 | Token | Use |
 | --- | --- |
-| `page` / `canvas` | The fridge door behind the notes; `canvas` is the scrolling screen |
-| `paper` | Every card. The one surface colour in the system |
+| `canvas` | The ground a screen sits on — the fridge door behind the notes |
+| `paper` | Every card, lifted off the canvas. The one card surface in the system |
+| `page` | Recessed: pressed states, progress tracks, inset counters. Deep enough that pressing a card is visible |
 | `line` | Hairline borders and dividers |
 | `ink` / `ink-soft` / `ink-muted` | Text, in descending emphasis. `ink-faint` is decorative only |
 | `moss` / `moss-light` | Primary actions, active tab, "done" |
 | `mustard` | Money, "due soon", the default washi tape |
 | `brick` | Overdue, destructive, anything needing chasing |
 | `sage` | Settled, calm accents, streaks |
+| `slate` | Informational: hints, callouts, "here is something to know". Promoted out of the category tints, so it adds a voice without adding a hue |
 | `wash-*` / `deep-*` | Derived pale fills and their readable foregrounds, for pills and banners |
 | `bezel` | Warm near-black, used for shadows rather than pure black |
 
@@ -230,7 +232,7 @@ registered separately and reached by family, not by `font-bold`:
 | Class | Face | Use |
 | --- | --- | --- |
 | `font-sans` `font-ui` `font-ui-semibold` `font-ui-bold` `font-ui-black` | Manrope | All UI text |
-| `font-hand` `font-hand-bold` | Caveat | Greetings, board posts, "ikaw ito!" — never buttons or labels |
+| `font-hand` `font-hand-bold` | Caveat | Greetings, board posts, "your turn" — never buttons or labels |
 | `font-mono` `font-mono-bold` | IBM Plex Mono | Peso amounts, due dates, timestamps |
 
 Caveat is a delight, not a voice: if it starts appearing on labels and buttons it stops
@@ -255,21 +257,26 @@ faked, and have since been built:
 | Tape colour per note | `announcements.tape_color`, a palette *token* rather than a hex, so re-tuning a colour isn't a data migration. Notes written before the column keep a colour hashed from their id |
 | Pinned notes | `announcements.pinned`, plus `set_announcement_pinned()`. Pinning is open to the whole household while editing stays with the author — see the migration for why those can't share one policy |
 
-### Not yet designed
+### One palette, everywhere
 
-The design covers Home, Bills, Chores and the Board. These still wear the old teal palette
-(they render correctly and share the new type and canvas, but their accents haven't been
-redrawn) and want a design pass of their own rather than an improvised one:
+The design brief originally covered only Home, Bills, Chores and the Board; onboarding,
+settings, auth and the detail modals kept the teal/coral/sand scales the app shipped with,
+so the app rendered in two visual languages at once. Those scales are gone. Every screen now
+draws in the tokens above.
 
-- Onboarding / join household
-- Profile and household settings
-- Sign-in and sign-up
+The same pass fixed a quieter bug on those screens: they styled text with Tailwind's
+`font-bold` and `font-semibold`, which do nothing here — React Native matches a custom face
+by family name, so a "bold" heading was rendering at regular weight. They now use the
+`font-ui-*` families like the rest of the app.
 
-The add-expense flow has since been redrawn, as a side effect of extracting the shared
-`BillForm` behind the add and edit screens.
+There is no deprecated scale left in `src/lib/theme.ts`. If a screen needs a colour that
+isn't in the table above, that's a design decision, not a local one.
 
-The deprecated teal scales at the bottom of `src/lib/theme.ts` exist only for those screens.
-Nothing new should reach for them.
+### Language
+
+The interface is written in English throughout — screens, alerts, form hints, push
+notification copy, and the bodies `pending_reminders()` composes in SQL. "Kasama" stays as
+the product name.
 
 ---
 

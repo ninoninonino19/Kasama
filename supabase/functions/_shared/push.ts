@@ -133,8 +133,8 @@ export type Notice = {
  *
  * Someone with four chores due tomorrow should get one buzz that says four,
  * not four buzzes. The single-item case keeps the specific wording the SQL
- * wrote, because "Kuryente — ₱1,500.00 ang share mo" is more useful than
- * "1 bayarin".
+ * wrote, because "Electricity — ₱1,500.00 is your share" is more useful than
+ * "1 bill".
  */
 export function summariseReminders(reminders: Reminder[]): Notice[] {
   const groups = new Map<string, Reminder[]>();
@@ -161,19 +161,19 @@ export function summariseReminders(reminders: Reminder[]): Notice[] {
       category: first.category,
       title:
         first.category === 'bills'
-          ? `${group.length} bayarin bukas`
-          : `${group.length} chores bukas`,
-      // Named rather than counted: "Kuryente, Tubig at WiFi" tells you whether
-      // it's worth opening the app; "3 bayarin" doesn't.
+          ? `${group.length} bills due tomorrow`
+          : `${group.length} chores due tomorrow`,
+      // Named rather than counted: "Electricity, Water and Internet" tells you
+      // whether it's worth opening the app; "3 bills" doesn't.
       body: listNames(group.map((reminder) => reminder.title)),
     };
   });
 }
 
-/** "Kuryente, Tubig at WiFi" — Filipino list, with the last joined by "at". */
+/** "Electricity, Water and Internet" — a list with the last joined by "and". */
 export function listNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? '';
-  return `${names.slice(0, -1).join(', ')} at ${names[names.length - 1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 /** Drops notices for people with the category off or no device registered. */

@@ -25,7 +25,7 @@ export function ErrorState({
     <View className="items-center gap-3 rounded-xl border border-brick/30 bg-wash-brick p-6">
       <Ionicons name="cloud-offline-outline" size={28} color={colors.deep.brick} />
       <Text className="text-center font-ui-bold text-base text-deep-brick">
-        Hindi ma-load — something went wrong
+        Couldn't load this
       </Text>
       <Text className="text-center font-ui text-sm text-deep-brick">{message}</Text>
       {onRetry ? (

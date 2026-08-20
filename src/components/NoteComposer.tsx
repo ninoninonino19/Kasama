@@ -84,7 +84,7 @@ export function NoteComposer({
           <Tape color={TAPE_HEX[tape]} />
           <TextInput
             className="flex-1 font-hand text-2xl leading-8 text-ink"
-            placeholder="Ano'ng balita sa bahay? e.g. Deadline ng kuryente sa Friday, pa-GCash na lang sa akin."
+            placeholder="What's happening at home? e.g. Electricity is due Friday — send me your share when you can."
             placeholderTextColor={colors.ink.faint}
             value={content}
             onChangeText={(value) => setContent(value.slice(0, MAX_NOTE_LENGTH))}

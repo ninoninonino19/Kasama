@@ -21,13 +21,13 @@ begin
     values (house, boy, 'member');
 
   insert into public.announcements (household_id, user_id, content, tape_color)
-    values (house, ana, 'Deadline ng kuryente sa Friday', 'mustard')
+    values (house, ana, 'Electricity is due Friday', 'mustard')
     returning id into note_ana;
 
   perform pg_sleep(0.01);
 
   insert into public.announcements (household_id, user_id, content)
-    values (house, boy, 'May bisita ako this weekend') returning id into note_boy;
+    values (house, boy, 'I have a visitor this weekend') returning id into note_boy;
 
   -- ---- 1. Tape colour is constrained to palette tokens -------------------
   begin
@@ -66,7 +66,7 @@ begin
   order by pinned desc, created_at desc
   limit 1;
 
-  if first_title = 'Deadline ng kuryente sa Friday' then
+  if first_title = 'Electricity is due Friday' then
     raise notice 'PASS 4: the pinned note leads the feed despite being older';
   else
     raise warning 'FAIL 4: feed led with "%"', first_title; failures := failures + 1;
@@ -80,7 +80,7 @@ begin
   order by pinned desc, created_at desc
   limit 1;
 
-  if first_title = 'May bisita ako this weekend' then
+  if first_title = 'I have a visitor this weekend' then
     raise notice 'PASS 5: unpinning restores newest-first';
   else
     raise warning 'FAIL 5: after unpin the feed led with "%"', first_title; failures := failures + 1;

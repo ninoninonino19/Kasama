@@ -9,7 +9,7 @@ import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
-import { colors } from '../../src/lib/theme';
+import { colors, fonts } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 
 export default function JoinHouseholdScreen() {
@@ -50,15 +50,15 @@ export default function JoinHouseholdScreen() {
             accessibilityLabel="Go back"
             onPress={() => router.back()}
             hitSlop={8}
-            className="h-10 w-10 items-center justify-center rounded-full bg-white"
+            className="h-10 w-10 items-center justify-center rounded-full border border-line bg-paper active:bg-page"
           >
             <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
           </Pressable>
 
           <View className="gap-2">
-            <Text className="text-3xl font-bold text-ink">Enter invite code</Text>
-            <Text className="text-base leading-6 text-ink-soft">
-              Hingin ang 6-character code sa kasama mong nag-set up ng household.
+            <Text className="font-ui-black text-3xl text-ink">Enter invite code</Text>
+            <Text className="font-ui text-base leading-6 text-ink-soft">
+              Ask whoever set up the household for the six-character code.
             </Text>
           </View>
 
@@ -72,7 +72,7 @@ export default function JoinHouseholdScreen() {
             onChangeText={(value) => setCode(value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
             onSubmitEditing={handleSubmit}
             returnKeyType="go"
-            style={{ letterSpacing: 6, fontSize: 20, fontWeight: '700' }}
+            style={{ letterSpacing: 6, fontSize: 20, fontFamily: fonts.monoSemibold }}
           />
 
           {error ? <InlineError message={error} /> : null}

@@ -66,17 +66,17 @@ export default function ResetPasswordScreen() {
         >
           <View className="gap-2">
             <Text className="font-hand-bold text-4xl leading-[44px] text-ink">
-              Bagong password
+              New password
             </Text>
             <Text className="font-ui text-base leading-6 text-ink-soft">
-              Ilagay ang code na natanggap mo, tapos pumili ng bagong password.
+              Enter the code you were sent, then choose a new password.
             </Text>
           </View>
 
           <View className="gap-4">
             <TextField
               label="Email"
-              placeholder="ikaw@email.com"
+              placeholder="you@email.com"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -107,11 +107,11 @@ export default function ResetPasswordScreen() {
               hint={
                 password.length > 0 && password.length < MIN_PASSWORD
                   ? undefined
-                  : 'Ito na ang gagamitin mo sa susunod na log in.'
+                  : "This is what you'll use the next time you log in."
               }
               error={
                 password.length > 0 && password.length < MIN_PASSWORD
-                  ? `Kulang — at least ${MIN_PASSWORD} characters.`
+                  ? `Too short — use at least ${MIN_PASSWORD} characters.`
                   : null
               }
             />

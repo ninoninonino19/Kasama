@@ -58,10 +58,10 @@ export default function ForgotPasswordScreen() {
         >
           <View className="gap-2">
             <Text className="font-hand-bold text-4xl leading-[44px] text-ink">
-              Nakalimutan ang password?
+              Forgot your password?
             </Text>
             <Text className="font-ui text-base leading-6 text-ink-soft">
-              Ilagay ang email mo at padadalhan ka namin ng anim na numerong code.
+              Enter your email address and we'll send you a six-digit code.
             </Text>
           </View>
 
@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen() {
             <TextField
               label="Email"
               autoFocus
-              placeholder="ikaw@email.com"
+              placeholder="you@email.com"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -101,9 +101,9 @@ export default function ForgotPasswordScreen() {
 
           <NoteCard tape={colors.sage} className="pt-5">
             <Text className="font-ui text-xs leading-5 text-ink-muted">
-              Kung may account sa email na iyon, darating ang code within a minute. Walang
-              darating kung wala — hindi namin sinasabi kung alin, para hindi mahulaan ng iba
-              kung sino ang may account dito.
+              If that address has an account, the code arrives within a minute. If it doesn't,
+              nothing is sent — we never say which, so nobody can use this screen to work out
+              who has an account here.
             </Text>
           </NoteCard>
         </ScrollView>

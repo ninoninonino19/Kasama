@@ -61,7 +61,7 @@ export function Button({
         haptics.tap();
         onPress?.();
       }}
-      android_ripple={{ color: variant === 'primary' ? ripple.light : ripple.brand }}
+      android_ripple={{ color: variant === 'primary' ? ripple.light : ripple.moss }}
       className={`flex-row items-center justify-center rounded-xl ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
       } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}

@@ -25,7 +25,7 @@ begin
 
   -- ---- 1. A partly paid bill must not roll -------------------------------
   insert into public.bills (household_id, title, amount, category, due_date, recurrence, created_by)
-    values (house, 'Renta', 12000, 'rent', date '2026-08-01', 'monthly', ana)
+    values (house, 'Rent', 12000, 'rent', date '2026-08-01', 'monthly', ana)
     returning id into rent;
   insert into public.bill_splits (bill_id, user_id, amount_owed, paid, paid_at) values
     (rent, ana, 6000, true, now()),
@@ -72,7 +72,7 @@ begin
   -- ---- 5. Whoever settles, the original payer is inherited ---------------
   perform set_config('test.uid', boy::text, true);
   insert into public.bills (household_id, title, amount, category, due_date, recurrence, created_by)
-    values (house, 'Kuryente', 3000, 'utilities', date '2026-08-05', 'monthly', ana)
+    values (house, 'Electricity', 3000, 'utilities', date '2026-08-05', 'monthly', ana)
     returning id into kuryente;
   insert into public.bill_splits (bill_id, user_id, amount_owed, paid, paid_at) values
     (kuryente, ana, 1500, true, now()), (kuryente, boy, 1500, true, now());
@@ -109,7 +109,7 @@ begin
 
   -- ---- 8. No due date counts from today ----------------------------------
   insert into public.bills (household_id, title, amount, category, due_date, recurrence, created_by)
-    values (house, 'Tubig', 800, 'utilities', null, 'weekly', ana)
+    values (house, 'Water', 800, 'utilities', null, 'weekly', ana)
     returning id into tubig;
   insert into public.bill_splits (bill_id, user_id, amount_owed, paid, paid_at)
     values (tubig, ana, 800, true, now());

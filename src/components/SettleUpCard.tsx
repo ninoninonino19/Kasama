@@ -49,10 +49,10 @@ export function SettleUpCard({
 
       <Text className="mt-1 text-center font-ui text-sm text-ink-muted">
         {settled
-          ? 'Walang utang, walang paniningil.'
+          ? 'Nothing owed either way.'
           : inCredit
-            ? 'Net na dapat sa iyo ng bahay.'
-            : 'Net na dapat mong bayaran.'}
+            ? 'What the house owes you, on balance.'
+            : 'What you owe the house, on balance.'}
       </Text>
 
       <View className="mt-4 flex-row gap-3">

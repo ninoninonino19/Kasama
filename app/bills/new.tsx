@@ -36,8 +36,8 @@ export default function NewBillScreen() {
         notifyHousehold({
           householdId: household.id,
           category: 'bills',
-          title: `${profile?.display_name.split(' ')[0] ?? 'Isang kasama'} logged ${values.title}`,
-          body: `${formatPeso(values.amount)} total. Tingnan kung magkano ang share mo.`,
+          title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} logged ${values.title}`,
+          body: `${formatPeso(values.amount)} total — open it to see your share.`,
           data: { screen: 'bills' },
           only: values.splits
             .filter((split) => split.userId !== userId && split.amount > 0)

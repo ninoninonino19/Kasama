@@ -34,8 +34,8 @@ export default function NewChoreScreen() {
         notifyHousehold({
           householdId: household.id,
           category: 'chores',
-          title: `Ikaw ang una sa ${values.title}`,
-          body: `${profile?.display_name.split(' ')[0] ?? 'Isang kasama'} set it up — due ${formatRelativeDate(values.dueDate)}.`,
+          title: `You're first up for ${values.title}`,
+          body: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} set it up — due ${formatRelativeDate(values.dueDate)}.`,
           data: { screen: 'chores' },
           only: [values.assigneeId],
         });

@@ -1,10 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
-import type { ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 
 import { haptics } from '../../lib/haptics';
-import { Pill } from './Pill';
-import type { PillTone } from './Pill';
 
 type ChipProps = {
   label: string;
@@ -60,36 +56,4 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
       {content}
     </Pressable>
   );
-}
-
-export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'brand';
-
-/** The pre-redesign tone names, still used by the screens outside the brief. */
-const LEGACY_TONES: Record<BadgeTone, PillTone> = {
-  neutral: 'muted',
-  success: 'ok',
-  warning: 'warn',
-  danger: 'alert',
-  brand: 'strong',
-};
-
-/**
- * Compatibility wrapper around {@link Pill}.
- *
- * Auth, onboarding, settings and the bill detail screen are outside the design
- * brief but still show status badges; rather than leave a second badge
- * implementation drifting alongside the new one, `Badge` just translates the
- * old tone names and hands off. New code should use `Pill` directly.
- */
-export function Badge({
-  label,
-  tone = 'neutral',
-  icon,
-}: {
-  label: string;
-  tone?: BadgeTone | PillTone;
-  icon?: ComponentProps<typeof Ionicons>['name'];
-}) {
-  const resolved = tone in LEGACY_TONES ? LEGACY_TONES[tone as BadgeTone] : (tone as PillTone);
-  return <Pill label={label} tone={resolved} icon={icon} />;
 }

@@ -28,7 +28,7 @@ export async function configureChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
   const channels: { id: string; name: string }[] = [
-    { id: 'bills', name: 'Bills at bayarin' },
+    { id: 'bills', name: 'Bills' },
     { id: 'chores', name: 'Chores' },
     { id: 'board', name: 'Board notes' },
   ];
@@ -61,7 +61,7 @@ export async function registerForPush(): Promise<PushRegistration> {
     return {
       status: 'unsupported',
       reason:
-        'Hindi gumagana ang push sa Expo Go simula SDK 53 — kailangan ng development build.',
+        'Expo Go stopped delivering push notifications in SDK 53 — a development build is needed.',
     };
   }
   if (Platform.OS === 'web') {

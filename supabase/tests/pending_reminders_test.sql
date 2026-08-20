@@ -20,7 +20,7 @@ begin
 
   -- Ana fronted a bill due tomorrow; Boy still owes his half.
   insert into public.bills (household_id, title, amount, category, due_date, recurrence, created_by)
-    values (house, 'Kuryente', 3000, 'utilities', tomorrow, 'monthly', ana) returning id into bill;
+    values (house, 'Electricity', 3000, 'utilities', tomorrow, 'monthly', ana) returning id into bill;
   insert into public.bill_splits (bill_id, user_id, amount_owed, paid, paid_at) values
     (bill, ana, 1500, true, now()),
     (bill, boy, 1500, false, null);
@@ -43,7 +43,7 @@ begin
 
   -- ---- 3. The amount is the reader's own share, formatted -----------------
   select r.body into row_body from public.pending_reminders(tomorrow) r where r.category = 'bills';
-  if row_body like '%₱1,500.00 ang share mo.' then
+  if row_body like '%₱1,500.00 is your share.' then
     raise notice 'PASS 3: the body quotes that person''s share, grouped and to two decimals';
   else
     raise warning 'FAIL 3: body was "%"', row_body; failures := failures + 1;
@@ -60,7 +60,7 @@ begin
 
   -- ---- 5. Chores due tomorrow, but only open ones -------------------------
   insert into public.chores (household_id, title, recurrence)
-    values (house, 'Hugas plato', 'weekly') returning id into chore;
+    values (house, 'Wash the dishes', 'weekly') returning id into chore;
   insert into public.chore_assignments (chore_id, user_id, due_date, completed)
     values (chore, boy, tomorrow, false);
   insert into public.chore_assignments (chore_id, user_id, due_date, completed, completed_at)
