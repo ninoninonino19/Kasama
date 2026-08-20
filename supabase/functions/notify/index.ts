@@ -6,7 +6,7 @@
 // else's must never ship inside the client. The app asks this function to send;
 // the function decides whether it may.
 //
-// Everything worth arguing about lives in ./logic.ts, which is covered by
+// Everything worth arguing about lives in ../_shared/push.ts, covered by
 // `npm run test:functions`. What's left here is request parsing, two
 // authorisation checks and the call to Expo.
 //
@@ -21,7 +21,7 @@ import {
   type Candidate,
   type Category,
   type ExpoTicket,
-} from './logic.ts';
+} from '../_shared/push.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const CATEGORIES: Category[] = ['bills', 'chores', 'board'];

@@ -1,16 +1,22 @@
 {
-  "//": "Edge Functions run on Deno, not in the app bundle, so they get their own config. Only the pure logic and its tests are checked here — index.ts imports `npm:` specifiers and uses the Deno global, which `supabase functions deploy` type-checks and this toolchain can't.",
+  "//": "Edge Functions run on Deno, not in the app bundle, so they get their own config. Only the shared pure logic and its tests are checked here \u2014 the index.ts handlers import `npm:` specifiers and use the Deno global, which `supabase functions deploy` type-checks and this toolchain can't.",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "types": ["node"],
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "skipLibCheck": true
   },
-  "include": ["*/logic.ts", "*/logic.test.ts"]
+  "include": [
+    "_shared/*.ts"
+  ]
 }

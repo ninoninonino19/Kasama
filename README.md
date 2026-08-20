@@ -282,6 +282,7 @@ new board notes. The pieces:
 | Token storage + preferences | `20260820040000_push_notifications.sql` |
 | Registration from the app | `src/lib/push.ts` |
 | Sending | `supabase/functions/notify/` (Deno Edge Function) |
+| Daily "due tomorrow" digest | `supabase/functions/daily-digest/` + `pending_reminders()` |
 
 **Expo Go cannot receive push notifications.** Expo removed remote push from Expo Go in
 SDK 53, on both platforms. The app detects this and disables the switches rather than asking
@@ -307,6 +308,49 @@ The function checks two things before sending: that the caller is signed in, and
 belong to the household they're notifying. Without the second, anyone with a login could
 notify any household whose id they could guess.
 
+#### The daily digest
+
+`daily-digest` sends one "this is due tomorrow" round. It's called by a scheduler rather
+than a person, so it authenticates with a shared secret instead of a JWT:
+
+```bash
+supabase secrets set DIGEST_SECRET="$(openssl rand -hex 32)"
+supabase functions deploy daily-digest
+```
+
+Test it without waiting a day — it accepts an explicit date:
+
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/daily-digest" \
+  -H "x-digest-secret: <the secret>" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-08-21"}'
+```
+
+To run it every morning, enable `pg_cron` and `pg_net` (Database → Extensions) and schedule
+it. This isn't a migration because it needs your project ref and secret:
+
+```sql
+select cron.schedule(
+  'kasama-daily-digest',
+  '0 22 * * *',                      -- 06:00 Manila, since cron runs in UTC
+  $$
+  select net.http_post(
+    url     := 'https://<project-ref>.supabase.co/functions/v1/daily-digest',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-digest-secret', '<the secret>'
+    ),
+    body    := '{}'::jsonb
+  );
+  $$
+);
+```
+
+Who gets a reminder is decided by `pending_reminders(date)` in SQL, where it can be tested;
+how many notifications that becomes is decided in `_shared/push.ts`, likewise. Someone with
+four bills due tomorrow gets one buzz naming all four, not four buzzes.
+
 ### Testing the database
 
 The SQL that can't be checked by `tsc` — the `SECURITY DEFINER` functions and the rules they
@@ -329,10 +373,12 @@ migrations run unmodified. Three suites run today:
 | `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
 | `chore_streaks_test.sql` | Consecutive finished turns count; a turn due today doesn't break a run; a missed turn ends it and older wins don't carry over; an overdue turn reads as zero rather than as no row; the view is `security_invoker` |
 | `push_tokens_test.sql` | A token registers to the signed-in user; handing a phone to a housemate moves the token rather than duplicating or silently failing; there is no insert/update policy, so registration is the only door; reads are owner-scoped; unknown platforms are refused; deleting a user takes their tokens |
+| `pending_reminders_test.sql` | Only the person who still owes is reminded, with their own share quoted; settling stops it; a finished chore turn is skipped; an empty day produces nothing; housemates can't run it to enumerate each other's debts |
 
 `npm run test:functions` covers the sending decisions — who gets skipped (the actor, anyone
-who turned the category off, anyone with no device), Expo's 100-message batching, and the
-rule that only `DeviceNotRegistered` retires a token. The Edge Function's HTTP glue is
+who turned the category off, anyone with no device), Expo's 100-message batching, the rule
+that only `DeviceNotRegistered` retires a token, and the digest's grouping (four bills due
+tomorrow become one notification naming all four). The Edge Function's HTTP glue is
 reviewed rather than executed: Deno isn't part of this toolchain, which is why the decisions
 live in `logic.ts` where Node can test them.
 
@@ -417,6 +463,4 @@ Remaining steps, none of which can be done from this repo alone:
 
 ### Nice-to-haves not built yet
 
-- A scheduled digest ("kuryente is due tomorrow") — the event-driven pushes exist, but
-  nothing yet runs on a timer; that needs `pg_cron` plus a second Edge Function
 - A design pass over onboarding, settings and the auth screens (see *Not yet designed*)

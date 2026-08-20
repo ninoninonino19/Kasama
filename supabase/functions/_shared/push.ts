@@ -106,3 +106,92 @@ export function tokensToRetire(sent: PushMessage[], tickets: ExpoTicket[]): stri
 
   return dead;
 }
+
+// ---------------------------------------------------------------------------
+// Daily digest
+// ---------------------------------------------------------------------------
+
+/** One row from `public.pending_reminders(date)`. */
+export type Reminder = {
+  user_id: string;
+  household_id: string;
+  category: Category;
+  title: string;
+  body: string;
+};
+
+export type Notice = {
+  userId: string;
+  category: Category;
+  title: string;
+  body: string;
+};
+
+/**
+ * Turns raw reminder rows into at most one notification per person per
+ * category.
+ *
+ * Someone with four chores due tomorrow should get one buzz that says four,
+ * not four buzzes. The single-item case keeps the specific wording the SQL
+ * wrote, because "Kuryente — ₱1,500.00 ang share mo" is more useful than
+ * "1 bayarin".
+ */
+export function summariseReminders(reminders: Reminder[]): Notice[] {
+  const groups = new Map<string, Reminder[]>();
+
+  for (const reminder of reminders) {
+    const key = `${reminder.user_id}::${reminder.category}`;
+    groups.set(key, [...(groups.get(key) ?? []), reminder]);
+  }
+
+  return [...groups.values()].map((group) => {
+    const [first] = group;
+
+    if (group.length === 1) {
+      return {
+        userId: first.user_id,
+        category: first.category,
+        title: first.title,
+        body: first.body,
+      };
+    }
+
+    return {
+      userId: first.user_id,
+      category: first.category,
+      title:
+        first.category === 'bills'
+          ? `${group.length} bayarin bukas`
+          : `${group.length} chores bukas`,
+      // Named rather than counted: "Kuryente, Tubig at WiFi" tells you whether
+      // it's worth opening the app; "3 bayarin" doesn't.
+      body: listNames(group.map((reminder) => reminder.title)),
+    };
+  });
+}
+
+/** "Kuryente, Tubig at WiFi" — Filipino list, with the last joined by "at". */
+export function listNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} at ${names[names.length - 1]}`;
+}
+
+/** Drops notices for people with the category off or no device registered. */
+export function deliverableNotices(
+  notices: Notice[],
+  candidates: Map<string, Candidate>
+): { notice: Notice; tokens: string[] }[] {
+  const preferenceOf: Record<Category, keyof Candidate['preferences']> = {
+    bills: 'push_bills',
+    chores: 'push_chores',
+    board: 'push_board',
+  };
+
+  return notices.flatMap((notice) => {
+    const candidate = candidates.get(notice.userId);
+    if (!candidate) return [];
+    if (!candidate.preferences[preferenceOf[notice.category]]) return [];
+    if (candidate.tokens.length === 0) return [];
+    return [{ notice, tokens: candidate.tokens }];
+  });
+}

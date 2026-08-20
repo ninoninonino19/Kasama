@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildMessages, chunk, selectRecipients, tokensToRetire } from './logic.ts';
+import { buildMessages, chunk, selectRecipients, tokensToRetire } from './push.ts';
 
 const prefs = (over = {}) => ({
   push_bills: true,
@@ -83,4 +83,88 @@ test('only DeviceNotRegistered retires a token', () => {
 test('a short ticket list never invents a token to delete', () => {
   const sent = buildMessages([ana], { title: 'T', body: 'B' }, 'bills');
   assert.deepEqual(tokensToRetire(sent, []), []);
+});
+
+// --- daily digest ----------------------------------------------------------
+
+const reminder = (over: Partial<import('./push.ts').Reminder> = {}) => ({
+  user_id: 'boy',
+  household_id: 'h',
+  category: 'bills' as const,
+  title: 'Kuryente',
+  body: 'Due Aug 21 — ₱1,500.00 ang share mo.',
+  ...over,
+});
+
+test('a lone reminder keeps the specific wording the query wrote', async () => {
+  const { summariseReminders } = await import('./push.ts');
+  const [notice] = summariseReminders([reminder()]);
+  assert.equal(notice.title, 'Kuryente');
+  assert.match(notice.body, /₱1,500\.00/);
+});
+
+test('several in one category collapse into a single buzz', async () => {
+  const { summariseReminders } = await import('./push.ts');
+  const notices = summariseReminders([
+    reminder({ title: 'Kuryente' }),
+    reminder({ title: 'Tubig' }),
+    reminder({ title: 'WiFi' }),
+  ]);
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].title, '3 bayarin bukas');
+  // Named, not counted — you can tell whether it's worth opening the app.
+  assert.equal(notices[0].body, 'Kuryente, Tubig at WiFi');
+});
+
+test('bills and chores stay separate notifications', async () => {
+  const { summariseReminders } = await import('./push.ts');
+  const notices = summariseReminders([
+    reminder({ category: 'bills' }),
+    reminder({ category: 'chores', title: 'Hugas plato' }),
+  ]);
+  assert.deepEqual(notices.map((n) => n.category).sort(), ['bills', 'chores']);
+});
+
+test('two people never get each other’s reminders', async () => {
+  const { summariseReminders } = await import('./push.ts');
+  const notices = summariseReminders([
+    reminder({ user_id: 'ana', title: 'Renta' }),
+    reminder({ user_id: 'boy', title: 'Kuryente' }),
+  ]);
+  assert.equal(notices.length, 2);
+  assert.deepEqual(
+    notices.map((n) => `${n.userId}:${n.title}`).sort(),
+    ['ana:Renta', 'boy:Kuryente']
+  );
+});
+
+test('listNames handles one, two and many', async () => {
+  const { listNames } = await import('./push.ts');
+  assert.equal(listNames([]), '');
+  assert.equal(listNames(['Kuryente']), 'Kuryente');
+  assert.equal(listNames(['Kuryente', 'Tubig']), 'Kuryente at Tubig');
+  assert.equal(listNames(['A', 'B', 'C']), 'A, B at C');
+});
+
+test('a digest respects preferences and skips people with no device', async () => {
+  const { deliverableNotices, summariseReminders } = await import('./push.ts');
+  const notices = summariseReminders([
+    reminder({ user_id: 'ana' }),
+    reminder({ user_id: 'cel' }),
+    reminder({ user_id: 'dee' }),
+  ]);
+  const candidates = new Map([
+    ['ana', ana],
+    ['cel', cel], // bills switched off
+    ['dee', dee], // no registered device
+  ]);
+  const deliverable = deliverableNotices(notices, candidates);
+  assert.deepEqual(deliverable.map((d) => d.notice.userId), ['ana']);
+  assert.deepEqual(deliverable[0].tokens, ['t-ana']);
+});
+
+test('a reminder for someone no longer in the household is dropped', async () => {
+  const { deliverableNotices, summariseReminders } = await import('./push.ts');
+  const notices = summariseReminders([reminder({ user_id: 'ghost' })]);
+  assert.deepEqual(deliverableNotices(notices, new Map()), []);
 });
