@@ -24,6 +24,7 @@ import {
   startOfWeek,
   toDateString,
   todayString,
+  WEEKDAY_INITIALS,
 } from '../../src/lib/format';
 import { colors } from '../../src/lib/theme';
 import { useCurrentUserId, useMembers } from '../../src/store/useSessionStore';
@@ -351,8 +352,6 @@ export default function ChoresScreen() {
     </Screen>
   );
 }
-
-const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 /**
  * The current week as seven cells, with the whole week as the leading option.
