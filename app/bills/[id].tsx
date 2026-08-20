@@ -322,6 +322,15 @@ export default function BillDetailScreen() {
               loading={settling}
             />
           ) : null}
+          {/* Anyone in the household can fix a wrong name or due date; the
+              edit screen itself refuses to touch money once someone has
+              paid, so this doesn't need the delete permission. */}
+          <Button
+            label="Edit bill"
+            variant="secondary"
+            icon="create-outline"
+            onPress={() => router.push({ pathname: '/bills/edit', params: { id: bill.id } })}
+          />
           {canDelete ? (
             <Button label="Delete bill" variant="danger" icon="trash-outline" onPress={confirmDelete} />
           ) : null}

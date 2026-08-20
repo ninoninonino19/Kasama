@@ -78,6 +78,90 @@ export async function createBill(input: NewBillInput): Promise<BillWithSplits> {
   return created;
 }
 
+/**
+ * Whether a bill's money is settled enough that editing it would rewrite
+ * someone's record of having paid.
+ *
+ * The payer's own share is created already paid by `createBill`, so it never
+ * counts — it's an artefact of how the bill was logged, not a payment anyone
+ * made.
+ */
+export function billSplitsLocked(bill: BillWithSplits): boolean {
+  return bill.splits.some((split) => split.paid && split.user_id !== bill.created_by);
+}
+
+export type BillUpdateInput = {
+  title: string;
+  category: BillCategory;
+  dueDate: string | null;
+  recurrence: BillRecurrence;
+  /** Both omitted once `billSplitsLocked` is true. */
+  amount?: number;
+  splits?: { userId: string; amount: number }[];
+};
+
+export async function updateBill(
+  bill: BillWithSplits,
+  input: BillUpdateInput
+): Promise<void> {
+  const { error } = await supabase
+    .from('bills')
+    .update({
+      title: input.title.trim(),
+      category: input.category,
+      due_date: input.dueDate,
+      recurrence: input.recurrence,
+      ...(input.amount === undefined ? null : { amount: input.amount }),
+    })
+    .eq('id', bill.id);
+
+  if (error) throw error;
+  if (!input.splits) return;
+
+  // Reconcile rather than replace. `bill_splits` is unique on (bill_id,
+  // user_id), so a delete-all-then-insert would have to leave the bill with no
+  // splits in between — and a failure at that moment would strand it with a
+  // total nobody owes. Updating in place also keeps each row's paid flag.
+  const wanted = new Map(input.splits.map((split) => [split.userId, split.amount]));
+
+  const removed = bill.splits.filter((split) => !wanted.has(split.user_id));
+  const kept = bill.splits.filter((split) => wanted.has(split.user_id));
+  const added = input.splits.filter(
+    (split) => !bill.splits.some((existing) => existing.user_id === split.userId)
+  );
+
+  for (const split of kept) {
+    const amount = wanted.get(split.user_id) ?? 0;
+    if (Number(split.amount_owed) === amount) continue;
+    const { error: updateError } = await supabase
+      .from('bill_splits')
+      .update({ amount_owed: amount })
+      .eq('id', split.id);
+    if (updateError) throw updateError;
+  }
+
+  if (added.length > 0) {
+    const { error: insertError } = await supabase.from('bill_splits').insert(
+      added.map((split) => ({
+        bill_id: bill.id,
+        user_id: split.userId,
+        amount_owed: split.amount,
+        // Same rule as when the bill was created: whoever fronted it is square.
+        paid: split.userId === bill.created_by,
+      }))
+    );
+    if (insertError) throw insertError;
+  }
+
+  if (removed.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('bill_splits')
+      .delete()
+      .in('id', removed.map((split) => split.id));
+    if (deleteError) throw deleteError;
+  }
+}
+
 export async function setSplitPaid(splitId: string, paid: boolean): Promise<void> {
   const { error } = await supabase
     .from('bill_splits')
