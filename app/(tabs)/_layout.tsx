@@ -26,7 +26,7 @@ export default function TabsLayout() {
   // First launch into the app proper is where notifications get offered.
   usePushOnboarding();
 
-  if (status === 'ready' && !session) return <Redirect href="/auth/sign-in" />;
+  if (status === 'ready' && !session) return <Redirect href="/welcome" />;
   if (status === 'ready' && !household) return <Redirect href="/onboarding" />;
 
   return (

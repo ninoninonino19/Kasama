@@ -22,7 +22,7 @@ iOS and Android.
 | Navigation | Expo Router (file-based, typed routes) |
 | Styling | NativeWind v4 (Tailwind CSS v3) |
 | Type | Manrope, Caveat and IBM Plex Mono via `expo-font` (see *Design system*) |
-| Backend | Supabase — Postgres, Auth (email/password), Realtime |
+| Backend | Supabase — Postgres, Auth (anonymous sessions), Realtime |
 | Client state | Zustand (`src/store/useSessionStore.ts`) |
 | Session storage | `@supabase/supabase-js` + AsyncStorage |
 | Builds | EAS Build (`eas.json`) |
@@ -48,34 +48,13 @@ npm install
    npx supabase db push
    ```
 
-3. **Auth → Providers → Email**: enable email/password. *Confirm email* can be left on —
-   the app takes an unconfirmed sign-up straight to a code screen and finishes registration
-   there. Turn it off only if you want sign-ups to skip verification entirely.
-4. **Auth → Emails**: both in-app flows ask for a six-digit code rather than a link, so
-   **two** templates have to contain `{{ .Token }}`. Supabase's defaults only offer
-   `{{ .ConfirmationURL }}`, which opens a browser — and a browser has no way to hand the
-   session back to the app.
-
-   **Confirm signup**:
-
-   ```html
-   <h2>Confirm your Kasama account</h2>
-   <p>Your code is <strong>{{ .Token }}</strong>. It expires in an hour.</p>
-   <p>If you didn't sign up, you can ignore this email.</p>
-   ```
-
-   **Reset Password**:
-
-   ```html
-   <h2>Reset your Kasama password</h2>
-   <p>Your code is <strong>{{ .Token }}</strong>. It expires in an hour.</p>
-   <p>If you didn't ask for this, you can ignore this email.</p>
-   ```
-
-   Leave either template as a bare link and that flow strands the user: the email arrives,
-   but it carries nothing they can type into the app. A code also survives Expo Go serving
-   the app from an `exp://` URL that changes with your network, which link-based flows would
-   need re-allow-listing for every time you moved between Wi-Fi networks.
+3. **Auth → Providers → Anonymous sign-ins**: turn this **on**. Kasama does not ask anyone
+   to register — you give a display name and the app opens an anonymous session, which is a
+   real `auth.users` row with no email and no password. That is what keeps `auth.uid()`
+   meaningful, and with it every RLS policy in the schema. Email/password can be left off.
+4. **Auth → Rate Limits**: anonymous sign-ins are rate-limited per IP (30/hour by default).
+   A household is a handful of people, so the default is generous — but a shared Wi-Fi
+   network counts as one IP, which is worth knowing if a whole house signs up at once.
 5. **Database → Replication**: the migration already adds the app tables to the
    `supabase_realtime` publication, so live updates work out of the box.
 
@@ -192,13 +171,14 @@ phone* is the useful one — it names which of the three you're hitting.
 ```
 app/                        # Expo Router routes
   _layout.tsx               # providers + root stack
-  index.tsx                 # entry redirect (auth → onboarding → tabs)
-  auth/                     # sign-in, sign-up
+  index.tsx                 # entry redirect (welcome → onboarding → tabs)
+  welcome.tsx               # pick a display name; opens the session
   onboarding/               # create a household, or join with an invite code
   (tabs)/                   # Home, Bills, Chores, Board
   bills/new.tsx, [id].tsx   # add a bill, per-person split detail
   chores/new.tsx            # add a chore
-  settings.tsx              # household, members, invite code, leave / log out
+  settings/account.tsx      # your name, photo, notifications, sign out
+  settings/household.tsx    # invite code, name, housemates, leaving
 src/
   api/                      # Supabase queries, grouped by feature
   components/ui/            # NoteCard, Tape, Pill, Avatar, BoardTabBar, states…
@@ -508,8 +488,25 @@ Remaining steps, none of which can be done from this repo alone:
    eas submit --platform android
    ```
 
-9. **Before launch, harden auth.** Turn *Confirm email* back on in Supabase, add your app's
-   redirect URLs, and consider rate limiting on the auth endpoints.
+9. **Before launch, think about identity.** An anonymous session lives on one device, so a
+   lost phone is a lost identity — see the note below. Review the anonymous sign-in rate
+   limit while you're there.
+
+### Known limitation: an identity lives on one device
+
+There are no accounts. You give a display name, and the app opens an anonymous Supabase
+session — a real `auth.users` row with no email and no password, which is what keeps
+`auth.uid()` and every RLS policy working without anyone registering.
+
+The cost is that the session is the identity. Reinstall the app, clear its storage, or move
+to a new phone, and there is no password to sign back in with: you rejoin with a new invite
+code, as a new person. Your old profile stays in the household with its share of the bills
+attached to a name nobody can log in as.
+
+That is a fair trade for a house of flatmates splitting the electricity, and a bad one for
+money you would go to court over. The upgrade path, if it stops being fair, is
+`supabase.auth.updateUser({ email })` on the existing anonymous user — it keeps the same
+`auth.uid()`, so nothing in the schema moves, and the account gains a way back in.
 
 ### Known limitation: a share is all-or-nothing
 

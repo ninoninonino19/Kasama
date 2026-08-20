@@ -7,7 +7,7 @@ export default function OnboardingLayout() {
   const session = useSessionStore((state) => state.session);
   const household = useSessionStore((state) => state.household);
 
-  if (status === 'ready' && !session) return <Redirect href="/auth/sign-in" />;
+  if (status === 'ready' && !session) return <Redirect href="/welcome" />;
   // Once they're in a household there is nothing left to onboard.
   if (status === 'ready' && household) return <Redirect href="/(tabs)/home" />;
 

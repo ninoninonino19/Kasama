@@ -47,7 +47,9 @@ export default function OnboardingScreen() {
           onPress={() => void signOut()}
           className="items-center py-2"
         >
-          <Text className="font-ui-semibold text-sm text-ink-muted">Log out</Text>
+          {/* Nothing is lost here: there is no household behind this name
+              yet, so starting over is just picking a different one. */}
+          <Text className="font-ui-semibold text-sm text-ink-muted">Use a different name</Text>
         </Pressable>
       </ScrollView>
     </Screen>

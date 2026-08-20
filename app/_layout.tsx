@@ -85,7 +85,7 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="index" />
-              <Stack.Screen name="auth" />
+              <Stack.Screen name="welcome" />
               <Stack.Screen name="onboarding" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
@@ -126,21 +126,6 @@ export default function RootLayout() {
               <Stack.Screen
                 name="settings/household"
                 options={{ headerShown: true, title: 'Household' }}
-              />
-              {/* Confirmation and recovery both sit outside the `auth` group:
-                  that layout redirects away as soon as a session exists, and
-                  redeeming either code creates one mid-flow. */}
-              <Stack.Screen
-                name="confirm-email"
-                options={{ headerShown: true, title: 'Confirm email' }}
-              />
-              <Stack.Screen
-                name="forgot-password"
-                options={{ headerShown: true, title: 'Reset password' }}
-              />
-              <Stack.Screen
-                name="reset-password"
-                options={{ headerShown: true, title: 'New password' }}
               />
             </Stack>
           </DialogProvider>

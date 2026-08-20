@@ -10,24 +10,15 @@ import { useSessionStore } from '../store/useSessionStore';
 
 type SessionContextValue = {
   /**
-   * Creates the account. Resolves with whether the address still has to be
-   * confirmed before it can be used — see the note on the implementation.
+   * Opens a session under `displayName`. That is the whole of signing in.
+   *
+   * There is no password, so there is nothing to remember and nothing to
+   * recover — which is the point: Kasama is gated by the household code, not
+   * by an account. The identity lives on this device.
    */
-  signUp: (
-    email: string,
-    password: string,
-    displayName: string
-  ) => Promise<{ needsConfirmation: boolean }>;
-  signIn: (email: string, password: string) => Promise<void>;
+  startSession: (displayName: string) => Promise<void>;
+  /** Abandons this device's identity. Irreversible — see the note below. */
   signOut: () => Promise<void>;
-  /** Redeems the six-digit code from the confirmation email; signs them in. */
-  confirmEmail: (email: string, code: string) => Promise<void>;
-  /** Sends a fresh confirmation code to an address that hasn't confirmed yet. */
-  resendConfirmation: (email: string) => Promise<void>;
-  /** Emails a six-digit recovery code. Never reveals whether the address exists. */
-  requestPasswordReset: (email: string) => Promise<void>;
-  /** Redeems the code and sets the new password in one step — see the note below. */
-  completePasswordReset: (email: string, code: string, newPassword: string) => Promise<void>;
   /** Re-reads profile, household and member list — call after create/join/leave. */
   refreshHousehold: () => Promise<void>;
   bootstrapError: string | null;
@@ -141,25 +132,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        * endpoint to discover who has an account. Sending both cases to the
        * confirmation screen keeps that property intact.
        */
-      signUp: async (email, password, displayName) => {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
+      /**
+       * An anonymous Supabase user: a real row in `auth.users` with no email
+       * and no password. That matters more than it sounds — `auth.uid()` still
+       * returns a stable id, so every RLS policy in the schema keeps working
+       * exactly as written. Dropping Supabase Auth altogether would have meant
+       * relaxing those policies, and the household's bills are not something
+       * to leave readable by anyone holding the anon key.
+       *
+       * The name rides along as user metadata, where `handle_new_user()` picks
+       * it up to seed the profile row.
+       */
+      startSession: async (displayName) => {
+        const { error } = await supabase.auth.signInAnonymously({
           options: { data: { display_name: displayName.trim() } },
         });
         if (error) throw error;
-        return { needsConfirmation: data.session === null };
       },
-      signIn: async (email, password) => {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-      },
+      /**
+       * Without a password there is no way back in: this identity exists only
+       * as the session stored on this device, so clearing it abandons the
+       * person. Their bills and splits stay on record under a profile nobody
+       * can sign in as. The UI treats this as destructive, and should.
+       */
       signOut: async () => {
-        // Before the session goes, so the next person to log in on a shared
-        // phone doesn't inherit the last person's notifications. Best-effort
+        // Before the session goes, so the next person on a shared phone
+        // doesn't inherit the last person's notifications. Best-effort
         // already, but keep it from blocking the sign-out itself.
         await unregisterFromPush().catch(() => {});
 
@@ -176,55 +174,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         store.getState().reset();
-      },
-      /**
-       * Redeeming the code confirms the address and signs them in, which the
-       * auth listener picks up from here — the same one-step shape the
-       * recovery flow uses, and for the same reason: a confirmed account with
-       * no session is a dead end the user has to climb out of by logging in
-       * again.
-       */
-      confirmEmail: async (email, code) => {
-        const { error } = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: code.trim(),
-          type: 'signup',
-        });
-        if (error) throw error;
-      },
-      resendConfirmation: async (email) => {
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: email.trim(),
-        });
-        if (error) throw error;
-      },
-      requestPasswordReset: async (email) => {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-        // Supabase answers the same way whether or not the address is
-        // registered, and so do we — telling a stranger which emails have
-        // accounts is a gift to whoever is guessing.
-        if (error) throw error;
-      },
-      /**
-       * Verifying the code signs the user in, and `AuthLayout` redirects the
-       * moment a session exists. So the code and the new password are taken
-       * together and spent in one action: by the time the redirect fires the
-       * password is already changed, and the user lands in the app signed in
-       * rather than back at a login form.
-       */
-      completePasswordReset: async (email, code, newPassword) => {
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: code.trim(),
-          type: 'recovery',
-        });
-        if (verifyError) throw verifyError;
-
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
-        if (updateError) throw updateError;
       },
     }),
     [bootstrapError, refreshHousehold, store]
