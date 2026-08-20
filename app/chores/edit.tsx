@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import {
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChoreForm } from '../../src/components/ChoreForm';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
+import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { SectionTitle } from '../../src/components/ui/Screen';
 import { LoadingState, ErrorState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
@@ -28,6 +29,8 @@ const HISTORY_LENGTH = 8;
 
 export default function EditChoreScreen() {
   const router = useRouter();
+  const confirm = useConfirm();
+  const dialog = useDialog();
   const userId = useCurrentUserId();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -63,29 +66,27 @@ export default function EditChoreScreen() {
 
   function confirmDelete() {
     haptics.tap();
-    Alert.alert(
-      'Delete this chore?',
-      'Its whole history goes with it, including every turn already completed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteChore(chore!.id);
-              haptics.success();
-              router.back();
-            } catch (caught) {
-              haptics.error();
-              setDeleting(false);
-              Alert.alert("Couldn't delete this chore", messageFrom(caught));
-            }
-          },
-        },
-      ]
-    );
+    void confirm({
+      title: 'Delete this chore?',
+      message: 'Its whole history goes with it, including every turn already completed.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await deleteChore(chore!.id);
+          haptics.success();
+          router.back();
+        } catch (caught) {
+          haptics.error();
+          setDeleting(false);
+          void dialog({
+            title: "Couldn't delete this chore",
+            message: messageFrom(caught),
+            actions: [{ label: 'OK', style: 'cancel' }],
+          });
+        }
+      },
+    });
   }
 
   return (

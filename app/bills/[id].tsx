@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Pill } from '../../src/components/ui/Pill';
 import { Card } from '../../src/components/ui/Card';
+import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { SwipeRow } from '../../src/components/ui/SwipeRow';
 import { SectionTitle } from '../../src/components/ui/Screen';
@@ -30,6 +31,8 @@ import {
 export default function BillDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const confirm = useConfirm();
+  const dialog = useDialog();
   const userId = useCurrentUserId();
   const role = useSessionStore((state) => state.role);
 
@@ -159,27 +162,29 @@ export default function BillDetailScreen() {
     });
 
     setActionError(null);
-    Alert.alert('Reminder sent', `${splitName} has been nudged about their share.`);
+    void dialog({
+      title: 'Reminder sent',
+      message: `${splitName} has been nudged about their share.`,
+      actions: [{ label: 'OK', style: 'cancel' }],
+    });
   }
 
   function confirmDelete() {
     if (!bill) return;
     haptics.tap();
-    Alert.alert('Delete this bill?', 'All of its splits go with it.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteBill(bill.id);
-            router.back();
-          } catch (caught) {
-            setActionError(messageFrom(caught));
-          }
-        },
+    void confirm({
+      title: 'Delete this bill?',
+      message: 'All of its splits go with it.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await deleteBill(bill.id);
+          router.back();
+        } catch (caught) {
+          setActionError(messageFrom(caught));
+        }
       },
-    ]);
+    });
   }
 
   if (loading) return <LoadingState label="Loading bill…" />;

@@ -24,6 +24,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { DialogProvider } from '../src/components/ui/Dialog';
 import { SessionProvider } from '../src/providers/SessionProvider';
 import { colors, fonts } from '../src/lib/theme';
 
@@ -68,74 +69,77 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout}>
       <SafeAreaProvider>
         <SessionProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.screenBg },
-              // Warm the stack chrome to match the canvas — the default header
-              // is a cool system grey that reads as a different app.
-              headerStyle: { backgroundColor: colors.screenBg },
-              headerTintColor: colors.moss.DEFAULT,
-              headerTitleStyle: { color: colors.ink.DEFAULT, fontFamily: fonts.bodyBold },
-              headerShadowVisible: false,
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="bills/new"
-              options={{ presentation: 'modal', headerShown: true, title: 'New bill' }}
-            />
-            <Stack.Screen name="bills/[id]" options={{ headerShown: true, title: 'Bill' }} />
-            <Stack.Screen
-              name="bills/edit"
-              options={{ presentation: 'modal', headerShown: true, title: 'Edit bill' }}
-            />
-            <Stack.Screen
-              name="bills/ledger"
-              options={{ headerShown: true, title: 'Payment history' }}
-            />
-            <Stack.Screen
-              name="chores/new"
-              options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
-            />
-            <Stack.Screen
-              name="chores/edit"
-              options={{ presentation: 'modal', headerShown: true, title: 'Edit chore' }}
-            />
-            <Stack.Screen
-              name="announcements/new"
-              options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
-            />
-            <Stack.Screen
-              name="announcements/edit"
-              options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
-            />
-            {/* Two screens rather than one: what belongs to you, and what
-                belongs to the house. Home routes to them separately. */}
-            <Stack.Screen
-              name="settings/account"
-              options={{ headerShown: true, title: 'Your account' }}
-            />
-            <Stack.Screen
-              name="settings/household"
-              options={{ headerShown: true, title: 'Household' }}
-            />
-            {/* Recovery sits outside the `auth` group: that layout redirects
-                away as soon as a session exists, and redeeming a recovery code
-                creates one mid-flow. */}
-            <Stack.Screen
-              name="forgot-password"
-              options={{ headerShown: true, title: 'Reset password' }}
-            />
-            <Stack.Screen
-              name="reset-password"
-              options={{ headerShown: true, title: 'New password' }}
-            />
-          </Stack>
+          {/* Above the stack so a dialog overlays whichever screen raised it. */}
+          <DialogProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.screenBg },
+                // Warm the stack chrome to match the canvas — the default header
+                // is a cool system grey that reads as a different app.
+                headerStyle: { backgroundColor: colors.screenBg },
+                headerTintColor: colors.moss.DEFAULT,
+                headerTitleStyle: { color: colors.ink.DEFAULT, fontFamily: fonts.bodyBold },
+                headerShadowVisible: false,
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="bills/new"
+                options={{ presentation: 'modal', headerShown: true, title: 'New bill' }}
+              />
+              <Stack.Screen name="bills/[id]" options={{ headerShown: true, title: 'Bill' }} />
+              <Stack.Screen
+                name="bills/edit"
+                options={{ presentation: 'modal', headerShown: true, title: 'Edit bill' }}
+              />
+              <Stack.Screen
+                name="bills/ledger"
+                options={{ headerShown: true, title: 'Payment history' }}
+              />
+              <Stack.Screen
+                name="chores/new"
+                options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
+              />
+              <Stack.Screen
+                name="chores/edit"
+                options={{ presentation: 'modal', headerShown: true, title: 'Edit chore' }}
+              />
+              <Stack.Screen
+                name="announcements/new"
+                options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
+              />
+              <Stack.Screen
+                name="announcements/edit"
+                options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
+              />
+              {/* Two screens rather than one: what belongs to you, and what
+                  belongs to the house. Home routes to them separately. */}
+              <Stack.Screen
+                name="settings/account"
+                options={{ headerShown: true, title: 'Your account' }}
+              />
+              <Stack.Screen
+                name="settings/household"
+                options={{ headerShown: true, title: 'Household' }}
+              />
+              {/* Recovery sits outside the `auth` group: that layout redirects
+                  away as soon as a session exists, and redeeming a recovery code
+                  creates one mid-flow. */}
+              <Stack.Screen
+                name="forgot-password"
+                options={{ headerShown: true, title: 'Reset password' }}
+              />
+              <Stack.Screen
+                name="reset-password"
+                options={{ headerShown: true, title: 'New password' }}
+              />
+            </Stack>
+          </DialogProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
 
+import { useDialog } from '../components/ui/Dialog';
 import { hasBeenOfferedPush, markPushOffered, pushSupported, registerForPush } from '../lib/push';
 import { useHousehold, useSessionStore } from '../store/useSessionStore';
 
@@ -17,6 +17,7 @@ import { useHousehold, useSessionStore } from '../store/useSessionStore';
  * and chores, and there is nothing to notify anyone about before they join one.
  */
 export function usePushOnboarding(): void {
+  const dialog = useDialog();
   const status = useSessionStore((state) => state.status);
   const household = useHousehold();
   // One offer per app run, whatever re-renders the layout does.
@@ -38,25 +39,26 @@ export function usePushOnboarding(): void {
       // app shouldn't come back every launch.
       await markPushOffered();
 
-      Alert.alert(
-        'Turn on notifications?',
-        "Kasama can let you know when a bill you owe on is due and when it's your turn on the rota. You can change this any time in Settings.",
-        [
-          { text: 'Not now', style: 'cancel' },
+      void dialog({
+        title: 'Turn on notifications?',
+        message:
+          "Kasama can let you know when a bill you owe on is due and when it's your turn on the rota. You can change this any time in Settings.",
+        actions: [
           {
-            text: 'Turn on',
+            label: 'Turn on',
             onPress: () => {
               // Failure here is not worth interrupting a first launch over —
               // Settings has the same switch and reports errors properly.
               void registerForPush().catch(() => {});
             },
           },
-        ]
-      );
+          { label: 'Not now', style: 'cancel' },
+        ],
+      });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [household, status]);
+  }, [dialog, household, status]);
 }
