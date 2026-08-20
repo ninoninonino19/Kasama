@@ -114,7 +114,16 @@ export default function RootLayout() {
               name="announcements/edit"
               options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
             />
-            <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+            {/* Two screens rather than one: what belongs to you, and what
+                belongs to the house. Home routes to them separately. */}
+            <Stack.Screen
+              name="settings/account"
+              options={{ headerShown: true, title: 'Your account' }}
+            />
+            <Stack.Screen
+              name="settings/household"
+              options={{ headerShown: true, title: 'Household' }}
+            />
             {/* Recovery sits outside the `auth` group: that layout redirects
                 away as soon as a session exists, and redeeming a recovery code
                 creates one mid-flow. */}

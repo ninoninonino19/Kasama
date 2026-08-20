@@ -143,18 +143,22 @@ export default function HomeScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Settings"
+            accessibilityLabel="Your account"
             onPress={() => {
               haptics.tap();
-              router.push('/settings');
+              router.push('/settings/account');
             }}
             className="h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper active:bg-page"
           >
-            <Ionicons name="settings-outline" size={20} color={colors.ink.soft} />
+            <Ionicons name="person-circle-outline" size={22} color={colors.ink.soft} />
           </Pressable>
         </View>
 
-        <HousemateRow members={members} userId={userId} onPress={() => router.push('/settings')} />
+        <HousemateRow
+          members={members}
+          userId={userId}
+          onPress={() => router.push('/settings/household')}
+        />
 
         {loading ? (
           <DashboardSkeleton />
