@@ -54,6 +54,60 @@ export async function createChore(input: NewChoreInput): Promise<void> {
   }
 }
 
+export async function fetchChore(choreId: string): Promise<ChoreWithAssignments | null> {
+  const { data, error } = await supabase
+    .from('chores')
+    .select('*, assignments:chore_assignments(*, profile:profiles(*))')
+    .eq('id', choreId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const chore = data as unknown as ChoreWithAssignments;
+  return {
+    ...chore,
+    assignments: [...chore.assignments].sort((a, b) => a.due_date.localeCompare(b.due_date)),
+  };
+}
+
+export type ChoreUpdateInput = {
+  title: string;
+  description: string | null;
+  recurrence: ChoreRecurrence;
+};
+
+export async function updateChore(choreId: string, input: ChoreUpdateInput): Promise<void> {
+  const { error } = await supabase
+    .from('chores')
+    .update({
+      title: input.title.trim(),
+      description: input.description?.trim() || null,
+      recurrence: input.recurrence,
+    })
+    .eq('id', choreId);
+
+  if (error) throw error;
+}
+
+/**
+ * Moves an open turn to someone else, or to another day.
+ *
+ * Only ever applied to the turn that is still open. Rewriting a finished one
+ * would quietly rewrite history — including the streaks derived from it.
+ */
+export async function updateAssignment(
+  assignmentId: string,
+  input: { userId: string; dueDate: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from('chore_assignments')
+    .update({ user_id: input.userId, due_date: input.dueDate })
+    .eq('id', assignmentId);
+
+  if (error) throw error;
+}
+
 export async function deleteChore(choreId: string): Promise<void> {
   const { error } = await supabase.from('chores').delete().eq('id', choreId);
   if (error) throw error;

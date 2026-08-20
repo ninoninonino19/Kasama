@@ -204,6 +204,7 @@ export default function ChoresScreen() {
           members={members}
           overdue={overdueSection || assignment.due_date < today}
           rotate={index % 2 === 0 ? -0.4 : 0.4}
+          onEdit={() => router.push({ pathname: '/chores/edit', params: { id: chore.id } })}
           onToggle={handleToggle}
         />
       ))}
@@ -534,6 +535,7 @@ function ChoreCard({
   members,
   overdue = false,
   rotate = 0,
+  onEdit,
   onToggle,
 }: {
   chore: ChoreWithAssignments;
@@ -542,6 +544,7 @@ function ChoreCard({
   members: MemberWithProfile[];
   overdue?: boolean;
   rotate?: number;
+  onEdit: () => void;
   onToggle: (
     chore: ChoreWithAssignments,
     assignment: AssignmentWithProfile,
@@ -640,7 +643,24 @@ function ChoreCard({
                 Next: {upNext.user_id === userId ? 'you' : upNext.profile.display_name.split(' ')[0]}
               </Text>
             </>
-          ) : null}
+          ) : (
+            <View className="flex-1" />
+          )}
+          {/* Edit lives on this row rather than beside the title: the checkbox
+              already owns the top of the card, and a second control up there
+              turns ticking a chore off into a game of aim. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${chore.title}`}
+            hitSlop={12}
+            onPress={() => {
+              haptics.tap();
+              onEdit();
+            }}
+            className="-my-2 h-9 w-9 items-center justify-center rounded-full active:bg-page"
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.ink.muted} />
+          </Pressable>
         </View>
       </NoteCard>
     </SwipeRow>
