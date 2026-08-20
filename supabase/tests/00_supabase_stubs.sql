@@ -49,6 +49,24 @@ create table if not exists storage.objects (
 );
 alter table storage.objects enable row level security;
 
+-- Hosted Supabase refuses direct DML against the storage tables — objects are
+-- rows pointing at files, and deleting the row strands the file. Stubbing the
+-- guard means a script that would be rejected in production is rejected here
+-- too, rather than passing locally and failing on the first real run.
+create or replace function storage.protect_delete()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+    using errcode = '42501',
+          hint = 'This prevents accidental data loss from orphaned objects.';
+end;
+$$;
+
+drop trigger if exists protect_delete on storage.objects;
+create trigger protect_delete
+  before delete on storage.objects
+  for each row execute function storage.protect_delete();
+
 -- Supabase's helper: splits an object path into its folder segments.
 create or replace function storage.foldername(name text)
 returns text[] language sql immutable as $$
