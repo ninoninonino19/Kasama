@@ -24,18 +24,7 @@ export function Fab({
   accessibilityLabel: string;
 }) {
   return (
-    <View
-      pointerEvents="box-none"
-      className="absolute bottom-5 right-5"
-      style={{
-        // Lifted off the surface so it reads as floating above the list.
-        shadowColor: colors.bezel,
-        shadowOpacity: 0.24,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 8,
-      }}
-    >
+    <View pointerEvents="box-none" className="absolute bottom-5 right-5">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
@@ -48,7 +37,22 @@ export function Fab({
         className={`h-14 flex-row items-center justify-center rounded-full bg-moss active:bg-bezel ${
           label ? 'gap-2 px-5' : 'w-14'
         }`}
-        style={Platform.OS === 'android' ? { overflow: 'hidden' } : undefined}
+        style={{
+          // Lifted off the surface so it reads as floating above the list.
+          //
+          // On the button itself, not a wrapper around it. Android draws an
+          // elevated view's own background as the lifted surface, so elevation
+          // on a transparent wrapper painted a light rectangle behind the
+          // circle — the white box behind the add button. Here the elevated
+          // view is the moss pill, and its rounded shape is what lifts.
+          shadowColor: colors.bezel,
+          shadowOpacity: 0.24,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 8,
+          backgroundColor: colors.moss.DEFAULT,
+          ...(Platform.OS === 'android' ? { overflow: 'hidden' as const } : null),
+        }}
       >
         <Ionicons name={icon} size={26} color={colors.paper} />
         {label ? <Text className="pr-1 font-ui-bold text-base text-paper">{label}</Text> : null}
