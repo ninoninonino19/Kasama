@@ -13,6 +13,16 @@
 --   Supabase dashboard -> SQL Editor -> paste -> Run
 --   or: psql "$DATABASE_URL" -f supabase/reset_data.sql
 --
+-- Uploaded avatars are NOT cleared here. Storage objects are rows pointing at
+-- files, so Supabase blocks direct deletes against `storage.objects` — a
+-- deleted row would strand the file it refers to. Clearing them goes through
+-- the Storage API instead:
+--
+--   node supabase/reset_avatars.mjs
+--
+-- Skipping it is harmless: the files are orphaned but nothing reads them once
+-- the profiles are gone. They just keep taking up space in the bucket.
+--
 -- On the device, after running this:
 --   - Log out, or delete and reinstall the app. The old session points at a
 --     user that no longer exists, and the app will sit on a signed-in screen
@@ -41,14 +51,12 @@ delete from public.household_members;
 delete from public.households;
 delete from public.profiles;
 
--- Uploaded avatars are files, not rows, so nothing cascades them. Without
--- this the bucket keeps every photo from every wiped account.
-delete from storage.objects where bucket_id = 'avatars';
-
 commit;
 
 -- ---------------------------------------------------------------------------
--- Check: every count below should be 0.
+-- Check: every count below should be 0, except "avatar files" — those are
+-- cleared separately by supabase/reset_avatars.mjs, and are only orphaned
+-- files at this point.
 -- ---------------------------------------------------------------------------
 select 'auth.users'        as table_name, count(*) from auth.users
 union all select 'profiles',           count(*) from public.profiles
@@ -60,7 +68,9 @@ union all select 'chores',             count(*) from public.chores
 union all select 'chore_assignments',  count(*) from public.chore_assignments
 union all select 'announcements',      count(*) from public.announcements
 union all select 'device_tokens',      count(*) from public.device_tokens
-union all select 'avatar files',       count(*) from storage.objects where bucket_id = 'avatars';
+union all select 'avatar files (see reset_avatars.mjs)',
+                                       count(*) from storage.objects
+                                       where bucket_id = 'avatars';
 
 
 -- ============================================================================
