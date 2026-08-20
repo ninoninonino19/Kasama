@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -18,13 +26,21 @@ import { colors, tapeColorFor } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 import type { AnnouncementWithAuthor } from '../../src/types';
 
+/** How many notes to pull at a time. */
+const PAGE_SIZE = 30;
+
 export default function AnnouncementsScreen() {
   const router = useRouter();
   const household = useHousehold();
   const profile = useProfile();
   const userId = useCurrentUserId();
   const role = useSessionStore((state) => state.role);
-  const { data, loading, refreshing, error, refresh } = useAnnouncements();
+  // The board grows a page at a time rather than fetching a household's whole
+  // history on open. Growing the limit refetches, which is a little wasteful
+  // but keeps pinned-first ordering correct without a cursor that would have
+  // to understand it.
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, loading, refreshing, error, refresh } = useAnnouncements(limit);
 
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -32,6 +48,13 @@ export default function AnnouncementsScreen() {
   useRefreshOnFocus(refresh);
 
   const announcements = data ?? [];
+  // A full page back means there is probably another one.
+  const mayHaveMore = announcements.length >= limit;
+
+  const loadMore = useCallback(() => {
+    if (!mayHaveMore || loading || refreshing) return;
+    setLimit((current) => current + PAGE_SIZE);
+  }, [loading, mayHaveMore, refreshing]);
 
   /**
    * The note's own menu. Pinning is open to the whole household — on a real
@@ -41,9 +64,21 @@ export default function AnnouncementsScreen() {
   function openNoteMenu(item: AnnouncementWithAuthor, canDelete: boolean) {
     haptics.tap();
     const name = item.profile?.display_name ?? 'Housemate';
+    const isMine = item.user_id === userId;
 
     Alert.alert(name, undefined, [
       { text: 'Cancel', style: 'cancel' },
+      // Only the author. An admin can take a note down but not put different
+      // words under someone else's name.
+      ...(isMine
+        ? [
+            {
+              text: 'I-edit',
+              onPress: () =>
+                router.push({ pathname: '/announcements/edit', params: { id: item.id } }),
+            },
+          ]
+        : []),
       {
         text: item.pinned ? 'Alisin sa itaas' : 'I-pin sa itaas',
         onPress: async () => {
@@ -115,6 +150,19 @@ export default function AnnouncementsScreen() {
               onRefresh={() => void refresh()}
               tintColor={colors.moss.DEFAULT}
             />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            mayHaveMore ? (
+              <View className="items-center py-4">
+                <ActivityIndicator color={colors.moss.DEFAULT} />
+              </View>
+            ) : announcements.length > 0 ? (
+              <Text className="py-4 text-center font-ui text-xs text-ink-muted">
+                Iyan na ang lahat ng nakapaskil.
+              </Text>
+            ) : null
           }
           renderItem={({ item, index }) => {
             const name = item.profile?.display_name ?? 'Housemate';

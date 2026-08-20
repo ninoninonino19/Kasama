@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBillSettled, rollRecurringBill, setSplitPaid, settleWholeBill } from '../../src/api/bills';
+import { notifyHousehold } from '../../src/api/notify';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Chip';
@@ -19,7 +20,12 @@ import { categoryMeta } from '../../src/lib/categories';
 import { formatPeso, formatRelativeDate, formatTimeAgo } from '../../src/lib/format';
 import { BILL_STATUS } from '../../src/lib/status';
 import { colors, ripple } from '../../src/lib/theme';
-import { useCurrentUserId, useSessionStore } from '../../src/store/useSessionStore';
+import {
+  useCurrentUserId,
+  useHousehold,
+  useProfile,
+  useSessionStore,
+} from '../../src/store/useSessionStore';
 
 export default function BillDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +40,14 @@ export default function BillDetailScreen() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
+  // Who has already been nudged on this visit. Not persisted — the point is
+  // to stop a double-tap turning into two notifications, not to ration
+  // reminders across days.
+  const [nudged, setNudged] = useState<string[]>([]);
+
+  const household = useHousehold();
+  const profile = useProfile();
+  const profileName = profile?.display_name.split(' ')[0] ?? 'isang kasama';
 
   const silentRefresh = useCallback(() => {
     void refresh({ silent: true });
@@ -120,6 +134,32 @@ export default function BillDetailScreen() {
     } finally {
       setSettling(false);
     }
+  }
+
+  /**
+   * A private "hoy, bayad na?" to one housemate.
+   *
+   * Only the person who fronted the money can send it. Anyone being able to
+   * nudge anyone turns a shared-house app into a way to needle your
+   * housemates, and the person actually out of pocket is the only one with
+   * standing to ask.
+   */
+  function nudge(splitUserId: string, splitName: string, amount: number) {
+    if (!bill || !household) return;
+    haptics.tap();
+    setNudged((current) => [...current, splitUserId]);
+
+    notifyHousehold({
+      householdId: household.id,
+      category: 'bills',
+      title: `Paalala mula kay ${profileName}`,
+      body: `${formatPeso(amount)} pa ang share mo sa ${bill.title}.`,
+      data: { screen: 'bills', billId: bill.id },
+      only: [splitUserId],
+    });
+
+    setActionError(null);
+    Alert.alert('Naipadala', `Napaalalahanan na si ${splitName}.`);
   }
 
   function confirmDelete() {
@@ -307,6 +347,32 @@ export default function BillDetailScreen() {
                               : 'Not yet paid'}
                           </Text>
                         </View>
+                        {/* Only the payer, only on unpaid shares, never on
+                            your own. */}
+                        {!split.paid && bill.created_by === userId && !isSelf ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remind ${name} about their share`}
+                            hitSlop={10}
+                            disabled={nudged.includes(split.user_id)}
+                            onPress={() =>
+                              nudge(split.user_id, name, Number(split.amount_owed))
+                            }
+                            className={`h-10 w-10 items-center justify-center rounded-full ${
+                              nudged.includes(split.user_id) ? 'opacity-40' : 'active:bg-sand-100'
+                            }`}
+                          >
+                            <Ionicons
+                              name={
+                                nudged.includes(split.user_id)
+                                  ? 'checkmark-done-outline'
+                                  : 'notifications-outline'
+                              }
+                              size={18}
+                              color={colors.ink.muted}
+                            />
+                          </Pressable>
+                        ) : null}
                         <Text
                           className={`text-base font-bold ${
                             split.paid ? 'text-brand-600' : 'text-ink'

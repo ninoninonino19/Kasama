@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -24,15 +24,27 @@ import type { LedgerEntry } from '../../src/types';
  * about the same thing every month — "I already paid you for that" — and this
  * is the screen that answers it without opening six bills.
  */
+/** How many settled shares to pull at a time. */
+const PAGE_SIZE = 40;
+
 export default function LedgerScreen() {
   const router = useRouter();
   const userId = useCurrentUserId();
   const members = useMembers();
-  const { data, loading, refreshing, error, refresh } = useLedger();
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data, loading, refreshing, error, refresh } = useLedger(limit);
 
   useRefreshOnFocus(refresh);
 
   const entries = useMemo(() => data ?? [], [data]);
+  // fetchLedger drops the payer's own auto-paid share after the query, so a
+  // short page doesn't prove the end — compare against what was asked for.
+  const mayHaveMore = entries.length >= limit;
+
+  const loadMore = useCallback(() => {
+    if (!mayHaveMore || loading || refreshing) return;
+    setLimit((current) => current + PAGE_SIZE);
+  }, [loading, mayHaveMore, refreshing]);
 
   const nameFor = useMemo(() => {
     const byId = new Map(members.map((member) => [member.user_id, member.profile]));
@@ -112,6 +124,15 @@ export default function LedgerScreen() {
               </View>
             </View>
           )}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            mayHaveMore ? (
+              <View className="items-center py-4">
+                <ActivityIndicator color={colors.moss.DEFAULT} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <EmptyState
               icon="receipt-outline"
