@@ -48,6 +48,10 @@ export default function SettingsScreen() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Leaving is irreversible without an invite code, so the button only opens
+  // a caution panel; the panel's own button is what asks to confirm.
+  const [leaveArmed, setLeaveArmed] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   // The household/profile may still be loading when this screen mounts (cold
   // start, deep link), so seed the inputs once the real values land.
@@ -111,28 +115,38 @@ export default function SettingsScreen() {
     }
   }
 
+  const lastAdmin =
+    isAdmin &&
+    members.filter((member) => member.role === 'admin').length === 1 &&
+    members.length > 1;
+
+  /**
+   * Step two. The caution panel has already said what leaving costs; this is
+   * the deliberate second tap, in a dialogue that can't be hit by accident on
+   * the way past.
+   */
   function confirmLeave() {
     if (!household || !userId) return;
-
-    const lastAdmin =
-      isAdmin && members.filter((member) => member.role === 'admin').length === 1 && members.length > 1;
+    haptics.tap();
 
     Alert.alert(
-      'Leave this household?',
+      `Leave ${household.name}?`,
       lastAdmin
-        ? "You're the only admin. If you leave, the household is left without one."
-        : "You'll lose access to this household's bills, chores and board.",
+        ? "You are the only admin. Leaving hands the household to nobody, and you'll need a new invite code to come back."
+        : "You'll need an invite code to join again. Your share of past bills stays on record either way.",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Stay', style: 'cancel' },
         {
-          text: 'Leave',
+          text: 'Leave household',
           style: 'destructive',
           onPress: async () => {
             try {
               await leaveHousehold(household.id, userId);
+              setLeaveArmed(false);
               await refreshHousehold();
               router.replace('/onboarding');
             } catch (caught) {
+              haptics.error();
               setError(messageFrom(caught));
             }
           },
@@ -282,8 +296,27 @@ export default function SettingsScreen() {
   function confirmSignOut() {
     Alert.alert('Log out?', "You'll need to log in again next time.", [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => void signOut() },
+      { text: 'Log out', style: 'destructive', onPress: () => void handleSignOut() },
     ]);
+  }
+
+  /**
+   * Settings is a root stack screen with no auth guard of its own, so clearing
+   * the session used to leave the user sitting right here looking at an empty
+   * household — which reads as "Log out did nothing". Send them back through
+   * the entry point, which decides where a signed-out person belongs.
+   */
+  async function handleSignOut() {
+    setSigningOut(true);
+    setError(null);
+    try {
+      await signOut();
+      router.replace('/');
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+      setSigningOut(false);
+    }
   }
 
   if (!household) {
@@ -475,27 +508,96 @@ export default function SettingsScreen() {
       {/* Danger zone ---------------------------------------------------- */}
       <View className="gap-2">
         <SectionTitle>Account</SectionTitle>
+        {/* Step one. Arming reveals what leaving actually costs, in place,
+            before any dialogue appears — a confirm sheet on its own is
+            something people tap through without reading. */}
+        {leaveArmed ? (
+          <View className="gap-3 rounded-2xl border border-brick/40 bg-wash-brick p-4">
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="warning-outline" size={20} color={colors.deep.brick} />
+              <Text className="flex-1 font-ui-bold text-sm text-deep-brick">
+                Leaving {household.name}
+              </Text>
+            </View>
+
+            <View className="gap-1.5">
+              <CautionLine text="You lose access to its bills, chores and board." />
+              <CautionLine text="Getting back in needs a new invite code from a housemate." />
+              <CautionLine text="What you owe and are owed stays on record — leaving settles nothing." />
+              {lastAdmin ? (
+                <CautionLine
+                  emphasis
+                  text="You are the only admin. Nobody will be left who can manage this household."
+                />
+              ) : null}
+            </View>
+
+            <View className="mt-1 flex-row gap-2">
+              <Button
+                label="Stay"
+                variant="secondary"
+                size="md"
+                className="flex-1"
+                onPress={() => setLeaveArmed(false)}
+              />
+              <Button
+                label="Leave household"
+                variant="danger"
+                size="md"
+                className="flex-1"
+                icon="exit-outline"
+                onPress={confirmLeave}
+              />
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              haptics.tap();
+              setLeaveArmed(true);
+            }}
+            className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
+          >
+            <Ionicons name="exit-outline" size={20} color={colors.deep.brick} />
+            <Text className="flex-1 font-ui-semibold text-sm text-ink">Leave household</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
+          </Pressable>
+        )}
+
         <Pressable
           accessibilityRole="button"
-          onPress={confirmLeave}
-          className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
-        >
-          <Ionicons name="exit-outline" size={20} color={colors.deep.brick} />
-          <Text className="flex-1 font-ui-semibold text-sm text-ink">Leave household</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+          accessibilityState={{ busy: signingOut }}
+          disabled={signingOut}
           onPress={confirmSignOut}
-          className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
+          className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page ${
+            signingOut ? 'opacity-50' : ''
+          }`}
         >
           <Ionicons name="log-out-outline" size={20} color={colors.ink.soft} />
-          <Text className="flex-1 font-ui-semibold text-sm text-ink">Log out</Text>
+          <Text className="flex-1 font-ui-semibold text-sm text-ink">
+            {signingOut ? 'Logging out…' : 'Log out'}
+          </Text>
           <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
         </Pressable>
       </View>
 
       <Text className="text-center font-ui text-xs text-ink-muted">Kasama v1.0.0</Text>
     </ScrollView>
+  );
+}
+
+function CautionLine({ text, emphasis = false }: { text: string; emphasis?: boolean }) {
+  return (
+    <View className="flex-row gap-2">
+      <Text className="font-ui text-xs leading-5 text-deep-brick">•</Text>
+      <Text
+        className={`flex-1 text-xs leading-5 text-deep-brick ${
+          emphasis ? 'font-ui-bold' : 'font-ui'
+        }`}
+      >
+        {text}
+      </Text>
+    </View>
   );
 }

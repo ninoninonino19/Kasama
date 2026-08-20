@@ -170,6 +170,31 @@ export default function HomeScreen() {
               />
             ) : (
               <>
+                {/* Quick actions ------------------------------------- */}
+                {/* Home has no FAB. These are the two things people open the
+                    app to do, so they lead the dashboard rather than waiting
+                    at the end of a scroll. */}
+                <View className="flex-row gap-3">
+                  <QuickAction
+                    icon="receipt-outline"
+                    label="Add a bill"
+                    onPress={() => router.push('/bills/new')}
+                  />
+                  <QuickAction
+                    icon="checkmark-done-outline"
+                    label="Add a chore"
+                    onPress={() => router.push('/chores/new')}
+                  />
+                </View>
+
+                {/* Balance ------------------------------------------- */}
+                {userId ? (
+                  <View>
+                    <SectionTitle>Where you stand</SectionTitle>
+                    <SettleUpCard bills={bills.data ?? []} userId={userId} compact />
+                  </View>
+                ) : null}
+
                 {/* Today's chore ------------------------------------- */}
                 <View>
                   <SectionTitle>Today on the board</SectionTitle>
@@ -277,30 +302,6 @@ export default function HomeScreen() {
                       onAction={() => router.push('/announcements/new')}
                     />
                   )}
-                </View>
-
-                {/* Balance ------------------------------------------- */}
-                {userId ? (
-                  <View>
-                    <SectionTitle>Where you stand</SectionTitle>
-                    <SettleUpCard bills={bills.data ?? []} userId={userId} compact />
-                  </View>
-                ) : null}
-
-                {/* Quick actions ------------------------------------- */}
-                {/* Home has no FAB — these are the two things people open the
-                    app to do, so they get a fixed home at the end of the scroll. */}
-                <View className="flex-row gap-3">
-                  <QuickAction
-                    icon="receipt-outline"
-                    label="Add a bill"
-                    onPress={() => router.push('/bills/new')}
-                  />
-                  <QuickAction
-                    icon="checkmark-done-outline"
-                    label="Add a chore"
-                    onPress={() => router.push('/chores/new')}
-                  />
                 </View>
               </>
             )}

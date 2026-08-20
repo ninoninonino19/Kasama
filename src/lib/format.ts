@@ -44,6 +44,73 @@ export function endOfWeek(date = new Date()): Date {
   return addDays(startOfWeek(date), 6);
 }
 
+/**
+ * Monday-first weekday labels, matching `startOfWeek` and `weekdayIndex`.
+ *
+ * The calendar grid, the weekly-repeat picker and the chores week strip all
+ * need these, and three private copies is three chances for one of them to
+ * start on Sunday while the maths still says Monday.
+ */
+export const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
+
+export const WEEKDAY_NAMES = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const;
+
+/** Monday = 0 … Sunday = 6. */
+export function weekdayIndex(date: Date): number {
+  return (date.getDay() + 6) % 7;
+}
+
+/**
+ * The first day on or after `from` falling on Monday-based `index`.
+ *
+ * Used when someone picks "repeats weekly, on Wednesday": the due date moves
+ * to the coming Wednesday rather than the schedule being stored separately.
+ */
+export function nextWeekday(index: number, from = new Date()): Date {
+  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  return addDays(start, (index - weekdayIndex(start) + 7) % 7);
+}
+
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/** Days in the month containing `date`. */
+export function daysInMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+/**
+ * Month arithmetic that clamps rather than overflowing — a month on from
+ * 31 January is 28 February, not 3 March.
+ */
+export function addMonths(date: Date, months: number): Date {
+  const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  target.setDate(Math.min(date.getDate(), daysInMonth(target)));
+  return target;
+}
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** "August 2026" — the calendar's own heading. */
+export function formatMonthYear(date: Date): string {
+  return date.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+}
+
 /** "Aug 13" / "Aug 13, 2027" once the year differs from today's. */
 export function formatShortDate(value: string | Date): string {
   const date = typeof value === 'string' ? fromDateString(value.slice(0, 10)) : value;

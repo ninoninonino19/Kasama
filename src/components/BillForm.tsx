@@ -1,22 +1,23 @@
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import type { ReactNode } from 'react';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BILL_CATEGORIES, BILL_RECURRENCES, BILL_SUGGESTIONS } from '../lib/categories';
+import { BILL_CATEGORIES, BILL_RECURRENCES, categoryMeta } from '../lib/categories';
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
-import { formatPeso, formatShortDate, splitEvenly } from '../lib/format';
+import { formatPeso, nextWeekday, splitEvenly, weekdayIndex } from '../lib/format';
 import { haptics } from '../lib/haptics';
 import { colors } from '../lib/theme';
 import { useMembers, useSessionStore } from '../store/useSessionStore';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { Chip } from './ui/Chip';
+import { DateField } from './ui/Calendar';
 import { NoteCard } from './ui/NoteCard';
 import { SectionTitle } from './ui/Screen';
 import { InlineError } from './ui/States';
 import { TextField } from './ui/TextField';
+import { WeekdayPicker } from './ui/WeekdayPicker';
 
 export type BillFormResult = {
   title: string;
@@ -66,14 +67,25 @@ export function BillForm({
   const members = useMembers();
   const userId = useSessionStore((state) => state.userId);
 
-  const [title, setTitle] = useState(initial?.title ?? '');
+  const [titleText, setTitleText] = useState(initial?.title ?? '');
   const [amountText, setAmountText] = useState(
     initial ? initial.amount.toFixed(2) : ''
   );
   const [category, setCategory] = useState<BillCategory>(initial?.category ?? 'utilities');
   const [recurrence, setRecurrence] = useState<BillRecurrence>(initial?.recurrence ?? 'monthly');
   const [dueDate, setDueDate] = useState<Date | null>(initial?.dueDate ?? null);
-  const [showPicker, setShowPicker] = useState(false);
+  /**
+   * Whether this bill carries a name of its own rather than taking the
+   * category's.
+   *
+   * Picking a category is enough for most bills, so the name field only
+   * appears for "Other". The exception is a bill that already has a
+   * hand-written title — editing its due date must not quietly rename
+   * "August electricity" to "Utilities".
+   */
+  const [hasOwnTitle, setHasOwnTitle] = useState(
+    Boolean(initial && initial.title.trim() !== categoryMeta(initial.category).label)
+  );
   // `null` means "nobody has touched this yet", so the default stays in sync
   // with the member list even if it loads after this screen mounts.
   const [chosenParticipants, setChosenParticipants] = useState<string[] | null>(
@@ -90,6 +102,10 @@ export function BillForm({
   const [submitting, setSubmitting] = useState(false);
 
   const amount = Number.parseFloat(amountText.replace(/,/g, '')) || 0;
+
+  // "Other" says nothing about what the bill is, so it always asks.
+  const needsOwnTitle = category === 'other' || hasOwnTitle;
+  const title = needsOwnTitle ? titleText.trim() : categoryMeta(category).label;
 
   const participants = useMemo(
     () => chosenParticipants ?? members.map((member) => member.user_id),
@@ -119,7 +135,7 @@ export function BillForm({
 
   const splitsBalance = Math.abs(shareTotal - amount) < 0.01;
   const canSubmit =
-    title.trim().length > 0 &&
+    title.length > 0 &&
     amount > 0 &&
     (splitsLocked || (participants.length > 0 && splitsBalance)) &&
     !submitting;
@@ -165,55 +181,6 @@ export function BillForm({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <View className="gap-4">
-          <TextField
-            label="What's this for?"
-            autoFocus={mode === 'create'}
-            placeholder="e.g. August electricity"
-            value={title}
-            onChangeText={setTitle}
-            maxLength={80}
-          />
-
-          {mode === 'create' ? (
-            <View className="flex-row flex-wrap gap-2">
-              {BILL_SUGGESTIONS.map((suggestion) => (
-                <Pressable
-                  key={suggestion.title}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setTitle(suggestion.title);
-                    setCategory(suggestion.category);
-                  }}
-                  className="rounded-full border border-line bg-paper px-3 py-1.5 active:bg-page"
-                >
-                  <Text className="font-ui-semibold text-xs text-ink-soft">
-                    {suggestion.title}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          {splitsLocked ? (
-            <View>
-              <Text className="mb-2 font-ui-semibold text-sm text-ink-soft">Total amount</Text>
-              <View className="flex-row items-center justify-between rounded-xl border border-line bg-page px-4 py-4">
-                <Text className="font-mono-bold text-lg text-ink">{formatPeso(amount)}</Text>
-                <Ionicons name="lock-closed" size={16} color={colors.ink.muted} />
-              </View>
-            </View>
-          ) : (
-            <TextField
-              label="Total amount"
-              placeholder="0.00"
-              currency
-              value={amountText}
-              onChangeText={(value) => setAmountText(value.replace(/[^0-9.]/g, ''))}
-            />
-          )}
-        </View>
-
         <View>
           <SectionTitle>Category</SectionTitle>
           {/* A grid rather than five stacked rows: the whole set is visible at
@@ -261,57 +228,85 @@ export function BillForm({
           </View>
         </View>
 
-        <View>
-          <SectionTitle>Due date</SectionTitle>
+        {/* Naming ------------------------------------------------------- */}
+        {/* Most bills are their category — an electricity bill logged under
+            Utilities needs no further explanation. "Other" is the case the
+            category can't answer, so that is where the field appears. */}
+        {needsOwnTitle ? (
+          <View>
+            <TextField
+              label="What's this for?"
+              autoFocus={mode === 'create' && category === 'other'}
+              placeholder="e.g. Gas refill"
+              value={titleText}
+              onChangeText={setTitleText}
+              maxLength={80}
+            />
+            {/* Renaming is reversible: without this, clearing the field on a
+                non-Other bill leaves the save button disabled with no way
+                back to the category's own name. */}
+            {category === 'other' ? null : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  haptics.tap();
+                  setHasOwnTitle(false);
+                }}
+                className="mt-1.5 self-start py-1"
+              >
+                <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
+                  Use “{categoryMeta(category).label}” instead
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
           <Pressable
             accessibilityRole="button"
-            onPress={() => setShowPicker(true)}
-            className="flex-row items-center justify-between rounded-xl border border-line bg-paper px-4 py-4"
+            accessibilityLabel={`This bill will be called ${title}. Tap to give it its own name.`}
+            onPress={() => {
+              haptics.tap();
+              setTitleText(title);
+              setHasOwnTitle(true);
+            }}
+            className="min-h-[52px] flex-row items-center gap-2 rounded-xl border border-dashed border-line bg-paper/70 px-4 py-3 active:bg-page"
           >
-            <Text
-              className={
-                dueDate ? 'font-mono-bold text-base text-ink' : 'font-ui text-base text-ink-muted'
-              }
-            >
-              {dueDate ? formatShortDate(dueDate) : 'No due date'}
+            <Text className="flex-1 font-ui text-sm text-ink-muted" numberOfLines={1}>
+              Called <Text className="font-ui-bold text-ink">{title}</Text>
             </Text>
-            <View className="flex-row items-center gap-3">
-              {dueDate ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear due date"
-                  hitSlop={8}
-                  onPress={() => setDueDate(null)}
-                >
-                  <Ionicons name="close-circle" size={18} color={colors.ink.faint} />
-                </Pressable>
-              ) : null}
-              <Ionicons name="calendar-outline" size={20} color={colors.ink.muted} />
-            </View>
+            <Ionicons name="create-outline" size={16} color={colors.ink.muted} />
+            <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
+              Rename
+            </Text>
           </Pressable>
+        )}
 
-          {showPicker ? (
-            <DateTimePicker
-              value={dueDate ?? new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selected) => {
-                if (Platform.OS !== 'ios') setShowPicker(false);
-                if (event.type === 'set' && selected) setDueDate(selected);
-              }}
+        <View className="gap-4">
+          {splitsLocked ? (
+            <View>
+              <Text className="mb-2 font-ui-semibold text-sm text-ink-soft">Total amount</Text>
+              <View className="flex-row items-center justify-between rounded-xl border border-line bg-page px-4 py-4">
+                <Text className="font-mono-bold text-lg text-ink">{formatPeso(amount)}</Text>
+                <Ionicons name="lock-closed" size={16} color={colors.ink.muted} />
+              </View>
+            </View>
+          ) : (
+            <TextField
+              label="Total amount"
+              placeholder="0.00"
+              currency
+              value={amountText}
+              onChangeText={(value) => setAmountText(value.replace(/[^0-9.]/g, ''))}
             />
-          ) : null}
-
-          {Platform.OS === 'ios' && showPicker ? (
-            <Button
-              label="Done"
-              variant="secondary"
-              size="md"
-              className="mt-2"
-              onPress={() => setShowPicker(false)}
-            />
-          ) : null}
+          )}
         </View>
+
+        <DateField
+          label="Due date"
+          value={dueDate}
+          onChange={setDueDate}
+          onClear={() => setDueDate(null)}
+        />
 
         <View>
           <SectionTitle>Repeats</SectionTitle>
@@ -321,10 +316,26 @@ export function BillForm({
                 key={option.value}
                 label={option.label}
                 selected={recurrence === option.value}
-                onPress={() => setRecurrence(option.value)}
+                onPress={() => {
+                  setRecurrence(option.value);
+                  // Weekly needs a day to repeat on, and the due date is what
+                  // carries it. Seed one so the picker below has something to
+                  // show rather than opening on an arbitrary weekday.
+                  if (option.value === 'weekly' && !dueDate) setDueDate(new Date());
+                }}
               />
             ))}
           </View>
+
+          {recurrence === 'weekly' ? (
+            <View className="mt-3">
+              <WeekdayPicker
+                value={weekdayIndex(dueDate ?? new Date())}
+                onChange={(index) => setDueDate(nextWeekday(index, dueDate ?? new Date()))}
+              />
+            </View>
+          ) : null}
+
           {recurrence !== 'none' ? (
             <Text className="mt-2 font-ui text-xs leading-5 text-ink-muted">
               Once this bill is settled, next {recurrence === 'weekly' ? 'week' : 'month'}'s

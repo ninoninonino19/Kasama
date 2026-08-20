@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 
 import { BoardTabBar } from '../../src/components/ui/BoardTabBar';
+import { usePushOnboarding } from '../../src/hooks/usePushOnboarding';
 import { colors } from '../../src/lib/theme';
 import { useSessionStore } from '../../src/store/useSessionStore';
 
@@ -21,6 +22,9 @@ export default function TabsLayout() {
   const status = useSessionStore((state) => state.status);
   const session = useSessionStore((state) => state.session);
   const household = useSessionStore((state) => state.household);
+
+  // First launch into the app proper is where notifications get offered.
+  usePushOnboarding();
 
   if (status === 'ready' && !session) return <Redirect href="/auth/sign-in" />;
   if (status === 'ready' && !household) return <Redirect href="/onboarding" />;
