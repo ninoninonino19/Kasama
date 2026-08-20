@@ -9,15 +9,26 @@ import {
   updateAssignment,
   updateChore,
 } from '../../src/api/chores';
+import { Ionicons } from '@expo/vector-icons';
+
 import { ChoreForm } from '../../src/components/ChoreForm';
+import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
+import { SectionTitle } from '../../src/components/ui/Screen';
 import { LoadingState, ErrorState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
-import { fromDateString, toDateString } from '../../src/lib/format';
+import { formatRelativeDate, fromDateString, toDateString } from '../../src/lib/format';
+import { colors } from '../../src/lib/theme';
 import { haptics } from '../../src/lib/haptics';
+import { useCurrentUserId } from '../../src/store/useSessionStore';
+import type { AssignmentWithProfile } from '../../src/types';
+
+/** How many past turns to show. Enough to see the rotation, not a ledger. */
+const HISTORY_LENGTH = 8;
 
 export default function EditChoreScreen() {
   const router = useRouter();
+  const userId = useCurrentUserId();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const load = useCallback(() => (id ? fetchChore(id) : Promise.resolve(null)), [id]);
@@ -41,6 +52,14 @@ export default function EditChoreScreen() {
   // Only the open turn is editable. Rewriting a finished one would quietly
   // rewrite history, including the streaks derived from it.
   const turn = openAssignment(chore);
+
+  // Everything already done, newest first. The chore fetch has always carried
+  // this and nothing has ever shown it — "whose turn was it last time" is
+  // exactly the argument a rota exists to settle.
+  const history = chore.assignments
+    .filter((assignment) => assignment.completed)
+    .sort((a, b) => b.due_date.localeCompare(a.due_date))
+    .slice(0, HISTORY_LENGTH);
 
   function confirmDelete() {
     haptics.tap();
@@ -101,7 +120,19 @@ export default function EditChoreScreen() {
         router.back();
       }}
       footer={
-        <View className="gap-2 border-t border-line pt-6">
+        <View className="gap-6">
+          {history.length > 0 ? (
+            <View className="border-t border-line pt-6">
+              <SectionTitle>Mga nakaraang turn</SectionTitle>
+              <View className="gap-2">
+                {history.map((assignment) => (
+                  <HistoryRow key={assignment.id} assignment={assignment} userId={userId} />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          <View className="gap-2 border-t border-line pt-6">
           {turn ? null : (
             <Text className="font-ui text-xs leading-5 text-ink-muted">
               Walang bukas na turn ngayon, kaya ang assignee at due date sa itaas ay hindi
@@ -116,8 +147,40 @@ export default function EditChoreScreen() {
             loading={deleting}
             onPress={confirmDelete}
           />
+          </View>
         </View>
       }
     />
+  );
+}
+
+function HistoryRow({
+  assignment,
+  userId,
+}: {
+  assignment: AssignmentWithProfile;
+  userId: string | null;
+}) {
+  const name =
+    assignment.user_id === userId ? 'You' : (assignment.profile?.display_name ?? 'Housemate');
+
+  return (
+    <View className="flex-row items-center gap-3 rounded-xl border border-line bg-paper p-3">
+      <Avatar
+        name={assignment.profile?.display_name ?? 'Housemate'}
+        userId={assignment.user_id}
+        avatarUrl={assignment.profile?.avatar_url}
+        size={28}
+      />
+      <Text className="flex-1 font-ui-semibold text-sm text-ink" numberOfLines={1}>
+        {name}
+      </Text>
+      {/* The due date, not completed_at: the rota is about whose turn it was,
+          and someone ticking Tuesday's dishes on Thursday still had Tuesday. */}
+      <Text className="font-mono text-[11px] text-ink-muted">
+        {formatRelativeDate(assignment.due_date)}
+      </Text>
+      <Ionicons name="checkmark-circle" size={16} color={colors.deep.sage} />
+    </View>
   );
 }
