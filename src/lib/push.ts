@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 
@@ -41,6 +42,33 @@ export async function configureChannels(): Promise<void> {
       })
     )
   );
+}
+
+/**
+ * Whether this device has already been offered notifications on first launch.
+ *
+ * Per device rather than per account: the OS permission is the phone's, so
+ * someone signing in on a housemate's phone shouldn't be asked again about a
+ * permission that was already decided there.
+ */
+const OFFERED_KEY = 'kasama.push.offered';
+
+export async function hasBeenOfferedPush(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(OFFERED_KEY)) === 'true';
+  } catch {
+    // A storage read that fails shouldn't turn into a prompt on every launch;
+    // treat it as already asked.
+    return true;
+  }
+}
+
+export async function markPushOffered(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(OFFERED_KEY, 'true');
+  } catch {
+    // Worst case they get asked once more next launch.
+  }
 }
 
 export type PushRegistration =

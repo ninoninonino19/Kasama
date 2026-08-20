@@ -137,10 +137,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         // Before the session goes, so the next person to log in on a shared
-        // phone doesn't inherit the last person's notifications.
-        await unregisterFromPush();
+        // phone doesn't inherit the last person's notifications. Best-effort
+        // already, but keep it from blocking the sign-out itself.
+        await unregisterFromPush().catch(() => {});
+
+        // A default sign-out revokes the refresh token server-side, which
+        // needs the network and fails outright when that token has already
+        // expired — exactly the state someone is in when they give up and hit
+        // Log out. Falling back to a local sign-out means a session that the
+        // server has already forgotten can still be cleared off the device,
+        // rather than leaving the user stuck signed in to nothing.
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        if (error) {
+          const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+          if (localError) throw localError;
+        }
+
         store.getState().reset();
       },
       requestPasswordReset: async (email) => {

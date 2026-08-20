@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CHORE_RECURRENCES, CHORE_SUGGESTIONS } from '../lib/categories';
 import type { ChoreRecurrence } from '../lib/database.types';
-import { formatShortDate } from '../lib/format';
+import { nextWeekday, weekdayIndex } from '../lib/format';
 import { colors } from '../lib/theme';
 import { useMembers, useSessionStore } from '../store/useSessionStore';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { Chip } from './ui/Chip';
+import { DateField } from './ui/Calendar';
 import { SectionTitle } from './ui/Screen';
 import { InlineError } from './ui/States';
 import { TextField } from './ui/TextField';
+import { WeekdayPicker } from './ui/WeekdayPicker';
 
 export type ChoreFormValues = {
   title: string;
@@ -57,7 +58,6 @@ export function ChoreForm({
     initial?.assigneeId ?? null
   );
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? new Date());
-  const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -133,6 +133,15 @@ export function ChoreForm({
               />
             ))}
           </View>
+          {recurrence === 'weekly' ? (
+            <View className="mt-3">
+              <WeekdayPicker
+                value={weekdayIndex(dueDate)}
+                onChange={(index) => setDueDate(nextWeekday(index, dueDate))}
+              />
+            </View>
+          ) : null}
+
           {recurrence !== 'once' ? (
             <Text className="mt-2 font-ui text-xs leading-5 text-ink-muted">
               Once this is ticked off, the next turn moves automatically to the next housemate.
@@ -176,40 +185,11 @@ export function ChoreForm({
           </View>
         </View>
 
-        <View>
-          <SectionTitle>{mode === 'create' ? 'First due date' : 'Due date'}</SectionTitle>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Due ${formatShortDate(dueDate)}. Opens a date picker.`}
-            onPress={() => setShowPicker(true)}
-            className="flex-row items-center justify-between rounded-xl border border-line bg-paper px-4 py-4"
-          >
-            <Text className="font-mono-bold text-base text-ink">{formatShortDate(dueDate)}</Text>
-            <Ionicons name="calendar-outline" size={20} color={colors.ink.muted} />
-          </Pressable>
-
-          {showPicker ? (
-            <DateTimePicker
-              value={dueDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selected) => {
-                if (Platform.OS !== 'ios') setShowPicker(false);
-                if (event.type === 'set' && selected) setDueDate(selected);
-              }}
-            />
-          ) : null}
-
-          {Platform.OS === 'ios' && showPicker ? (
-            <Button
-              label="Done"
-              variant="secondary"
-              size="md"
-              className="mt-2"
-              onPress={() => setShowPicker(false)}
-            />
-          ) : null}
-        </View>
+        <DateField
+          label={mode === 'create' ? 'First due date' : 'Due date'}
+          value={dueDate}
+          onChange={setDueDate}
+        />
 
         {error ? <InlineError message={error} /> : null}
 
