@@ -181,6 +181,23 @@ export async function settleWholeBill(billId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Creates the next occurrence of a recurring bill, if this one has just become
+ * fully settled.
+ *
+ * Safe to call after any payment: the database function decides whether there
+ * is anything to do, and doing it twice is a no-op. It has to run there rather
+ * than here because the bills insert policy requires `created_by = auth.uid()`
+ * — done from the client, whoever ticked the last split would become the payer
+ * of next month's rent with their share already marked paid.
+ */
+export async function rollRecurringBill(billId: string): Promise<void> {
+  const { error } = await supabase.rpc('roll_recurring_bill', {
+    source_bill_id: billId,
+  });
+  if (error) throw error;
+}
+
 export async function deleteBill(billId: string): Promise<void> {
   const { error } = await supabase.from('bills').delete().eq('id', billId);
   if (error) throw error;

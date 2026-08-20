@@ -238,6 +238,11 @@ export type Database = {
         Args: { code: string };
         Returns: Database['public']['Tables']['households']['Row'];
       };
+      roll_recurring_bill: {
+        Args: { source_bill_id: string };
+        /** The new bill's id, or null when there was nothing to roll. */
+        Returns: string | null;
+      };
       is_household_member: {
         Args: { hid: string };
         Returns: boolean;

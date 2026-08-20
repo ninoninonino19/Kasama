@@ -40,8 +40,8 @@ npm install
 ### 2. Create a Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run the migration in `supabase/migrations/20260813000000_init.sql` against it — either
-   paste it into the SQL editor, or use the CLI:
+2. Run every migration in `supabase/migrations/`, in filename order — either paste them into
+   the SQL editor, or use the CLI:
 
    ```bash
    npx supabase link --project-ref <your-project-ref>
@@ -268,6 +268,23 @@ Two flows deliberately run through database functions rather than direct writes:
   inserts the membership. Users can't read (or add themselves to) a household they aren't
   in, so the code is the only way in.
 
+### Testing the database
+
+The SQL that can't be checked by `tsc` — the `SECURITY DEFINER` functions and the rules they
+enforce — has its own suite. It applies every migration to a throwaway local Postgres and
+exercises the results:
+
+```bash
+supabase/tests/run.sh            # needs a local postgres you can create databases on
+```
+
+`supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
+(`auth.users`, `auth.uid()`, the Supabase roles, the realtime publication) so the real
+migrations run unmodified. `roll_recurring_bill_test.sql` covers the recurring-bill roll:
+that a partly paid bill doesn't roll, that a settled one lands on the right date with the
+original payer and their share prepaid, that re-settling is a no-op, that a non-member is
+refused, and that an undated recurring bill counts from today.
+
 ### Regenerating types
 
 `src/lib/database.types.ts` is written in the shape the Supabase generator emits, so it can
@@ -351,7 +368,6 @@ Remaining steps, none of which can be done from this repo alone:
 
 - Push notifications for due bills and chore turns (`expo-notifications`)
 - Avatar uploads via Supabase Storage
-- Automatic generation of the next recurring *bill* (chores already rotate on completion)
 - Settlement history / "who paid whom" ledger
 - A design pass over onboarding, the add-expense flow and settings (see *Not yet designed*)
 - Stored chore streaks, per-note tape colour and pinned notes (see *Where the design outran

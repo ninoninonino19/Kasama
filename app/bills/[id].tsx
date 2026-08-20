@@ -3,7 +3,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBillSettled, setSplitPaid, settleWholeBill } from '../../src/api/bills';
+import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBillSettled, rollRecurringBill, setSplitPaid, settleWholeBill } from '../../src/api/bills';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Chip';
@@ -70,11 +70,29 @@ export default function BillDetailScreen() {
 
     try {
       await setSplitPaid(splitId, paid);
+      if (paid) await rollForward();
       await refresh({ silent: true });
     } catch (caught) {
       haptics.error();
       setActionError(messageFrom(caught));
       await refresh({ silent: true });
+    }
+  }
+
+  /**
+   * Queues next month's copy once the last split lands. Kept out of the
+   * payment's own try/catch: the payment has already been written by this
+   * point, and failing to roll a recurring bill forward is not a reason to
+   * tell someone their payment didn't go through.
+   */
+  async function rollForward() {
+    if (!bill || bill.recurrence === 'none') return;
+    try {
+      await rollRecurringBill(bill.id);
+    } catch (caught) {
+      setActionError(
+        `Nabayaran na, pero hindi nagawa ang susunod na ${bill.title}: ${messageFrom(caught)}`
+      );
     }
   }
 
@@ -92,6 +110,7 @@ export default function BillDetailScreen() {
 
     try {
       await settleWholeBill(bill.id);
+      await rollForward();
       haptics.success();
       await refresh({ silent: true });
     } catch (caught) {
