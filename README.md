@@ -230,9 +230,11 @@ The design covers Home, Bills, Chores and the Board. These still wear the old te
 redrawn) and want a design pass of their own rather than an improvised one:
 
 - Onboarding / join household
-- Add-expense flow, including equal vs. custom split
 - Profile and household settings
 - Sign-in and sign-up
+
+The add-expense flow has since been redrawn, as a side effect of extracting the shared
+`BillForm` behind the add and edit screens.
 
 The deprecated teal scales at the bottom of `src/lib/theme.ts` exist only for those screens.
 Nothing new should reach for them.
@@ -374,6 +376,4 @@ Remaining steps, none of which can be done from this repo alone:
 
 - Push notifications for due bills and chore turns (`expo-notifications`)
 - Settlement history / "who paid whom" ledger
-- A design pass over onboarding, the add-expense flow and settings (see *Not yet designed*)
-- Stored chore streaks, per-note tape colour and pinned notes (see *Where the design outran
-  the schema*)
+- A design pass over onboarding, settings and the auth screens (see *Not yet designed*)
