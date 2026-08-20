@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 
 import { Button } from '../../src/components/ui/Button';
 import { Logo } from '../../src/components/ui/Logo';
@@ -11,13 +11,13 @@ import { messageFrom } from '../../src/hooks/useAsyncData';
 import { useSession } from '../../src/providers/SessionProvider';
 
 export default function SignUpScreen() {
-  const { signIn, signUp } = useSession();
+  const router = useRouter();
+  const { signUp } = useSession();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = displayName.trim().length >= 2 && email.trim().length > 3 && password.length >= 6;
@@ -26,20 +26,22 @@ export default function SignUpScreen() {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
-    setNotice(null);
 
     try {
-      await signUp(email, password, displayName);
-      // With email confirmation off, Supabase returns a session immediately;
-      // with it on, the user has to confirm before signing in.
-      try {
-        await signIn(email, password);
-      } catch {
-        setNotice('Account created. Check your email to confirm, then log in.');
+      const { needsConfirmation } = await signUp(email, password, displayName);
+
+      if (needsConfirmation) {
+        // Straight into the code screen rather than a notice telling them to
+        // go and find an email: the confirmation is part of signing up, not
+        // an errand to run afterwards.
+        router.replace({ pathname: '/confirm-email', params: { email: email.trim() } });
+        return;
       }
+
+      // Confirmations are off, so Supabase already returned a session and the
+      // auth listener is taking it from here.
     } catch (caught) {
       setError(messageFrom(caught));
-    } finally {
       setSubmitting(false);
     }
   }
@@ -93,11 +95,6 @@ export default function SignUpScreen() {
               hint="Minimum of 6 characters."
             />
             {error ? <InlineError message={error} /> : null}
-            {notice ? (
-              <View className="rounded-xl bg-wash-slate px-3 py-2">
-                <Text className="font-ui text-sm text-deep-slate">{notice}</Text>
-              </View>
-            ) : null}
           </View>
 
           <View className="gap-4">

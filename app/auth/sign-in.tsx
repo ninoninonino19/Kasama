@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 
 import { Button } from '../../src/components/ui/Button';
 import { Logo } from '../../src/components/ui/Logo';
@@ -11,11 +11,13 @@ import { messageFrom } from '../../src/hooks/useAsyncData';
 import { useSession } from '../../src/providers/SessionProvider';
 
 export default function SignInScreen() {
+  const router = useRouter();
   const { signIn } = useSession();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = email.trim().length > 3 && password.length >= 6;
@@ -24,11 +26,18 @@ export default function SignInScreen() {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
+    setNeedsConfirmation(false);
     try {
       await signIn(email, password);
       // The session listener takes it from here.
     } catch (caught) {
-      setError(messageFrom(caught));
+      const message = messageFrom(caught);
+      setError(message);
+      // Signing up and not finishing is easy to do — the app closes, the email
+      // waits. Without this the only signal is a login that keeps failing, and
+      // the way out (a screen reached from sign-up, which they have already
+      // left) is nowhere on screen.
+      setNeedsConfirmation(/not confirmed|confirm your email/i.test(message));
     } finally {
       setSubmitting(false);
     }
@@ -76,6 +85,17 @@ export default function SignInScreen() {
               returnKeyType="go"
             />
             {error ? <InlineError message={error} /> : null}
+            {needsConfirmation ? (
+              <Button
+                label="Confirm your email"
+                variant="secondary"
+                size="md"
+                icon="mail-outline"
+                onPress={() =>
+                  router.push({ pathname: '/confirm-email', params: { email: email.trim() } })
+                }
+              />
+            ) : null}
           </View>
 
           <View className="gap-4">
