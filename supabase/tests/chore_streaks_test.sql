@@ -23,7 +23,7 @@ begin
     (house, boy, 'member'), (house, cel, 'member');
 
   insert into public.chores (household_id, title, recurrence)
-    values (house, 'Hugas plato', 'daily') returning id into chore;
+    values (house, 'Wash the dishes', 'daily') returning id into chore;
 
   -- Ana: three finished turns in a row, all in the past.
   insert into public.chore_assignments (chore_id, user_id, due_date, completed, completed_at) values

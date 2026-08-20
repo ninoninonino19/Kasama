@@ -24,7 +24,7 @@ const TAPE: Record<ReturnType<typeof billStatus>, string> = {
  *
  * Two rows rather than one: on a phone the amount and the status pill used to
  * crowd the title down to a few characters. Giving the title its own line means
- * "Kuryente ng Agosto" reads in full at 390pt wide.
+ * "August electricity bill" reads in full at 390pt wide.
  */
 export function BillRow({
   bill,

@@ -90,7 +90,7 @@ export function ChoreForm({
           <TextField
             label="Chore"
             autoFocus={mode === 'create'}
-            placeholder="e.g. Hugas plato"
+            placeholder="e.g. Wash the dishes"
             value={title}
             onChangeText={setTitle}
             maxLength={80}
@@ -113,7 +113,7 @@ export function ChoreForm({
 
           <TextField
             label="Notes (optional)"
-            placeholder="e.g. Kasama ang kaldero at kawali"
+            placeholder="e.g. Includes the pots and pans"
             value={description}
             onChangeText={setDescription}
             multiline
@@ -135,13 +135,13 @@ export function ChoreForm({
           </View>
           {recurrence !== 'once' ? (
             <Text className="mt-2 font-ui text-xs leading-5 text-ink-muted">
-              Pag na-check as done, awtomatikong lilipat ang susunod na turn sa kasunod na kasama.
+              Once this is ticked off, the next turn moves automatically to the next housemate.
             </Text>
           ) : null}
         </View>
 
         <View>
-          <SectionTitle>{mode === 'create' ? 'Sino ang una?' : 'Kaninong turn ngayon?'}</SectionTitle>
+          <SectionTitle>{mode === 'create' ? 'Who goes first?' : 'Whose turn is it?'}</SectionTitle>
           <View className="gap-2">
             {members.map((member) => {
               const selected = assignee === member.user_id;

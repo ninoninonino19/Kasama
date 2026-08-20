@@ -169,7 +169,7 @@ export function BillForm({
           <TextField
             label="What's this for?"
             autoFocus={mode === 'create'}
-            placeholder="e.g. Kuryente ng Agosto"
+            placeholder="e.g. August electricity"
             value={title}
             onChangeText={setTitle}
             maxLength={80}
@@ -273,7 +273,7 @@ export function BillForm({
                 dueDate ? 'font-mono-bold text-base text-ink' : 'font-ui text-base text-ink-muted'
               }
             >
-              {dueDate ? formatShortDate(dueDate) : 'Walang due date'}
+              {dueDate ? formatShortDate(dueDate) : 'No due date'}
             </Text>
             <View className="flex-row items-center gap-3">
               {dueDate ? (
@@ -327,9 +327,8 @@ export function BillForm({
           </View>
           {recurrence !== 'none' ? (
             <Text className="mt-2 font-ui text-xs leading-5 text-ink-muted">
-              Pag na-settle na ang bill na ito, awtomatikong gagawa ng susunod na
-              {recurrence === 'weekly' ? ' linggo' : ' buwan'} — kopya ng amount na ito, para
-              i-adjust mo na lang.
+              Once this bill is settled, next {recurrence === 'weekly' ? 'week' : 'month'}'s
+              copy is created automatically with the same amount, ready for you to adjust.
             </Text>
           ) : null}
         </View>
@@ -363,9 +362,9 @@ export function BillForm({
           {splitsLocked ? (
             <NoteCard tape={colors.mustard} className="mb-3 pt-5">
               <Text className="font-ui text-xs leading-5 text-ink-muted">
-                May nakabayad na sa bill na ito, kaya naka-lock ang amount at ang hatian —
-                hindi pwedeng baguhin ang pinagbayaran na ng iba. Pwede mo pa ring ayusin ang
-                pangalan, category, due date at kung paulit-ulit ba ito.
+                Someone has already paid towards this bill, so the amount and the split are
+                locked — what other people have paid can't be changed underneath them. The
+                title, category, due date and repeat schedule are all still editable.
               </Text>
             </NoteCard>
           ) : null}
@@ -459,7 +458,7 @@ export function BillForm({
 
               {!splitsBalance && amount > 0 ? (
                 <Text className="mt-2 font-ui text-xs text-deep-brick">
-                  Dapat pantay ang kabuuan ng splits sa total amount.
+                  The splits have to add up to the total amount.
                 </Text>
               ) : null}
             </>
@@ -477,7 +476,7 @@ export function BillForm({
 
         {mode === 'create' ? (
           <Text className="text-center font-ui text-xs leading-5 text-ink-muted">
-            Ikaw ang nag-log, so your share starts as already paid. Ang iba, marked as owing you.
+            You logged this, so your own share starts as paid. Everyone else is marked as owing you.
           </Text>
         ) : null}
 

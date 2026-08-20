@@ -69,7 +69,7 @@ export default function BillsScreen() {
         subtitle={
           balance.owed > 0
             ? `You still owe ${formatPeso(balance.owed)}`
-            : 'Wala kang utang — all clear!'
+            : "You're all square"
         }
         right={
           <Pressable
@@ -152,17 +152,17 @@ export default function BillsScreen() {
               <EmptyState
                 icon="receipt-outline"
                 title="No bills yet — add your first one"
-                message="Kuryente, tubig, WiFi, renta… log it once and Kasama splits it for everyone."
+                message="Electricity, water, internet, rent — log it once and Kasama splits it across the house."
                 actionLabel="Add a bill"
                 onAction={() => router.push('/bills/new')}
               />
             ) : (
               <EmptyState
                 icon="checkmark-circle-outline"
-                title={filter === 'unpaid' ? 'Walang pending!' : 'Nothing settled yet'}
+                title={filter === 'unpaid' ? 'Nothing outstanding' : 'Nothing settled yet'}
                 message={
                   filter === 'unpaid'
-                    ? 'Every bill in the house is settled. Nice one.'
+                    ? 'Every bill in the house is settled.'
                     : 'Once a bill is fully paid it will show up here.'
                 }
               />

@@ -35,7 +35,7 @@ export default function SignUpScreen() {
       try {
         await signIn(email, password);
       } catch {
-        setNotice('Account created! Check your email to confirm, then log in.');
+        setNotice('Account created. Check your email to confirm, then log in.');
       }
     } catch (caught) {
       setError(messageFrom(caught));
@@ -56,11 +56,11 @@ export default function SignUpScreen() {
         >
           <View className="gap-2">
             <View className="mb-2">
-              <Logo tone="coral" />
+              <Logo />
             </View>
-            <Text className="text-3xl font-bold text-ink">Join Kasama</Text>
-            <Text className="text-base leading-6 text-ink-soft">
-              Isang app para sa bills, chores at anunsyo ng buong bahay.
+            <Text className="font-ui-black text-3xl text-ink">Join Kasama</Text>
+            <Text className="font-ui text-base leading-6 text-ink-soft">
+              One app for the whole house — bills, chores and notices in a single place.
             </Text>
           </View>
 
@@ -74,7 +74,7 @@ export default function SignUpScreen() {
             />
             <TextField
               label="Email"
-              placeholder="ikaw@email.com"
+              placeholder="you@email.com"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -94,8 +94,8 @@ export default function SignUpScreen() {
             />
             {error ? <InlineError message={error} /> : null}
             {notice ? (
-              <View className="rounded-xl bg-brand-50 px-3 py-2">
-                <Text className="text-sm text-brand-700">{notice}</Text>
+              <View className="rounded-xl bg-wash-slate px-3 py-2">
+                <Text className="font-ui text-sm text-deep-slate">{notice}</Text>
               </View>
             ) : null}
           </View>
@@ -108,8 +108,8 @@ export default function SignUpScreen() {
               disabled={!canSubmit}
             />
             <View className="flex-row justify-center gap-1">
-              <Text className="text-sm text-ink-muted">May account ka na?</Text>
-              <Link href="/auth/sign-in" className="text-sm font-semibold text-brand-600">
+              <Text className="font-ui text-sm text-ink-muted">Already have an account?</Text>
+              <Link href="/auth/sign-in" className="font-ui-semibold text-sm text-moss">
                 Log in
               </Link>
             </View>

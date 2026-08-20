@@ -10,14 +10,19 @@ module.exports = {
     extend: {
       colors: {
         // --- "Shared fridge board" design system -------------------------
-        // The fridge door itself, behind the pinned notes.
-        page: '#EDEFE4',
-        // Slightly lighter canvas for scrolling screens.
-        canvas: '#F1F3EA',
+        // One palette for the whole app. The three surfaces are separated by
+        // value on purpose, so each one does visible work: `canvas` is the
+        // ground, `paper` is a card lifted off it, `page` is recessed.
+        //
+        // Recessed — pressed states, progress tracks, inset counters. Deep
+        // enough that pressing a paper card is actually visible.
+        page: '#E6E9DB',
+        // The ground a screen sits on.
+        canvas: '#F2F4EA',
         // A pinned note. Every card in the system sits on this.
-        paper: '#FBFAF4',
+        paper: '#FCFBF6',
         // Hairline card border and divider.
-        line: '#E2E0D4',
+        line: '#DEDCCD',
         // Deep green — primary actions, active tab, "done".
         moss: {
           DEFAULT: '#2F3D2C',
@@ -29,80 +34,28 @@ module.exports = {
         brick: '#C05B45',
         // Soft green — settled, calm accents, streak fills.
         sage: '#A9BFA0',
+        // Slate — the informational tone: hints, callouts, "here is something
+        // to know". Promoted out of the category tints rather than invented,
+        // so the palette gains a voice without gaining a hue.
+        slate: '#2F4B50',
         // Derived: low-saturation fills of the accents, for pill and banner
         // backgrounds — the accents themselves are too loud behind text.
         wash: {
           mustard: '#F8EACB',
           brick: '#F5E0DA',
           sage: '#E3ECDE',
+          slate: '#DCE5E7',
         },
         // Derived: darkened accents, each 4.5:1 or better on its own wash.
         deep: {
           mustard: '#7A5B12',
           brick: '#8E3D2C',
           sage: '#33502C',
+          slate: '#2A464B',
         },
         // Near-black for the tab bar and other "hardware" chrome.
         bezel: '#1B211A',
-
-        // --- Deprecated ---------------------------------------------------
-        // The original teal set, still used by the screens outside the design
-        // brief (auth, onboarding, settings, add/detail modals).
-        // Soft teal — the primary accent. Warm enough to feel friendly, not corporate.
-        brand: {
-          50: '#EFFAF8',
-          100: '#D7F2EE',
-          200: '#AFE5DD',
-          300: '#7FD3C8',
-          400: '#4FBCAF',
-          500: '#2FA396',
-          600: '#218578',
-          700: '#1C6A61',
-          800: '#18544D',
-          900: '#134540',
-        },
-        // Warm coral — used for balances owed, alerts and highlights.
-        coral: {
-          50: '#FFF4F0',
-          100: '#FFE5DC',
-          200: '#FFC8B6',
-          300: '#FFA486',
-          400: '#FF7F5C',
-          500: '#F2603A',
-          600: '#D64827',
-          700: '#B0381D',
-          800: '#8B2C18',
-          900: '#6E2414',
-        },
-        // Warm neutral canvas + ink.
-        sand: {
-          50: '#FCFAF7',
-          100: '#F7F3EE',
-          200: '#EFE9E1',
-          300: '#E2D9CD',
-          400: '#C9BDAD',
-          500: '#A99B89',
-          600: '#8A7C6B',
-          700: '#6B5F52',
-          800: '#4B423A',
-          900: '#2C2722',
-        },
-        // Muted amber — "due soon", the step between settled and overdue.
-        amber: {
-          50: '#FDF6E7',
-          100: '#FAECCC',
-          200: '#F2D9A0',
-          300: '#E4BC68',
-          400: '#D0A03A',
-          500: '#B5851F',
-          600: '#9A6B12',
-          700: '#7F5710',
-          800: '#66450D',
-          900: '#4E350A',
-        },
-        // Ink is shared by both palettes — the board system's near-black green
-        // reads correctly on the old sand canvas too, so there is no second
-        // scale to keep in sync. All three text tones clear 4.5:1 on `paper`.
+        // All three text tones clear 4.5:1 on `canvas`, `paper` and `page`.
         ink: {
           DEFAULT: '#23281F',
           // Derived: the system names one muted ink, but the app already
@@ -122,7 +75,7 @@ module.exports = {
         'ui-semibold': ['Manrope_600SemiBold'],
         'ui-bold': ['Manrope_700Bold'],
         'ui-black': ['Manrope_800ExtraBold'],
-        // Caveat. Greetings, board posts, "your turn!" — never dense UI text.
+        // Caveat. Greetings, board posts, "your turn" — never dense UI text.
         hand: ['Caveat_600SemiBold'],
         'hand-bold': ['Caveat_700Bold'],
         // IBM Plex Mono. Peso amounts, due dates, timestamps.

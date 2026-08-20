@@ -8,7 +8,7 @@ type IoniconName = ComponentProps<typeof Ionicons>['name'];
 export type CategoryMeta = {
   value: BillCategory;
   label: string;
-  /** Everyday Filipino name for the category — shown as a subtitle. */
+  /** What actually falls under this category — shown as a subtitle. */
   subtitle: string;
   icon: IoniconName;
   tint: string;
@@ -25,7 +25,7 @@ export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'rent',
     label: 'Rent',
-    subtitle: 'Renta / Upa',
+    subtitle: 'Rent and room share',
     icon: 'home-outline',
     tint: '#33502C',
     background: '#DCE7D4',
@@ -33,7 +33,7 @@ export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'utilities',
     label: 'Utilities',
-    subtitle: 'Kuryente at Tubig',
+    subtitle: 'Power and water',
     icon: 'flash-outline',
     tint: '#7A5B12',
     background: '#F6E4C8',
@@ -41,7 +41,7 @@ export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'internet',
     label: 'Internet',
-    subtitle: 'WiFi',
+    subtitle: 'WiFi and data',
     icon: 'wifi-outline',
     tint: '#2F4B50',
     background: '#D9E2E4',
@@ -49,7 +49,7 @@ export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'groceries',
     label: 'Groceries',
-    subtitle: 'Palengke / Grocery',
+    subtitle: 'Food and household',
     icon: 'basket-outline',
     tint: '#4A5334',
     background: '#E3E6D6',
@@ -57,7 +57,7 @@ export const BILL_CATEGORIES: CategoryMeta[] = [
   {
     value: 'other',
     label: 'Other',
-    subtitle: 'Iba pa',
+    subtitle: 'Anything else',
     icon: 'ellipsis-horizontal-circle-outline',
     tint: '#8E3D2C',
     background: '#F0DAD3',
@@ -81,20 +81,20 @@ export const CHORE_RECURRENCES: { value: ChoreRecurrence; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
 ];
 
-/** Placeholder chores that read like a real boarding-house list. */
+/** Placeholder chores that read like a real shared-house list. */
 export const CHORE_SUGGESTIONS = [
-  'Hugas plato',
-  'Walis at trapo',
-  'Labada',
-  'Linis CR',
-  'Tapon ng basura',
-  'Igib ng tubig',
+  'Wash the dishes',
+  'Sweep and mop',
+  'Laundry',
+  'Clean the bathroom',
+  'Take out the bins',
+  'Refill the water',
 ];
 
 export const BILL_SUGGESTIONS = [
-  { title: 'Kuryente', category: 'utilities' as BillCategory },
-  { title: 'Tubig', category: 'utilities' as BillCategory },
-  { title: 'WiFi', category: 'internet' as BillCategory },
-  { title: 'Renta', category: 'rent' as BillCategory },
-  { title: 'Grocery', category: 'groceries' as BillCategory },
+  { title: 'Electricity', category: 'utilities' as BillCategory },
+  { title: 'Water', category: 'utilities' as BillCategory },
+  { title: 'Internet', category: 'internet' as BillCategory },
+  { title: 'Rent', category: 'rent' as BillCategory },
+  { title: 'Groceries', category: 'groceries' as BillCategory },
 ];

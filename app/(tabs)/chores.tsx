@@ -210,7 +210,7 @@ export default function ChoresScreen() {
       <ScreenHeader
         title="Chores"
         subtitle={
-          stillDue > 0 ? `${stillDue} due this week` : 'Walang pending — salamat, mga kasama!'
+          stillDue > 0 ? `${stillDue} due this week` : 'Nothing due — the house is on top of it'
         }
       />
 
@@ -259,7 +259,7 @@ export default function ChoresScreen() {
             <EmptyState
               icon="sparkles-outline"
               title="No chores yet"
-              message="Hugas plato, walis, labada… assign it once and Kasama rotates it around the house."
+              message="Dishes, sweeping, laundry — assign it once and Kasama rotates it around the house."
               actionLabel="Add a chore"
               onAction={() => router.push('/chores/new')}
             />
@@ -283,7 +283,7 @@ export default function ChoresScreen() {
                 <EmptyState
                   compact
                   icon="cafe-outline"
-                  title="Walang nakatakda"
+                  title="Nothing scheduled"
                   message="Nothing falls on this day. Enjoy it."
                 />
               ) : null}
@@ -309,7 +309,7 @@ export default function ChoresScreen() {
           {chores.length > 0 && !hasOpenWork ? (
             <EmptyState
               icon="happy-outline"
-              title="Tapos na lahat!"
+              title="All done"
               message="Every chore on the board is done. New turns appear as they come around."
             />
           ) : null}
@@ -516,7 +516,7 @@ function TurnTag() {
       className="rounded-md bg-mustard px-2.5 py-0.5"
       style={{ transform: [{ rotate: '-3deg' }] }}
     >
-      <Text className="font-hand-bold text-base leading-5 text-ink">ikaw ito!</Text>
+      <Text className="font-hand-bold text-base leading-5 text-ink">your turn</Text>
     </View>
   );
 }
@@ -611,7 +611,7 @@ function ChoreCard({
           </View>
 
           {done ? (
-            <Pill label="Tapos!" tone="ok" icon="checkmark-circle" />
+            <Pill label="Done" tone="ok" icon="checkmark-circle" />
           ) : overdue ? (
             <Pill label="Overdue" tone="alert" icon="alert-circle" />
           ) : isMine ? (

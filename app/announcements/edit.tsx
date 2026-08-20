@@ -42,7 +42,7 @@ export default function EditAnnouncementScreen() {
   if (note.user_id !== userId) {
     return (
       <View className="flex-1 justify-center bg-canvas p-5">
-        <ErrorState message="Ang may sulat lang ang pwedeng mag-edit ng note na ito." />
+        <ErrorState message="Only the person who wrote this note can edit it." />
       </View>
     );
   }
@@ -52,7 +52,7 @@ export default function EditAnnouncementScreen() {
       authorName={note.profile?.display_name ?? 'You'}
       authorId={note.user_id}
       authorAvatarUrl={note.profile?.avatar_url}
-      subtitle={`isinulat ${formatTimeAgo(note.created_at)}`}
+      subtitle={`written ${formatTimeAgo(note.created_at)}`}
       initialContent={note.content}
       initialTape={note.tape_color ?? 'mustard'}
       submitLabel="Save changes"

@@ -112,7 +112,7 @@ export default function HomeScreen() {
   // The dashboard summarises the other three tabs, so it goes stale the fastest.
   useRefreshOnFocus(refreshAll);
 
-  const firstName = profile?.display_name.split(' ')[0] ?? 'kasama';
+  const firstName = profile?.display_name.split(' ')[0] ?? 'there';
 
   return (
     <Screen>
@@ -185,8 +185,8 @@ export default function HomeScreen() {
                     <EmptyState
                       compact
                       icon="checkmark-done-outline"
-                      title="Walang chore na naka-pila"
-                      message="Set up a rotation so walang pikunan sa hugas at walis."
+                      title="No chores lined up"
+                      message="Set up a rotation so nobody has to track whose turn it is."
                       actionLabel="Add a chore"
                       onAction={() => router.push('/chores/new')}
                     />
@@ -215,8 +215,8 @@ export default function HomeScreen() {
                     <EmptyState
                       compact
                       icon="receipt-outline"
-                      title="Walang pending na bill"
-                      message="Add one when the next kuryente or WiFi bill arrives."
+                      title="No bills outstanding"
+                      message="Add one when the next electricity or internet bill arrives."
                       actionLabel="Add a bill"
                       onAction={() => router.push('/bills/new')}
                     />
@@ -271,8 +271,8 @@ export default function HomeScreen() {
                     <EmptyState
                       compact
                       icon="reader-outline"
-                      title="Wala pang balita"
-                      message="Post a quick update so alam ng lahat ang nangyayari sa bahay."
+                      title="Nothing on the board"
+                      message="Post a quick update so everyone knows what's happening at home."
                       actionLabel="Write one"
                       onAction={() => router.push('/announcements/new')}
                     />
@@ -364,8 +364,8 @@ function HousemateRow({
       </View>
       <Text className="flex-1 font-ui text-xs text-ink-muted" numberOfLines={1}>
         {members.length === 1
-          ? 'Ikaw pa lang dito — invite your housemates'
-          : `Ikaw at ${members.length - 1} pang kasama`}
+          ? "Just you so far — invite your housemates"
+          : `You and ${members.length - 1} ${members.length === 2 ? 'housemate' : 'housemates'}`}
       </Text>
       <Ionicons name="chevron-forward" size={16} color={colors.ink.faint} />
     </Pressable>
@@ -418,7 +418,7 @@ function TodaysChoreCard({
             className="rounded-md bg-mustard px-2.5 py-0.5"
             style={{ transform: [{ rotate: '-3deg' }] }}
           >
-            <Text className="font-hand-bold text-base leading-5 text-ink">ikaw ito!</Text>
+            <Text className="font-hand-bold text-base leading-5 text-ink">your turn</Text>
           </View>
         ) : null}
       </View>
@@ -509,7 +509,7 @@ function GetStarted({
     {
       icon: 'receipt-outline' as const,
       title: 'Log your first bill',
-      body: 'Kuryente, tubig, WiFi — Kasama splits it for everyone.',
+      body: 'Electricity, water, internet — Kasama splits it across the house.',
       onPress: onAddBill,
     },
     {
@@ -520,7 +520,7 @@ function GetStarted({
     },
     {
       icon: 'reader-outline' as const,
-      title: 'Say kumusta',
+      title: 'Say hello',
       body: 'Pin a note so everyone sees it in one place.',
       onPress: onPost,
     },
@@ -563,7 +563,7 @@ function GetStarted({
 
 function greeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Magandang umaga';
-  if (hour < 18) return 'Magandang hapon';
-  return 'Magandang gabi';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }

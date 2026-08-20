@@ -95,13 +95,13 @@ export default function LedgerScreen() {
             entries.length > 0 ? (
               <NoteCard tape={colors.sage} tapeAlign="center" className="mb-1 px-5 pb-4 pt-6">
                 <Text className="text-center font-ui-bold text-[11px] uppercase tracking-[1.4px] text-ink-muted">
-                  Dumaan sa iyo
+                  Through your hands
                 </Text>
                 <Text className="mt-1 text-center font-mono-bold text-3xl text-ink">
                   {formatPeso(total)}
                 </Text>
                 <Text className="mt-1 text-center font-ui text-sm text-ink-muted">
-                  Kabuuan ng nabayaran mo at nabayad sa iyo.
+                  Everything you've paid and been paid, all together.
                 </Text>
               </NoteCard>
             ) : null
@@ -136,8 +136,8 @@ export default function LedgerScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="receipt-outline"
-              title="Wala pang bayaran"
-              message="Kapag may nag-settle ng share nila, lalabas dito kung sino, kanino at kailan."
+              title="No payments yet"
+              message="When someone settles their share, this shows who paid whom, and when."
             />
           }
         />

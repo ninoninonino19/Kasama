@@ -6,28 +6,30 @@ import type { TapeColor } from './database.types';
  * ripple colours. Keeping them here means the Tailwind theme and the values
  * scattered through JSX can't drift apart.
  *
- * Two palettes live here while the redesign lands:
+ * One palette, everywhere: the "shared fridge board" system — paper, moss,
+ * mustard, brick, sage, slate. The teal/coral/sand set the app shipped with
+ * before the redesign is gone; auth, onboarding, settings and the detail
+ * modals now draw in these tokens like every other screen.
  *
- *  - The top of `colors` is the "shared fridge board" system — paper, moss,
- *    mustard, brick — which Home, Bills, Chores and the Board are drawn in.
- *  - The `brand` / `coral` / `sand` / `amber` scales at the bottom are the
- *    original teal set, still used by the screens the design brief left out
- *    (auth, onboarding, settings, the add/detail modals). They are deprecated
- *    — nothing new should reach for them.
+ * Three roles, deliberately separated by value so each one does visible work:
  *
- * Anything used as *text* is at least 4.5:1 against both the paper cards and
- * the page canvas; the `faint` entries are decorative (chevrons, dividers,
- * unchecked glyphs) and are never the only carrier of meaning.
+ *  - `canvas` is the ground a screen sits on.
+ *  - `paper` is a card lifted off it.
+ *  - `page` is recessed — pressed states, progress tracks, inset counters.
+ *
+ * Anything used as *text* is at least 4.5:1 against all three surfaces and
+ * against its own wash; the `faint` entries are decorative (chevrons,
+ * dividers, unchecked glyphs) and are never the only carrier of meaning.
  */
 export const colors = {
-  /** Behind the cards — the fridge door itself. */
-  page: '#EDEFE4',
-  /** Slightly lighter canvas for scrolling screens. */
-  screenBg: '#F1F3EA',
+  /** Recessed: pressed states, progress tracks, inset counters. */
+  page: '#E6E9DB',
+  /** The ground a screen sits on. */
+  screenBg: '#F2F4EA',
   /** A pinned note. Every card in the system sits on this. */
-  paper: '#FBFAF4',
+  paper: '#FCFBF6',
   /** Hairline card border and divider. */
-  line: '#E2E0D4',
+  line: '#DEDCCD',
   ink: {
     DEFAULT: '#23281F',
     /**
@@ -48,65 +50,31 @@ export const colors = {
   brick: '#C05B45',
   sage: '#A9BFA0',
   /**
-   * Derived: low-saturation fills of the three accents, for pill and banner
+   * Slate — the informational tone. Promoted out of the category tints rather
+   * than invented: the Internet category has always been drawn in it, so the
+   * palette gains a "here is something to know" voice without gaining a hue.
+   * Without it, hints and callouts had to borrow sage, which reads as success.
+   */
+  slate: '#2F4B50',
+  /**
+   * Derived: low-saturation fills of the accents, for pill and banner
    * backgrounds. The accents themselves are far too loud behind text.
    */
   wash: {
     mustard: '#F8EACB',
     brick: '#F5E0DA',
     sage: '#E3ECDE',
+    slate: '#DCE5E7',
   },
   /** Derived: darkened accents, each 4.5:1 or better on its own wash. */
   deep: {
     mustard: '#7A5B12',
     brick: '#8E3D2C',
     sage: '#33502C',
+    slate: '#2A464B',
   },
   /** Near-black used for the tab bar and other "hardware" chrome. */
   bezel: '#1B211A',
-  white: '#FFFFFF',
-
-  // ---------------------------------------------------------------------
-  // Deprecated: the original teal/coral palette. Still referenced by the
-  // screens the design brief left out (auth, onboarding, settings, the
-  // add/detail modals). Nothing new should reach for these.
-  // ---------------------------------------------------------------------
-  brand: {
-    50: '#EFFAF8',
-    100: '#D7F2EE',
-    200: '#AFE5DD',
-    300: '#7FD3C8',
-    400: '#4FBCAF',
-    500: '#2FA396',
-    600: '#218578',
-    700: '#1C6A61',
-  },
-  coral: {
-    50: '#FFF4F0',
-    100: '#FFE5DC',
-    200: '#FFC8B6',
-    400: '#FF7F5C',
-    500: '#F2603A',
-    600: '#D64827',
-    700: '#B0381D',
-  },
-  amber: {
-    50: '#FDF6E7',
-    100: '#FAECCC',
-    200: '#F2D9A0',
-    600: '#9A6B12',
-    700: '#7F5710',
-  },
-  sand: {
-    50: '#FCFAF7',
-    100: '#F7F3EE',
-    200: '#EFE9E1',
-    300: '#E2D9CD',
-    400: '#C9BDAD',
-    500: '#A99B89',
-    600: '#8A7C6B',
-    900: '#2C2722',
-  },
 } as const;
 
 /**
@@ -119,7 +87,7 @@ export const colors = {
  *
  * Usage rules from the design system:
  *  - `display` (Caveat) is for personal-feeling moments only — greetings,
- *    board post text, "your turn!" tags. Never buttons, labels or dense UI.
+ *    board post text, "your turn" tags. Never buttons, labels or dense UI.
  *  - `mono` (IBM Plex Mono) is for peso amounts, due dates and timestamps.
  *  - Everything else is `body` (Manrope).
  */
@@ -173,7 +141,7 @@ export function tapeColorFor(seed: string, token?: string | null): string {
 
 /** Android ripples, which want a translucent version of the surface tint. */
 export const ripple = {
-  brand: '#2F3D2C20',
+  moss: '#2F3D2C20',
   card: '#2F3D2C12',
   light: '#FFFFFF30',
 } as const;

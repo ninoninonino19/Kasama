@@ -96,7 +96,7 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="bills/ledger"
-              options={{ headerShown: true, title: 'Bayaran' }}
+              options={{ headerShown: true, title: 'Payment history' }}
             />
             <Stack.Screen
               name="chores/new"

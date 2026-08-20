@@ -16,12 +16,12 @@ export default function OnboardingScreen() {
     <Screen>
       <ScrollView contentContainerClassName="grow justify-center gap-8 px-6 py-10">
         <View className="gap-2">
-          <Text className="text-3xl font-bold text-ink">
-            Kumusta{profile?.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''}!
+          <Text className="font-ui-black text-3xl text-ink">
+            Hello{profile?.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''}
           </Text>
-          <Text className="text-base leading-6 text-ink-soft">
-            Ang Kasama ay para sa buong bahay. Gumawa ng bagong household, o sumali sa isang
-            existing gamit ang invite code.
+          <Text className="font-ui text-base leading-6 text-ink-soft">
+            Kasama is built around a household. Start a new one, or join an existing household
+            with its invite code.
           </Text>
         </View>
 
@@ -29,16 +29,16 @@ export default function OnboardingScreen() {
           <OptionCard
             icon="home-outline"
             title="Create a household"
-            subtitle="Ikaw ang mag-set up — you'll get an invite code to share."
+            subtitle="You set it up, and get an invite code to share."
             onPress={() => router.push('/onboarding/create')}
-            tone="brand"
+            tone="moss"
           />
           <OptionCard
             icon="key-outline"
             title="Join with invite code"
-            subtitle="May code na galing sa kasama mo? Enter it here."
+            subtitle="Got a code from a housemate? Enter it here."
             onPress={() => router.push('/onboarding/join')}
-            tone="coral"
+            tone="slate"
           />
         </View>
 
@@ -47,7 +47,7 @@ export default function OnboardingScreen() {
           onPress={() => void signOut()}
           className="items-center py-2"
         >
-          <Text className="text-sm font-semibold text-ink-muted">Log out</Text>
+          <Text className="font-ui-semibold text-sm text-ink-muted">Log out</Text>
         </Pressable>
       </ScrollView>
     </Screen>
@@ -65,23 +65,23 @@ function OptionCard({
   title: string;
   subtitle: string;
   onPress: () => void;
-  tone: 'brand' | 'coral';
+  tone: 'moss' | 'slate';
 }) {
-  const bg = tone === 'brand' ? 'bg-brand-100' : 'bg-coral-100';
-  const color = tone === 'brand' ? colors.brand[600] : colors.coral[600];
+  const bg = tone === 'moss' ? 'bg-wash-sage' : 'bg-wash-slate';
+  const color = tone === 'moss' ? colors.moss.DEFAULT : colors.slate;
 
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-row items-center gap-4 rounded-3xl border border-sand-200 bg-white p-5 active:bg-sand-50"
+      className="flex-row items-center gap-4 rounded-3xl border border-line bg-paper p-5 active:bg-page"
     >
       <View className={`h-12 w-12 items-center justify-center rounded-2xl ${bg}`}>
         <Ionicons name={icon} size={24} color={color} />
       </View>
       <View className="flex-1">
-        <Text className="text-base font-bold text-ink">{title}</Text>
-        <Text className="mt-0.5 text-sm leading-5 text-ink-muted">{subtitle}</Text>
+        <Text className="font-ui-bold text-base text-ink">{title}</Text>
+        <Text className="mt-0.5 font-ui text-sm leading-5 text-ink-muted">{subtitle}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.ink.faint} />
     </Pressable>

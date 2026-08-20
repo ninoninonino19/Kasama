@@ -73,14 +73,14 @@ export default function AnnouncementsScreen() {
       ...(isMine
         ? [
             {
-              text: 'I-edit',
+              text: 'Edit',
               onPress: () =>
                 router.push({ pathname: '/announcements/edit', params: { id: item.id } }),
             },
           ]
         : []),
       {
-        text: item.pinned ? 'Alisin sa itaas' : 'I-pin sa itaas',
+        text: item.pinned ? 'Unpin from the top' : 'Pin to the top',
         onPress: async () => {
           try {
             await setAnnouncementPinned(item.id, !item.pinned);
@@ -94,7 +94,7 @@ export default function AnnouncementsScreen() {
       ...(canDelete
         ? [
             {
-              text: 'Tanggalin',
+              text: 'Take it down',
               style: 'destructive' as const,
               onPress: () => confirmDelete(item.id),
             },
@@ -104,7 +104,7 @@ export default function AnnouncementsScreen() {
   }
 
   function confirmDelete(id: string) {
-    Alert.alert('Take this note down?', 'Hindi na ito makikita ng iba.', [
+    Alert.alert('Take this note down?', 'Nobody else will be able to see it.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -160,7 +160,7 @@ export default function AnnouncementsScreen() {
               </View>
             ) : announcements.length > 0 ? (
               <Text className="py-4 text-center font-ui text-xs text-ink-muted">
-                Iyan na ang lahat ng nakapaskil.
+                That's every note on the board.
               </Text>
             ) : null
           }
@@ -223,8 +223,8 @@ export default function AnnouncementsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="reader-outline"
-              title="Tahimik pa dito"
-              message="Pin the first note — reminders sa bayad, bisita, o kung sino ang mag-aayos ng WiFi."
+              title="Quiet in here"
+              message="Pin the first note — payment reminders, visitors, or whose turn it is to chase the internet."
               actionLabel="Write one"
               onAction={() => router.push('/announcements/new')}
             />
@@ -275,7 +275,7 @@ function ComposeBar({
       >
         <Avatar name={name} userId={userId} avatarUrl={avatarUrl} size={32} ring={false} />
         <Text className="flex-1 font-hand text-xl text-ink-muted" numberOfLines={1}>
-          Ano'ng balita sa bahay?
+          What's happening at home?
         </Text>
         <View className="h-9 w-9 items-center justify-center rounded-full bg-moss">
           <Ionicons name="create" size={16} color={colors.paper} />

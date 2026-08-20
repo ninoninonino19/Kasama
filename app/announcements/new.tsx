@@ -27,7 +27,7 @@ export default function NewAnnouncementScreen() {
         notifyHousehold({
           householdId: household.id,
           category: 'board',
-          title: `${profile?.display_name.split(' ')[0] ?? 'Isang kasama'} pinned a note`,
+          title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} pinned a note`,
           // A board post is short enough that the notification can just be
           // the note.
           body: content.trim().slice(0, 140),

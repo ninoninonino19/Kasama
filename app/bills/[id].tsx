@@ -7,7 +7,7 @@ import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBil
 import { notifyHousehold } from '../../src/api/notify';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
-import { Badge } from '../../src/components/ui/Chip';
+import { Pill } from '../../src/components/ui/Pill';
 import { Card } from '../../src/components/ui/Card';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { SwipeRow } from '../../src/components/ui/SwipeRow';
@@ -47,7 +47,7 @@ export default function BillDetailScreen() {
 
   const household = useHousehold();
   const profile = useProfile();
-  const profileName = profile?.display_name.split(' ')[0] ?? 'isang kasama';
+  const profileName = profile?.display_name.split(' ')[0] ?? 'a housemate';
 
   const silentRefresh = useCallback(() => {
     void refresh({ silent: true });
@@ -105,7 +105,7 @@ export default function BillDetailScreen() {
       await rollRecurringBill(bill.id);
     } catch (caught) {
       setActionError(
-        `Nabayaran na, pero hindi nagawa ang susunod na ${bill.title}: ${messageFrom(caught)}`
+        `Your payment went through, but the next ${bill.title} couldn't be created: ${messageFrom(caught)}`
       );
     }
   }
@@ -137,7 +137,7 @@ export default function BillDetailScreen() {
   }
 
   /**
-   * A private "hoy, bayad na?" to one housemate.
+   * A private "any chance you could settle up?" to one housemate.
    *
    * Only the person who fronted the money can send it. Anyone being able to
    * nudge anyone turns a shared-house app into a way to needle your
@@ -152,20 +152,20 @@ export default function BillDetailScreen() {
     notifyHousehold({
       householdId: household.id,
       category: 'bills',
-      title: `Paalala mula kay ${profileName}`,
-      body: `${formatPeso(amount)} pa ang share mo sa ${bill.title}.`,
+      title: `Reminder from ${profileName}`,
+      body: `${formatPeso(amount)} of your share of ${bill.title} is still outstanding.`,
       data: { screen: 'bills', billId: bill.id },
       only: [splitUserId],
     });
 
     setActionError(null);
-    Alert.alert('Naipadala', `Napaalalahanan na si ${splitName}.`);
+    Alert.alert('Reminder sent', `${splitName} has been nudged about their share.`);
   }
 
   function confirmDelete() {
     if (!bill) return;
     haptics.tap();
-    Alert.alert('Delete this bill?', 'Mawawala rin ang lahat ng splits nito.', [
+    Alert.alert('Delete this bill?', 'All of its splits go with it.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -182,11 +182,11 @@ export default function BillDetailScreen() {
     ]);
   }
 
-  if (loading) return <LoadingState label="Kinukuha ang bill…" />;
+  if (loading) return <LoadingState label="Loading bill…" />;
 
   if (error && !bill) {
     return (
-      <View className="flex-1 justify-center bg-sand-50 p-5">
+      <View className="flex-1 justify-center bg-canvas p-5">
         <ErrorState message={error} onRetry={() => void refresh()} />
       </View>
     );
@@ -194,8 +194,8 @@ export default function BillDetailScreen() {
 
   if (!bill) {
     return (
-      <View className="flex-1 items-center justify-center bg-sand-50 p-5">
-        <Text className="text-base text-ink-soft">Wala na ang bill na ito.</Text>
+      <View className="flex-1 items-center justify-center bg-canvas p-5">
+        <Text className="font-ui text-base text-ink-soft">This bill no longer exists.</Text>
       </View>
     );
   }
@@ -212,13 +212,13 @@ export default function BillDetailScreen() {
     <>
       <Stack.Screen options={{ title: bill.title }} />
       <ScrollView
-        className="flex-1 bg-sand-50"
+        className="flex-1 bg-canvas"
         contentContainerClassName="gap-5 p-5 pb-10"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void refresh()}
-            tintColor={colors.brand[500]}
+            tintColor={colors.moss.DEFAULT}
           />
         }
       >
@@ -229,21 +229,21 @@ export default function BillDetailScreen() {
           >
             <Ionicons name={meta.icon} size={26} color={meta.tint} />
           </View>
-          <Text className="text-3xl font-bold text-ink">{formatPeso(Number(bill.amount))}</Text>
-          <Text className="text-sm text-ink-muted">
+          <Text className="font-mono-bold text-3xl text-ink">{formatPeso(Number(bill.amount))}</Text>
+          <Text className="font-ui text-sm text-ink-muted">
             {meta.label} · {meta.subtitle}
           </Text>
           <View className="mt-1 flex-row items-center gap-2">
-            <Badge label={badge.label} tone={badge.tone} icon={badge.icon} />
+            <Pill label={badge.label} tone={badge.tone} icon={badge.icon} />
             {bill.recurrence !== 'none' ? (
-              <Badge
+              <Pill
                 label={bill.recurrence === 'weekly' ? 'Weekly' : 'Monthly'}
                 icon="repeat"
               />
             ) : null}
           </View>
           {bill.due_date ? (
-            <Text className="mt-1 text-sm text-ink-soft">
+            <Text className="mt-1 font-mono text-sm text-ink-soft">
               Due {formatRelativeDate(bill.due_date)}
             </Text>
           ) : null}
@@ -264,11 +264,11 @@ export default function BillDetailScreen() {
               height={8}
             />
             <View className="flex-row justify-between">
-              <Text className="text-xs font-semibold text-ink-soft">
+              <Text className="font-ui-semibold text-xs text-ink-soft">
                 {progress.paid} of {progress.total} paid
               </Text>
               {settled ? null : (
-                <Text className="text-xs font-semibold text-ink-soft">
+                <Text className="font-mono text-xs text-ink-soft">
                   {formatPeso(outstanding)} left
                 </Text>
               )}
@@ -281,7 +281,7 @@ export default function BillDetailScreen() {
           <View className="gap-2">
             {bill.splits.length === 0 ? (
               <Card>
-                <Text className="text-sm text-ink-muted">Walang split na naka-record.</Text>
+                <Text className="font-ui text-sm text-ink-muted">No splits recorded for this bill.</Text>
               </Card>
             ) : (
               bill.splits
@@ -322,12 +322,12 @@ export default function BillDetailScreen() {
                           split.paid ? 'paid' : 'unpaid'
                         }`}
                         accessibilityHint="Double tap to switch between paid and unpaid"
-                        android_ripple={{ color: ripple.brand }}
+                        android_ripple={{ color: ripple.card }}
                         onPress={() => void togglePaid(split.id, !split.paid)}
                         className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl border p-4 ${
                           split.paid
-                            ? 'border-brand-200 bg-brand-50 active:bg-brand-100'
-                            : 'border-sand-200 bg-white active:bg-sand-100'
+                            ? 'border-sage bg-wash-sage active:bg-wash-sage/70'
+                            : 'border-line bg-paper active:bg-page'
                         }`}
                       >
                         <Avatar
@@ -337,11 +337,11 @@ export default function BillDetailScreen() {
                           size={40}
                         />
                         <View className="flex-1">
-                          <Text className="text-sm font-bold text-ink">
+                          <Text className="font-ui-bold text-sm text-ink">
                             {name}
                             {isSelf ? ' (you)' : ''}
                           </Text>
-                          <Text className="text-xs text-ink-muted">
+                          <Text className="font-mono text-[11px] text-ink-muted">
                             {split.paid && split.paid_at
                               ? `Paid ${formatTimeAgo(split.paid_at)}`
                               : 'Not yet paid'}
@@ -359,7 +359,7 @@ export default function BillDetailScreen() {
                               nudge(split.user_id, name, Number(split.amount_owed))
                             }
                             className={`h-10 w-10 items-center justify-center rounded-full ${
-                              nudged.includes(split.user_id) ? 'opacity-40' : 'active:bg-sand-100'
+                              nudged.includes(split.user_id) ? 'opacity-40' : 'active:bg-page'
                             }`}
                           >
                             <Ionicons
@@ -374,8 +374,8 @@ export default function BillDetailScreen() {
                           </Pressable>
                         ) : null}
                         <Text
-                          className={`text-base font-bold ${
-                            split.paid ? 'text-brand-600' : 'text-ink'
+                          className={`font-mono-bold text-base ${
+                            split.paid ? 'text-deep-sage' : 'text-ink'
                           }`}
                         >
                           {formatPeso(Number(split.amount_owed))}
@@ -383,7 +383,7 @@ export default function BillDetailScreen() {
                         <Ionicons
                           name={split.paid ? 'checkmark-circle' : 'ellipse-outline'}
                           size={22}
-                          color={split.paid ? colors.brand[600] : colors.sand[400]}
+                          color={split.paid ? colors.deep.sage : colors.ink.faint}
                         />
                       </Pressable>
                     </SwipeRow>
@@ -391,7 +391,7 @@ export default function BillDetailScreen() {
                 })
             )}
           </View>
-          <Text className="mt-2 px-1 text-xs text-ink-muted">
+          <Text className="mt-2 px-1 font-ui text-xs text-ink-muted">
             Tap a name to mark it paid or unpaid — or swipe the row across.
           </Text>
         </View>
@@ -421,7 +421,7 @@ export default function BillDetailScreen() {
           ) : null}
         </View>
 
-        <Text className="text-center text-xs text-ink-muted">
+        <Text className="text-center font-ui text-xs text-ink-muted">
           Added {formatTimeAgo(bill.created_at)}
         </Text>
       </ScrollView>

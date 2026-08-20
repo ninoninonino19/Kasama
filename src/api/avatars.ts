@@ -54,7 +54,7 @@ export async function pickAndUploadAvatar(userId: string): Promise<string | null
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     throw new AvatarError(
-      'Kailangan ng access sa photos para makapili ng larawan. Pwede mong i-on sa Settings.'
+      'Kasama needs access to your photos to pick one. You can turn it on in Settings.'
     );
   }
 
@@ -69,11 +69,11 @@ export async function pickAndUploadAvatar(userId: string): Promise<string | null
   if (picked.canceled) return null;
 
   const asset = picked.assets[0];
-  if (!asset?.base64) throw new AvatarError('Hindi mabasa ang larawan. Subukan ang iba.');
+  if (!asset?.base64) throw new AvatarError("That image couldn't be read. Try another one.");
 
   const bytes = decodeBase64(asset.base64);
   if (bytes.byteLength > MAX_BYTES) {
-    throw new AvatarError('Masyadong malaki ang larawan — 2MB ang limit.');
+    throw new AvatarError('That image is too large — the limit is 2MB.');
   }
 
   // The first path segment is what the storage policy checks against

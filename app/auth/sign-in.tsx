@@ -48,16 +48,16 @@ export default function SignInScreen() {
             <View className="mb-2">
               <Logo />
             </View>
-            <Text className="text-3xl font-bold text-ink">Welcome back!</Text>
-            <Text className="text-base leading-6 text-ink-soft">
-              Log in para makita ang bills, chores at balita ng bahay.
+            <Text className="font-ui-black text-3xl text-ink">Welcome back</Text>
+            <Text className="font-ui text-base leading-6 text-ink-soft">
+              Log in to see your household's bills, chores and notices.
             </Text>
           </View>
 
           <View className="gap-4">
             <TextField
               label="Email"
-              placeholder="ikaw@email.com"
+              placeholder="you@email.com"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -87,13 +87,13 @@ export default function SignInScreen() {
             />
             <Link
               href="/forgot-password"
-              className="text-center text-sm font-semibold text-brand-600"
+              className="text-center font-ui-semibold text-sm text-moss"
             >
-              Nakalimutan ang password?
+              Forgot your password?
             </Link>
             <View className="flex-row justify-center gap-1">
-              <Text className="text-sm text-ink-muted">Bago dito?</Text>
-              <Link href="/auth/sign-up" className="text-sm font-semibold text-brand-600">
+              <Text className="font-ui text-sm text-ink-muted">New here?</Text>
+              <Link href="/auth/sign-up" className="font-ui-semibold text-sm text-moss">
                 Create an account
               </Link>
             </View>
