@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -70,6 +70,19 @@ export default function BillsScreen() {
           balance.owed > 0
             ? `You still owe ${formatPeso(balance.owed)}`
             : 'Wala kang utang — all clear!'
+        }
+        right={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Payment history"
+            onPress={() => {
+              haptics.tap();
+              router.push('/bills/ledger');
+            }}
+            className="h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper active:bg-page"
+          >
+            <Ionicons name="time-outline" size={20} color={colors.ink.soft} />
+          </Pressable>
         }
       />
 

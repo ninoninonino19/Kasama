@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { postAnnouncement } from '../../src/api/announcements';
+import { notifyHousehold } from '../../src/api/notify';
+import type { TapeColor } from '../../src/lib/database.types';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Tape } from '../../src/components/ui/Tape';
+import { SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { haptics } from '../../src/lib/haptics';
-import { colors } from '../../src/lib/theme';
+import { colors, TAPE_HEX, TAPE_TOKENS } from '../../src/lib/theme';
 import { useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 
 const MAX_LENGTH = 500;
@@ -27,6 +30,9 @@ export default function NewAnnouncementScreen() {
   const userId = useSessionStore((state) => state.userId);
 
   const [content, setContent] = useState('');
+  // Mustard is the system's default tape, so the picker opens on the colour
+  // the note already shows rather than making the first choice mandatory.
+  const [tape, setTape] = useState<TapeColor>('mustard');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,8 +44,19 @@ export default function NewAnnouncementScreen() {
     setPosting(true);
     setError(null);
     try {
-      await postAnnouncement(household.id, userId, content);
+      await postAnnouncement(household.id, userId, content, tape);
       haptics.success();
+
+      notifyHousehold({
+        householdId: household.id,
+        category: 'board',
+        title: `${profile?.display_name.split(' ')[0] ?? 'Isang kasama'} pinned a note`,
+        // The note itself, trimmed — a board post is short enough that the
+        // notification can just be the note.
+        body: content.trim().slice(0, 140),
+        data: { screen: 'announcements' },
+      });
+
       router.back();
     } catch (caught) {
       haptics.error();
@@ -74,7 +91,7 @@ export default function NewAnnouncementScreen() {
         {/* The sheet you are about to pin, drawn the way it will look on the
             board — same paper, same tape, same handwriting. */}
         <View className="flex-1 rounded-xl border border-line bg-paper p-4 pt-5">
-          <Tape color={colors.mustard} />
+          <Tape color={TAPE_HEX[tape]} />
           <TextInput
             className="flex-1 font-hand text-2xl leading-8 text-ink"
             placeholder="Ano'ng balita sa bahay? e.g. Deadline ng kuryente sa Friday, pa-GCash na lang sa akin."
@@ -88,14 +105,44 @@ export default function NewAnnouncementScreen() {
           />
         </View>
 
-        <View className="flex-row items-center justify-between">
-          <Text
-            className={`font-mono text-xs ${
-              remaining < 50 ? 'text-deep-brick' : 'text-ink-muted'
-            }`}
-          >
-            {remaining} characters left
-          </Text>
+        <View>
+          <SectionTitle>Tape</SectionTitle>
+          <View className="flex-row items-center gap-3">
+            {TAPE_TOKENS.map((token) => {
+              const selected = token === tape;
+              return (
+                <Pressable
+                  key={token}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`${token} tape`}
+                  onPress={() => {
+                    haptics.select();
+                    setTape(token);
+                  }}
+                  // 44pt target around a deliberately small swatch.
+                  className="h-11 w-11 items-center justify-center"
+                >
+                  <View
+                    className={`h-7 w-9 rounded-[3px] ${
+                      selected ? 'border-2 border-ink' : ''
+                    }`}
+                    style={{
+                      backgroundColor: TAPE_HEX[token],
+                      transform: [{ rotate: '-4deg' }],
+                    }}
+                  />
+                </Pressable>
+              );
+            })}
+            <Text
+              className={`flex-1 text-right font-mono text-xs ${
+                remaining < 50 ? 'text-deep-brick' : 'text-ink-muted'
+              }`}
+            >
+              {remaining} left
+            </Text>
+          </View>
         </View>
 
         {error ? <InlineError message={error} /> : null}

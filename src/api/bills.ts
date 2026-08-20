@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { addDays, fromDateString, toDateString, todayString } from '../lib/format';
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
-import type { BalanceSummary, BillWithSplits } from '../types';
+import type { BalanceSummary, BillWithSplits, LedgerEntry } from '../types';
 
 export async function fetchBills(householdId: string): Promise<BillWithSplits[]> {
   const { data, error } = await supabase
@@ -78,6 +78,90 @@ export async function createBill(input: NewBillInput): Promise<BillWithSplits> {
   return created;
 }
 
+/**
+ * Whether a bill's money is settled enough that editing it would rewrite
+ * someone's record of having paid.
+ *
+ * The payer's own share is created already paid by `createBill`, so it never
+ * counts — it's an artefact of how the bill was logged, not a payment anyone
+ * made.
+ */
+export function billSplitsLocked(bill: BillWithSplits): boolean {
+  return bill.splits.some((split) => split.paid && split.user_id !== bill.created_by);
+}
+
+export type BillUpdateInput = {
+  title: string;
+  category: BillCategory;
+  dueDate: string | null;
+  recurrence: BillRecurrence;
+  /** Both omitted once `billSplitsLocked` is true. */
+  amount?: number;
+  splits?: { userId: string; amount: number }[];
+};
+
+export async function updateBill(
+  bill: BillWithSplits,
+  input: BillUpdateInput
+): Promise<void> {
+  const { error } = await supabase
+    .from('bills')
+    .update({
+      title: input.title.trim(),
+      category: input.category,
+      due_date: input.dueDate,
+      recurrence: input.recurrence,
+      ...(input.amount === undefined ? null : { amount: input.amount }),
+    })
+    .eq('id', bill.id);
+
+  if (error) throw error;
+  if (!input.splits) return;
+
+  // Reconcile rather than replace. `bill_splits` is unique on (bill_id,
+  // user_id), so a delete-all-then-insert would have to leave the bill with no
+  // splits in between — and a failure at that moment would strand it with a
+  // total nobody owes. Updating in place also keeps each row's paid flag.
+  const wanted = new Map(input.splits.map((split) => [split.userId, split.amount]));
+
+  const removed = bill.splits.filter((split) => !wanted.has(split.user_id));
+  const kept = bill.splits.filter((split) => wanted.has(split.user_id));
+  const added = input.splits.filter(
+    (split) => !bill.splits.some((existing) => existing.user_id === split.userId)
+  );
+
+  for (const split of kept) {
+    const amount = wanted.get(split.user_id) ?? 0;
+    if (Number(split.amount_owed) === amount) continue;
+    const { error: updateError } = await supabase
+      .from('bill_splits')
+      .update({ amount_owed: amount })
+      .eq('id', split.id);
+    if (updateError) throw updateError;
+  }
+
+  if (added.length > 0) {
+    const { error: insertError } = await supabase.from('bill_splits').insert(
+      added.map((split) => ({
+        bill_id: bill.id,
+        user_id: split.userId,
+        amount_owed: split.amount,
+        // Same rule as when the bill was created: whoever fronted it is square.
+        paid: split.userId === bill.created_by,
+      }))
+    );
+    if (insertError) throw insertError;
+  }
+
+  if (removed.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('bill_splits')
+      .delete()
+      .in('id', removed.map((split) => split.id));
+    if (deleteError) throw deleteError;
+  }
+}
+
 export async function setSplitPaid(splitId: string, paid: boolean): Promise<void> {
   const { error } = await supabase
     .from('bill_splits')
@@ -94,6 +178,23 @@ export async function settleWholeBill(billId: string): Promise<void> {
     .eq('bill_id', billId)
     .eq('paid', false);
 
+  if (error) throw error;
+}
+
+/**
+ * Creates the next occurrence of a recurring bill, if this one has just become
+ * fully settled.
+ *
+ * Safe to call after any payment: the database function decides whether there
+ * is anything to do, and doing it twice is a no-op. It has to run there rather
+ * than here because the bills insert policy requires `created_by = auth.uid()`
+ * — done from the client, whoever ticked the last split would become the payer
+ * of next month's rent with their share already marked paid.
+ */
+export async function rollRecurringBill(billId: string): Promise<void> {
+  const { error } = await supabase.rpc('roll_recurring_bill', {
+    source_bill_id: billId,
+  });
   if (error) throw error;
 }
 
@@ -226,4 +327,56 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
     // Sub-centavo residue from an uneven split isn't a debt worth showing.
     .filter((entry) => Math.abs(entry.net) >= 0.01)
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+}
+
+/**
+ * Settled shares across the household, newest first — the "who paid whom"
+ * record that `bill_splits.paid_at` has been quietly keeping all along.
+ *
+ * The payer's own share is excluded. `createBill` inserts it already paid
+ * because they fronted the money, so listing it would report every bill as
+ * opening with a payment from someone to themselves.
+ */
+export async function fetchLedger(
+  householdId: string,
+  limit = 50
+): Promise<LedgerEntry[]> {
+  const { data, error } = await supabase
+    .from('bill_splits')
+    .select(
+      'id, amount_owed, paid_at, user_id, bill:bills!inner(id, title, category, created_by, household_id)'
+    )
+    .eq('bill.household_id', householdId)
+    .eq('paid', true)
+    .not('paid_at', 'is', null)
+    .order('paid_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  type Row = {
+    id: string;
+    amount_owed: number;
+    paid_at: string;
+    user_id: string;
+    bill: {
+      id: string;
+      title: string;
+      category: LedgerEntry['category'];
+      created_by: string;
+    };
+  };
+
+  return ((data ?? []) as unknown as Row[])
+    .filter((row) => row.user_id !== row.bill.created_by)
+    .map((row) => ({
+      id: row.id,
+      amount: Number(row.amount_owed),
+      paidAt: row.paid_at,
+      billId: row.bill.id,
+      billTitle: row.bill.title,
+      category: row.bill.category,
+      payerId: row.user_id,
+      payeeId: row.bill.created_by,
+    }));
 }

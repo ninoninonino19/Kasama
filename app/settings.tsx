@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, Switch, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { leaveHousehold, renameHousehold, updateDisplayName } from '../src/api/household';
+import type { PushPreferences } from '../src/api/household';
+import {
+  leaveHousehold,
+  removeMember,
+  renameHousehold,
+  setMemberRole,
+  updateDisplayName,
+  updatePushPreferences,
+} from '../src/api/household';
+import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../src/api/avatars';
+import { pushSupported, registerForPush } from '../src/lib/push';
 import { Avatar } from '../src/components/ui/Avatar';
 import { Badge } from '../src/components/ui/Chip';
 import { Button } from '../src/components/ui/Button';
@@ -17,6 +27,7 @@ import { haptics } from '../src/lib/haptics';
 import { formatShortDate } from '../src/lib/format';
 import { colors } from '../src/lib/theme';
 import { useSession } from '../src/providers/SessionProvider';
+import type { MemberWithProfile } from '../src/types';
 import { useSessionStore } from '../src/store/useSessionStore';
 
 export default function SettingsScreen() {
@@ -34,6 +45,7 @@ export default function SettingsScreen() {
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [savingName, setSavingName] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +141,144 @@ export default function SettingsScreen() {
     );
   }
 
+  /**
+   * Admin actions on a housemate. Sheet rather than inline buttons: these are
+   * rare and consequential, and a delete button sitting permanently next to
+   * someone's face on a shared-house screen invites exactly the mis-tap you
+   * don't want.
+   */
+  function manageMember(member: MemberWithProfile) {
+    if (!household || !isAdmin || member.user_id === userId) return;
+    haptics.tap();
+
+    const name = member.profile.display_name;
+    const isTheirAdmin = member.role === 'admin';
+    const adminCount = members.filter((entry) => entry.role === 'admin').length;
+    // Never leave the household with nobody who can manage it.
+    const wouldStrandHousehold = isTheirAdmin && adminCount === 1;
+
+    Alert.alert(name, wouldStrandHousehold
+      ? 'Siya lang ang admin. Gumawa muna ng ibang admin bago siya alisin o i-demote.'
+      : 'Ano ang gagawin?', [
+      { text: 'Cancel', style: 'cancel' },
+      ...(wouldStrandHousehold
+        ? []
+        : [
+            {
+              text: isTheirAdmin ? 'Gawing member' : 'Gawing admin',
+              onPress: async () => {
+                try {
+                  await setMemberRole(household.id, member.user_id, isTheirAdmin ? 'member' : 'admin');
+                  await refreshHousehold();
+                } catch (caught) {
+                  haptics.error();
+                  setError(messageFrom(caught));
+                }
+              },
+            },
+            {
+              text: 'Alisin sa bahay',
+              style: 'destructive' as const,
+              onPress: () => confirmRemove(member),
+            },
+          ]),
+    ]);
+  }
+
+  function confirmRemove(member: MemberWithProfile) {
+    if (!household) return;
+    const name = member.profile.display_name;
+
+    Alert.alert(
+      `Alisin si ${name}?`,
+      'Mananatili ang mga bill at split niya — hindi mabubura ang utang kapag inalis mo siya. Mawawala lang ang access niya sa household.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Alisin',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeMember(household.id, member.user_id);
+              await refreshHousehold();
+            } catch (caught) {
+              haptics.error();
+              setError(messageFrom(caught));
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function changePhoto() {
+    if (!userId) return;
+    haptics.tap();
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      const url = await pickAndUploadAvatar(userId);
+      // `null` means the picker was dismissed, which is not a failure.
+      if (url) {
+        haptics.success();
+        await refreshHousehold();
+      }
+    } catch (caught) {
+      haptics.error();
+      setError(caught instanceof AvatarError ? caught.message : messageFrom(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function clearPhoto() {
+    if (!userId) return;
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      await removeAvatar(userId);
+      await refreshHousehold();
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function togglePush(key: keyof PushPreferences, value: boolean) {
+    if (!userId || !profile) return;
+    haptics.select();
+    setError(null);
+
+    // Turning anything on is pointless until this device has a token, so the
+    // first "on" is also where permission gets asked for.
+    if (value && pushSupported) {
+      try {
+        const result = await registerForPush();
+        if (result.status === 'denied') {
+          setError('Naka-off ang notifications para sa Kasama sa phone settings mo.');
+          return;
+        }
+        if (result.status === 'unsupported') {
+          setError(result.reason);
+          return;
+        }
+      } catch (caught) {
+        setError(messageFrom(caught));
+        return;
+      }
+    }
+
+    try {
+      await updatePushPreferences(userId, { [key]: value });
+      await refreshHousehold();
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+    }
+  }
+
   function confirmSignOut() {
     Alert.alert('Log out?', 'Kailangan mong mag-log in ulit next time.', [
       { text: 'Cancel', style: 'cancel' },
@@ -200,28 +350,43 @@ export default function SettingsScreen() {
       {/* Members -------------------------------------------------------- */}
       <View>
         <SectionTitle>Housemates ({members.length})</SectionTitle>
+        {isAdmin && members.length > 1 ? (
+          <Text className="mb-2 -mt-1 text-xs text-ink-muted">
+            Tap a housemate to make them an admin or remove them.
+          </Text>
+        ) : null}
         <View className="gap-2">
-          {members.map((member) => (
-            <Card key={member.id}>
-              <View className="flex-row items-center gap-3">
-                <Avatar
-                  name={member.profile.display_name}
-                  userId={member.user_id}
-                  avatarUrl={member.profile.avatar_url}
-                />
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-ink">
-                    {member.profile.display_name}
-                    {member.user_id === userId ? ' (you)' : ''}
-                  </Text>
-                  <Text className="text-xs text-ink-muted">
-                    Joined {formatShortDate(member.joined_at)}
-                  </Text>
+          {members.map((member) => {
+            const manageable = isAdmin && member.user_id !== userId;
+
+            return (
+              <Card
+                key={member.id}
+                onPress={manageable ? () => manageMember(member) : undefined}
+              >
+                <View className="flex-row items-center gap-3">
+                  <Avatar
+                    name={member.profile.display_name}
+                    userId={member.user_id}
+                    avatarUrl={member.profile.avatar_url}
+                  />
+                  <View className="flex-1">
+                    <Text className="text-sm font-bold text-ink">
+                      {member.profile.display_name}
+                      {member.user_id === userId ? ' (you)' : ''}
+                    </Text>
+                    <Text className="text-xs text-ink-muted">
+                      Joined {formatShortDate(member.joined_at)}
+                    </Text>
+                  </View>
+                  {member.role === 'admin' ? <Badge label="Admin" tone="success" /> : null}
+                  {manageable ? (
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
+                  ) : null}
                 </View>
-                {member.role === 'admin' ? <Badge label="Admin" tone="success" /> : null}
-              </View>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </View>
       </View>
 
@@ -229,6 +394,38 @@ export default function SettingsScreen() {
       <View>
         <SectionTitle>Your profile</SectionTitle>
         <Card className="gap-3">
+          <View className="flex-row items-center gap-4">
+            <Avatar
+              name={profile?.display_name ?? 'You'}
+              userId={userId ?? 'me'}
+              avatarUrl={profile?.avatar_url}
+              size={64}
+            />
+            <View className="flex-1 gap-2">
+              <Button
+                label={profile?.avatar_url ? 'Change photo' : 'Add a photo'}
+                variant="secondary"
+                size="md"
+                icon="camera-outline"
+                loading={photoBusy}
+                onPress={changePhoto}
+              />
+              {profile?.avatar_url ? (
+                <Button
+                  label="Remove photo"
+                  variant="ghost"
+                  size="md"
+                  onPress={clearPhoto}
+                  disabled={photoBusy}
+                />
+              ) : (
+                <Text className="text-xs leading-4 text-ink-muted">
+                  Kung wala, ang initials mo ang ipapakita.
+                </Text>
+              )}
+            </View>
+          </View>
+
           <TextField label="Display name" value={displayName} onChangeText={setDisplayName} />
           {displayNameChanged ? (
             <Button
@@ -237,6 +434,40 @@ export default function SettingsScreen() {
               onPress={handleSaveProfile}
               loading={savingProfile}
             />
+          ) : null}
+        </Card>
+      </View>
+
+      {/* Notifications --------------------------------------------------- */}
+      <View>
+        <SectionTitle>Notifications</SectionTitle>
+        <Card className="gap-1">
+          {(
+            [
+              { key: 'push_bills', label: 'Bills at bayarin', hint: 'Bagong bill na may share ka.' },
+              { key: 'push_chores', label: 'Chores', hint: 'Kapag ikaw ang susunod sa rota.' },
+              { key: 'push_board', label: 'Board notes', hint: 'Bawat bagong note sa board.' },
+            ] as { key: keyof PushPreferences; label: string; hint: string }[]
+          ).map((row) => (
+            <View key={row.key} className="min-h-[56px] flex-row items-center gap-3 py-1">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-ink">{row.label}</Text>
+                <Text className="mt-0.5 text-xs text-ink-muted">{row.hint}</Text>
+              </View>
+              <Switch
+                value={Boolean(profile?.[row.key])}
+                onValueChange={(next) => void togglePush(row.key, next)}
+                disabled={!pushSupported}
+                trackColor={{ true: colors.moss.light, false: colors.line }}
+                thumbColor={colors.paper}
+              />
+            </View>
+          ))}
+          {!pushSupported ? (
+            <Text className="mt-1 text-xs leading-5 text-ink-muted">
+              Hindi naghahatid ng push ang Expo Go simula SDK 53. Kailangan ng development
+              build para gumana ito — tingnan ang README.
+            </Text>
           ) : null}
         </Card>
       </View>

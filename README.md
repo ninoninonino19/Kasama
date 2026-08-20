@@ -40,8 +40,8 @@ npm install
 ### 2. Create a Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run the migration in `supabase/migrations/20260813000000_init.sql` against it — either
-   paste it into the SQL editor, or use the CLI:
+2. Run every migration in `supabase/migrations/`, in filename order — either paste them into
+   the SQL editor, or use the CLI:
 
    ```bash
    npx supabase link --project-ref <your-project-ref>
@@ -51,7 +51,21 @@ npm install
 3. **Auth → Providers → Email**: enable email/password. For a smoother first run, turn
    *Confirm email* off (with it on, users must confirm before they can log in — the sign-up
    screen handles both cases).
-4. **Database → Replication**: the migration already adds the app tables to the
+4. **Auth → Emails → Reset Password**: the in-app recovery flow asks for a six-digit code
+   rather than a link, so the template has to contain `{{ .Token }}`. Supabase's default
+   template only offers `{{ .ConfirmationURL }}`, which opens a browser and can't hand the
+   code back to the app. Replace the body with something like:
+
+   ```html
+   <h2>Reset your Kasama password</h2>
+   <p>Your code is <strong>{{ .Token }}</strong>. It expires in an hour.</p>
+   <p>If you didn't ask for this, you can ignore this email.</p>
+   ```
+
+   A code beats a link here because Expo Go serves the app from an `exp://` URL that changes
+   with your network, so link-based recovery would need re-allow-listing every time you moved
+   between Wi-Fi networks.
+5. **Database → Replication**: the migration already adds the app tables to the
    `supabase_realtime` publication, so live updates work out of the box.
 
 ### 3. Point the app at your project
@@ -200,17 +214,14 @@ Status never rides on colour alone — every pill pairs its tone with a word and
 
 ### Where the design outran the schema
 
-Three things the design asks for have no column behind them. All three are derived on the
-client today, and each has a real fix if it becomes something the app promises rather than
-decorates:
+Three things the design asked for had no column behind them. They were flagged rather than
+faked, and have since been built:
 
-| Design element | Today | If it needs to be real |
-| --- | --- | --- |
-| Chore streaks | `choreStreaks()` walks each housemate's past turns newest-first and counts the ticked ones. Sensitive to how much history is loaded, and un-ticking an old turn retroactively breaks the streak | A `chore_streaks` view, or a counter maintained by the same path that queues the next turn |
-| Tape colour per note | Hashed from the note's id — stable for the life of the post, no two adjacent notes reliably matching | An `announcements.tape_color` column, set when the note is written |
-| Pinned notes | Not supported; the board is newest-first | An `announcements.pinned` boolean, sorted ahead of the rest |
-
-None of these were built: this pass deliberately doesn't touch the schema, RLS or auth.
+| Design element | Where it lives now |
+| --- | --- |
+| Chore streaks | `chore_streaks`, a `security_invoker` view. Walking a housemate's turns newest-first, count the finished ones until a missed turn; a turn that is open but not yet late is skipped rather than treated as a break |
+| Tape colour per note | `announcements.tape_color`, a palette *token* rather than a hex, so re-tuning a colour isn't a data migration. Notes written before the column keep a colour hashed from their id |
+| Pinned notes | `announcements.pinned`, plus `set_announcement_pinned()`. Pinning is open to the whole household while editing stays with the author — see the migration for why those can't share one policy |
 
 ### Not yet designed
 
@@ -219,9 +230,11 @@ The design covers Home, Bills, Chores and the Board. These still wear the old te
 redrawn) and want a design pass of their own rather than an improvised one:
 
 - Onboarding / join household
-- Add-expense flow, including equal vs. custom split
 - Profile and household settings
 - Sign-in and sign-up
+
+The add-expense flow has since been redrawn, as a side effect of extracting the shared
+`BillForm` behind the add and edit screens.
 
 The deprecated teal scales at the bottom of `src/lib/theme.ts` exist only for those screens.
 Nothing new should reach for them.
@@ -239,7 +252,12 @@ Nothing new should reach for them.
 | `bill_splits` | Per-person share of a bill and whether it's settled |
 | `chores` | Title, notes, recurrence |
 | `chore_assignments` | Whose turn it is, when it's due, whether it's done |
-| `announcements` | Household feed posts |
+| `announcements` | Household feed posts, whether they're pinned, and their tape colour |
+
+One **Storage bucket**, `avatars`, is created by
+`20260820020000_avatars_bucket.sql`. It's public — an avatar isn't a secret, and a public
+bucket lets `profiles.avatar_url` hold a plain durable URL rather than one that has to be
+signed on every render. Writes are locked to `<user-id>/…`, so "public" covers reading only.
 
 **Row level security** is on for every table. Access is granted only to members of the
 owning household, checked through `SECURITY DEFINER` helpers
@@ -253,6 +271,116 @@ Two flows deliberately run through database functions rather than direct writes:
 - **Joining a household** — `join_household_by_code(code)` resolves the invite code and
   inserts the membership. Users can't read (or add themselves to) a household they aren't
   in, so the code is the only way in.
+
+### Push notifications
+
+Kasama sends three kinds of push — a new bill you owe on, your turn on a chore, and (opt-in)
+new board notes. The pieces:
+
+| Piece | Where |
+| --- | --- |
+| Token storage + preferences | `20260820040000_push_notifications.sql` |
+| Registration from the app | `src/lib/push.ts` |
+| Sending | `supabase/functions/notify/` (Deno Edge Function) |
+| Daily "due tomorrow" digest | `supabase/functions/daily-digest/` + `pending_reminders()` |
+
+**Expo Go cannot receive push notifications.** Expo removed remote push from Expo Go in
+SDK 53, on both platforms. The app detects this and disables the switches rather than asking
+for a permission it can't use — but it means testing push needs a development build:
+
+```bash
+eas build --profile development --platform android
+```
+
+To deploy the sender:
+
+```bash
+supabase functions deploy notify
+```
+
+It needs no extra secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY` are injected by the platform. The service role key is what lets
+it read other people's device tokens, which is exactly why sending can't happen in the app —
+`device_tokens` is readable only by its owner, so a housemate can't harvest tokens and buzz
+people directly.
+
+The function checks two things before sending: that the caller is signed in, and that they
+belong to the household they're notifying. Without the second, anyone with a login could
+notify any household whose id they could guess.
+
+#### The daily digest
+
+`daily-digest` sends one "this is due tomorrow" round. It's called by a scheduler rather
+than a person, so it authenticates with a shared secret instead of a JWT:
+
+```bash
+supabase secrets set DIGEST_SECRET="$(openssl rand -hex 32)"
+supabase functions deploy daily-digest
+```
+
+Test it without waiting a day — it accepts an explicit date:
+
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/daily-digest" \
+  -H "x-digest-secret: <the secret>" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-08-21"}'
+```
+
+To run it every morning, enable `pg_cron` and `pg_net` (Database → Extensions) and schedule
+it. This isn't a migration because it needs your project ref and secret:
+
+```sql
+select cron.schedule(
+  'kasama-daily-digest',
+  '0 22 * * *',                      -- 06:00 Manila, since cron runs in UTC
+  $$
+  select net.http_post(
+    url     := 'https://<project-ref>.supabase.co/functions/v1/daily-digest',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-digest-secret', '<the secret>'
+    ),
+    body    := '{}'::jsonb
+  );
+  $$
+);
+```
+
+Who gets a reminder is decided by `pending_reminders(date)` in SQL, where it can be tested;
+how many notifications that becomes is decided in `_shared/push.ts`, likewise. Someone with
+four bills due tomorrow gets one buzz naming all four, not four buzzes.
+
+### Testing the database
+
+The SQL that can't be checked by `tsc` — the `SECURITY DEFINER` functions and the rules they
+enforce — has its own suite. It applies every migration to a throwaway local Postgres and
+exercises the results:
+
+```bash
+npm run test:db                  # needs a local postgres you can create databases on
+npm run test:functions           # pure logic behind the notify Edge Function
+```
+
+`supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
+(`auth.users`, `auth.uid()`, the Supabase roles, the realtime publication) so the real
+migrations run unmodified. Three suites run today:
+
+| File | Covers |
+| --- | --- |
+| `roll_recurring_bill_test.sql` | A partly paid bill doesn't roll; a settled one lands on the right date with the original payer and their share prepaid; re-settling is a no-op; non-members are refused; one-offs never roll; an undated recurring bill counts from today |
+| `board_notes_test.sql` | `tape_color` rejects anything outside the palette tokens; a housemate can pin a note they didn't write but still can't edit it; pinned leads the feed and unpinning restores newest-first |
+| `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
+| `chore_streaks_test.sql` | Consecutive finished turns count; a turn due today doesn't break a run; a missed turn ends it and older wins don't carry over; an overdue turn reads as zero rather than as no row; the view is `security_invoker` |
+| `push_tokens_test.sql` | A token registers to the signed-in user; handing a phone to a housemate moves the token rather than duplicating or silently failing; there is no insert/update policy, so registration is the only door; reads are owner-scoped; unknown platforms are refused; deleting a user takes their tokens |
+| `pending_reminders_test.sql` | Only the person who still owes is reminded, with their own share quoted; settling stops it; a finished chore turn is skipped; an empty day produces nothing; housemates can't run it to enumerate each other's debts |
+
+`npm run test:functions` covers the sending decisions — who gets skipped (the actor, anyone
+who turned the category off, anyone with no device), Expo's 100-message batching, the rule
+that only `DeviceNotRegistered` retires a token, and the digest's grouping (four bills due
+tomorrow become one notification naming all four). The Edge Function's HTTP glue is
+reviewed rather than executed: Deno isn't part of this toolchain, which is why the decisions
+live in `logic.ts` where Node can test them.
 
 ### Regenerating types
 
@@ -335,10 +463,4 @@ Remaining steps, none of which can be done from this repo alone:
 
 ### Nice-to-haves not built yet
 
-- Push notifications for due bills and chore turns (`expo-notifications`)
-- Avatar uploads via Supabase Storage
-- Automatic generation of the next recurring *bill* (chores already rotate on completion)
-- Settlement history / "who paid whom" ledger
-- A design pass over onboarding, the add-expense flow and settings (see *Not yet designed*)
-- Stored chore streaks, per-note tape colour and pinned notes (see *Where the design outran
-  the schema*)
+- A design pass over onboarding, settings and the auth screens (see *Not yet designed*)

@@ -1,3 +1,5 @@
+import type { TapeColor } from './database.types';
+
 /**
  * The handful of palette values that have to be passed as props rather than
  * class names — icon tints, `RefreshControl` spinners, placeholder text and
@@ -134,26 +136,39 @@ export const fonts = {
 } as const;
 
 /**
- * Washi-tape colours. A card picks one by context (moss for chores, mustard
- * for money, brick for anything overdue) or deterministically from an id, so
- * a note keeps the same tape between renders.
+ * Washi-tape colours, as palette *tokens* rather than hexes.
+ *
+ * `announcements.tape_color` stores one of these strings. Storing '#E8B94A'
+ * instead would mean a data migration every time the palette is re-tuned —
+ * and it has been re-tuned once already — leaving old notes wearing a colour
+ * no card on screen uses any more.
  */
-export const TAPE_COLORS = [
-  colors.mustard,
-  colors.sage,
-  colors.brick,
-  colors.moss.light,
-] as const;
+export const TAPE_TOKENS: readonly TapeColor[] = ['mustard', 'sage', 'brick', 'moss'];
 
-export type TapeColor = (typeof TAPE_COLORS)[number];
+export const TAPE_HEX: Record<TapeColor, string> = {
+  mustard: colors.mustard,
+  sage: colors.sage,
+  brick: colors.brick,
+  moss: colors.moss.light,
+};
 
-/** Stable tape colour for a note, derived from its id. */
-export function tapeColorFor(seed: string): TapeColor {
+function isTapeToken(value: string): value is TapeColor {
+  return (TAPE_TOKENS as readonly string[]).includes(value);
+}
+
+/**
+ * The tape a note wears: whatever its author chose, or — for the notes written
+ * before the column existed — a stable colour derived from its id, so a note
+ * keeps the same tape between renders.
+ */
+export function tapeColorFor(seed: string, token?: string | null): string {
+  if (token && isTapeToken(token)) return TAPE_HEX[token];
+
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
     hash = (hash * 31 + seed.charCodeAt(index)) % 100_000;
   }
-  return TAPE_COLORS[hash % TAPE_COLORS.length];
+  return TAPE_HEX[TAPE_TOKENS[hash % TAPE_TOKENS.length]];
 }
 
 /** Android ripples, which want a translucent version of the surface tint. */

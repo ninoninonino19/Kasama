@@ -1,3 +1,4 @@
+import type { TapeColor } from '../lib/database.types';
 import { supabase } from '../lib/supabase';
 import type { AnnouncementWithAuthor } from '../types';
 
@@ -9,6 +10,9 @@ export async function fetchAnnouncements(
     .from('announcements')
     .select('*, profile:profiles(*)')
     .eq('household_id', householdId)
+    // Pinned notes lead the board, then newest first — the same order the
+    // announcements_board_order_idx index is built for.
+    .order('pinned', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -19,16 +23,37 @@ export async function fetchAnnouncements(
 export async function postAnnouncement(
   householdId: string,
   userId: string,
-  content: string
+  content: string,
+  tapeColor: TapeColor
 ): Promise<AnnouncementWithAuthor> {
   const { data, error } = await supabase
     .from('announcements')
-    .insert({ household_id: householdId, user_id: userId, content: content.trim() })
+    .insert({
+      household_id: householdId,
+      user_id: userId,
+      content: content.trim(),
+      tape_color: tapeColor,
+    })
     .select('*, profile:profiles(*)')
     .single();
 
   if (error) throw error;
   return data as unknown as AnnouncementWithAuthor;
+}
+
+/**
+ * Pins a note to the top of the board, or takes it back down.
+ *
+ * Goes through an RPC rather than a direct update because anyone in the
+ * household can pin, while only the author can edit — see the migration for
+ * why those two can't share one policy.
+ */
+export async function setAnnouncementPinned(id: string, pinned: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_announcement_pinned', {
+    announcement_id: id,
+    pinned,
+  });
+  if (error) throw error;
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {
