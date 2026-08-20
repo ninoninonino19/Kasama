@@ -110,6 +110,10 @@ export default function RootLayout() {
               name="announcements/new"
               options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
             />
+            <Stack.Screen
+              name="announcements/edit"
+              options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
+            />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
             {/* Recovery sits outside the `auth` group: that layout redirects
                 away as soon as a session exists, and redeeming a recovery code

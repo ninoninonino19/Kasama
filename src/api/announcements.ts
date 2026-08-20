@@ -56,6 +56,35 @@ export async function setAnnouncementPinned(id: string, pinned: boolean): Promis
   if (error) throw error;
 }
 
+/**
+ * Rewrites a note. The `announcements update own` policy limits this to its
+ * author — an admin can take someone's note *down*, but not put different
+ * words under their name.
+ */
+export async function updateAnnouncement(
+  id: string,
+  content: string,
+  tapeColor: TapeColor
+): Promise<void> {
+  const { error } = await supabase
+    .from('announcements')
+    .update({ content: content.trim(), tape_color: tapeColor })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function fetchAnnouncement(id: string): Promise<AnnouncementWithAuthor | null> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*, profile:profiles(*)')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as unknown as AnnouncementWithAuthor | null;
+}
+
 export async function deleteAnnouncement(id: string): Promise<void> {
   const { error } = await supabase.from('announcements').delete().eq('id', id);
   if (error) throw error;
