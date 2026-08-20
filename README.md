@@ -92,7 +92,8 @@ npx expo start --clear
 
 ```bash
 npm start          # then scan the QR code with Expo Go
-npm run tunnel     # same, but routed over the internet — see below
+npm run usb        # Android over a USB cable — the reliable one, see below
+npm run tunnel     # routed over the internet — see below
 npm run android
 npm run ios
 npm run web        # handy for quick UI checks
@@ -103,6 +104,31 @@ Useful checks:
 ```bash
 npm run typecheck  # tsc --noEmit
 ```
+
+### Running over USB (`npm run usb`)
+
+When the phone and the computer can't reach each other over the network — a wired desktop
+and a wireless phone, a router that isolates clients, a firewall — plug the phone in
+instead. It sidesteps the network completely and is worth defaulting to:
+
+1. Phone: **Settings → About phone →** tap *Build number* seven times, then
+   **Developer options → USB debugging** on.
+2. Install **Android SDK Platform Tools** and put it on `PATH`, so `adb version` works.
+   *Open a new terminal afterwards* — PATH changes don't reach terminals already running,
+   and Expo failing to find `adb` surfaces as
+   `Error: The system cannot find the path specified` from `cross-spawn`.
+3. Plug in, accept *Allow USB debugging?*, check `adb devices` lists the phone.
+4. `npm run usb`, then press `a`.
+
+`--host localhost` is the part that isn't obvious. `adb reverse` gets Expo Go's *first*
+request through, so the connection looks fine — but Metro's reply carries a `bundleUrl`
+built from whatever host it advertises. Left on the LAN address, the phone fetches the
+manifest over USB and then tries to fetch the JavaScript from an IP it can't reach, failing
+with **"Failed to download remote update"** while every check on the computer looks healthy.
+`--host localhost` writes `127.0.0.1` into that reply instead, which the USB tunnel carries.
+
+The mapping doesn't survive unplugging or a phone reboot. `npm run usb` re-adds it every
+time, so just run it again.
 
 ### Troubleshooting Expo Go on Android
 
@@ -125,7 +151,13 @@ npx expo-doctor                    # reports version mismatches
 **2. The phone can't reach your computer.** By default Metro serves over the local network,
 so both devices have to be on the same Wi-Fi — and many dorm, campus and café networks block
 devices from talking to each other (client isolation), which looks like the QR scanning
-forever and timing out. Route around it:
+forever and timing out. A computer on Ethernet with the phone on Wi-Fi often can't reach
+either, especially if they land on different subnets: compare the computer's IPv4 from
+`ipconfig` with the phone's under **Settings → Wi-Fi → (network) → IP address**, and if the
+first three groups differ, nothing on the computer will fix it. To test reachability from
+the phone without typing on it, `adb shell am start -a android.intent.action.VIEW -d
+"http://<computer-ip>:8081/status"` opens its browser at Metro. Route around it with
+`npm run usb` (above) or:
 
 ```bash
 npm run tunnel                # expo start --tunnel
