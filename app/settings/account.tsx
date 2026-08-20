@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../../src/api/av
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
+import { useConfirm } from '../../src/components/ui/Dialog';
 import { SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
@@ -29,6 +30,7 @@ import { useSessionStore } from '../../src/store/useSessionStore';
  */
 export default function AccountSettingsScreen() {
   const router = useRouter();
+  const confirm = useConfirm();
   const { refreshHousehold, signOut } = useSession();
 
   const household = useSessionStore((state) => state.household);
@@ -133,10 +135,12 @@ export default function AccountSettingsScreen() {
   }
 
   function confirmSignOut() {
-    Alert.alert('Log out?', "You'll need to log in again next time.", [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => void handleSignOut() },
-    ]);
+    void confirm({
+      title: 'Log out?',
+      message: "You'll need to log in again next time.",
+      confirmLabel: 'Log out',
+      onConfirm: handleSignOut,
+    });
   }
 
   /**

@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -23,6 +22,7 @@ import {
 import { notifyHousehold } from '../../src/api/notify';
 import { MAX_NOTE_LENGTH } from '../../src/components/NoteComposer';
 import { Avatar } from '../../src/components/ui/Avatar';
+import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { NoteCard } from '../../src/components/ui/NoteCard';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
@@ -42,6 +42,8 @@ const PAGE_SIZE = 30;
 
 export default function AnnouncementsScreen() {
   const router = useRouter();
+  const confirm = useConfirm();
+  const dialog = useDialog();
   const household = useHousehold();
   const profile = useProfile();
   const userId = useCurrentUserId();
@@ -119,60 +121,61 @@ export default function AnnouncementsScreen() {
     const name = item.profile?.display_name ?? 'Housemate';
     const isMine = item.user_id === userId;
 
-    Alert.alert(name, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      // Only the author. An admin can take a note down but not put different
-      // words under someone else's name.
-      ...(isMine
-        ? [
-            {
-              text: 'Edit',
-              onPress: () =>
-                router.push({ pathname: '/announcements/edit', params: { id: item.id } }),
-            },
-          ]
-        : []),
-      {
-        text: item.pinned ? 'Unpin from the top' : 'Pin to the top',
-        onPress: async () => {
-          try {
-            await setAnnouncementPinned(item.id, !item.pinned);
-            await refresh({ silent: true });
-          } catch (caught) {
-            haptics.error();
-            setActionError(messageFrom(caught));
-          }
+    void dialog({
+      title: name,
+      actions: [
+        // Only the author. An admin can take a note down but not put different
+        // words under someone else's name.
+        ...(isMine
+          ? [
+              {
+                label: 'Edit',
+                onPress: () =>
+                  router.push({ pathname: '/announcements/edit', params: { id: item.id } }),
+              },
+            ]
+          : []),
+        {
+          label: item.pinned ? 'Unpin from the top' : 'Pin to the top',
+          onPress: async () => {
+            try {
+              await setAnnouncementPinned(item.id, !item.pinned);
+              await refresh({ silent: true });
+            } catch (caught) {
+              haptics.error();
+              setActionError(messageFrom(caught));
+            }
+          },
         },
-      },
-      ...(canDelete
-        ? [
-            {
-              text: 'Take it down',
-              style: 'destructive' as const,
-              onPress: () => confirmDelete(item.id),
-            },
-          ]
-        : []),
-    ]);
+        ...(canDelete
+          ? [
+              {
+                label: 'Take it down',
+                style: 'destructive' as const,
+                onPress: () => confirmDelete(item.id),
+              },
+            ]
+          : []),
+        { label: 'Cancel', style: 'cancel' as const },
+      ],
+    });
   }
 
   function confirmDelete(id: string) {
-    Alert.alert('Take this note down?', 'Nobody else will be able to see it.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteAnnouncement(id);
-            await refresh({ silent: true });
-          } catch (caught) {
-            haptics.error();
-            setActionError(messageFrom(caught));
-          }
-        },
+    void confirm({
+      title: 'Take this note down?',
+      message: 'Nobody else will be able to see it.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await deleteAnnouncement(id);
+          await refresh({ silent: true });
+        } catch (caught) {
+          haptics.error();
+          setActionError(messageFrom(caught));
+        }
       },
-    ]);
+    });
   }
 
   return (

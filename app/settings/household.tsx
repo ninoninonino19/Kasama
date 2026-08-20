@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { leaveHousehold, removeMember, renameHousehold, setMemberRole } from '..
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
+import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { Pill } from '../../src/components/ui/Pill';
 import { SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError, LoadingState } from '../../src/components/ui/States';
@@ -32,6 +33,8 @@ import type { MemberWithProfile } from '../../src/types';
  */
 export default function HouseholdSettingsScreen() {
   const router = useRouter();
+  const confirm = useConfirm();
+  const dialog = useDialog();
   const { refreshHousehold } = useSession();
 
   const household = useSessionStore((state) => state.household);
@@ -86,12 +89,23 @@ export default function HouseholdSettingsScreen() {
 
   async function shareCode() {
     if (!household) return;
+    const message = `Join "${household.name}" on Kasama. Invite code: ${household.invite_code}`;
+
     try {
-      await Share.share({
-        message: `Join "${household.name}" on Kasama. Invite code: ${household.invite_code}`,
-      });
-    } catch (caught) {
-      setError(messageFrom(caught));
+      await Share.share({ message });
+    } catch {
+      // The share sheet is native-only: on a browser without the Web Share
+      // API, `Share.share` rejects outright. Copying gets the code into the
+      // user's hands anyway, which is the whole point of the button — better
+      // than reporting that their browser is the problem.
+      try {
+        await Clipboard.setStringAsync(message);
+        haptics.success();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (caught) {
+        setError(messageFrom(caught));
+      }
     }
   }
 
@@ -111,58 +125,61 @@ export default function HouseholdSettingsScreen() {
     // Never leave the household with nobody who can manage it.
     const wouldStrandHousehold = isTheirAdmin && adminCount === 1;
 
-    Alert.alert(memberName, wouldStrandHousehold
-      ? 'They are the only admin. Make someone else an admin before removing or demoting them.'
-      : 'What would you like to do?', [
-      { text: 'Cancel', style: 'cancel' },
-      ...(wouldStrandHousehold
-        ? []
-        : [
-            {
-              text: isTheirAdmin ? 'Make them a member' : 'Make them an admin',
-              onPress: async () => {
-                try {
-                  await setMemberRole(household.id, member.user_id, isTheirAdmin ? 'member' : 'admin');
-                  await refreshHousehold();
-                } catch (caught) {
-                  haptics.error();
-                  setError(messageFrom(caught));
-                }
+    void dialog({
+      title: memberName,
+      message: wouldStrandHousehold
+        ? 'They are the only admin. Make someone else an admin before removing or demoting them.'
+        : 'What would you like to do?',
+      actions: [
+        ...(wouldStrandHousehold
+          ? []
+          : [
+              {
+                label: isTheirAdmin ? 'Make them a member' : 'Make them an admin',
+                onPress: async () => {
+                  try {
+                    await setMemberRole(
+                      household.id,
+                      member.user_id,
+                      isTheirAdmin ? 'member' : 'admin'
+                    );
+                    await refreshHousehold();
+                  } catch (caught) {
+                    haptics.error();
+                    setError(messageFrom(caught));
+                  }
+                },
               },
-            },
-            {
-              text: 'Remove from household',
-              style: 'destructive' as const,
-              onPress: () => confirmRemove(member),
-            },
-          ]),
-    ]);
+              {
+                label: 'Remove from household',
+                style: 'destructive' as const,
+                onPress: () => confirmRemove(member),
+              },
+            ]),
+        { label: 'Cancel', style: 'cancel' as const },
+      ],
+    });
   }
 
   function confirmRemove(member: MemberWithProfile) {
     if (!household) return;
     const memberName = member.profile.display_name;
 
-    Alert.alert(
-      `Remove ${memberName}?`,
-      'Their bills and splits stay put — removing someone does not erase what they owe or are owed. They just lose access to the household.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeMember(household.id, member.user_id);
-              await refreshHousehold();
-            } catch (caught) {
-              haptics.error();
-              setError(messageFrom(caught));
-            }
-          },
-        },
-      ]
-    );
+    void confirm({
+      title: `Remove ${memberName}?`,
+      message:
+        'Their bills and splits stay put — removing someone does not erase what they owe or are owed. They just lose access to the household.',
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        try {
+          await removeMember(household.id, member.user_id);
+          await refreshHousehold();
+        } catch (caught) {
+          haptics.error();
+          setError(messageFrom(caught));
+        }
+      },
+    });
   }
 
   /**
@@ -174,30 +191,25 @@ export default function HouseholdSettingsScreen() {
     if (!household || !userId) return;
     haptics.tap();
 
-    Alert.alert(
-      `Leave ${household.name}?`,
-      lastAdmin
+    void confirm({
+      title: `Leave ${household.name}?`,
+      message: lastAdmin
         ? "You are the only admin. Leaving hands the household to nobody, and you'll need a new invite code to come back."
         : "You'll need an invite code to join again. Your share of past bills stays on record either way.",
-      [
-        { text: 'Stay', style: 'cancel' },
-        {
-          text: 'Leave household',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveHousehold(household.id, userId);
-              setLeaveArmed(false);
-              await refreshHousehold();
-              router.replace('/onboarding');
-            } catch (caught) {
-              haptics.error();
-              setError(messageFrom(caught));
-            }
-          },
-        },
-      ]
-    );
+      confirmLabel: 'Leave household',
+      cancelLabel: 'Stay',
+      onConfirm: async () => {
+        try {
+          await leaveHousehold(household.id, userId);
+          setLeaveArmed(false);
+          await refreshHousehold();
+          router.replace('/onboarding');
+        } catch (caught) {
+          haptics.error();
+          setError(messageFrom(caught));
+        }
+      },
+    });
   }
 
   if (!household) {
