@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, Switch, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import type { PushPreferences } from '../src/api/household';
 import {
   leaveHousehold,
   removeMember,
   renameHousehold,
   setMemberRole,
   updateDisplayName,
+  updatePushPreferences,
 } from '../src/api/household';
 import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../src/api/avatars';
+import { pushSupported, registerForPush } from '../src/lib/push';
 import { Avatar } from '../src/components/ui/Avatar';
 import { Badge } from '../src/components/ui/Chip';
 import { Button } from '../src/components/ui/Button';
@@ -243,6 +246,39 @@ export default function SettingsScreen() {
     }
   }
 
+  async function togglePush(key: keyof PushPreferences, value: boolean) {
+    if (!userId || !profile) return;
+    haptics.select();
+    setError(null);
+
+    // Turning anything on is pointless until this device has a token, so the
+    // first "on" is also where permission gets asked for.
+    if (value && pushSupported) {
+      try {
+        const result = await registerForPush();
+        if (result.status === 'denied') {
+          setError('Naka-off ang notifications para sa Kasama sa phone settings mo.');
+          return;
+        }
+        if (result.status === 'unsupported') {
+          setError(result.reason);
+          return;
+        }
+      } catch (caught) {
+        setError(messageFrom(caught));
+        return;
+      }
+    }
+
+    try {
+      await updatePushPreferences(userId, { [key]: value });
+      await refreshHousehold();
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+    }
+  }
+
   function confirmSignOut() {
     Alert.alert('Log out?', 'Kailangan mong mag-log in ulit next time.', [
       { text: 'Cancel', style: 'cancel' },
@@ -398,6 +434,40 @@ export default function SettingsScreen() {
               onPress={handleSaveProfile}
               loading={savingProfile}
             />
+          ) : null}
+        </Card>
+      </View>
+
+      {/* Notifications --------------------------------------------------- */}
+      <View>
+        <SectionTitle>Notifications</SectionTitle>
+        <Card className="gap-1">
+          {(
+            [
+              { key: 'push_bills', label: 'Bills at bayarin', hint: 'Bagong bill na may share ka.' },
+              { key: 'push_chores', label: 'Chores', hint: 'Kapag ikaw ang susunod sa rota.' },
+              { key: 'push_board', label: 'Board notes', hint: 'Bawat bagong note sa board.' },
+            ] as { key: keyof PushPreferences; label: string; hint: string }[]
+          ).map((row) => (
+            <View key={row.key} className="min-h-[56px] flex-row items-center gap-3 py-1">
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-ink">{row.label}</Text>
+                <Text className="mt-0.5 text-xs text-ink-muted">{row.hint}</Text>
+              </View>
+              <Switch
+                value={Boolean(profile?.[row.key])}
+                onValueChange={(next) => void togglePush(row.key, next)}
+                disabled={!pushSupported}
+                trackColor={{ true: colors.moss.light, false: colors.line }}
+                thumbColor={colors.paper}
+              />
+            </View>
+          ))}
+          {!pushSupported ? (
+            <Text className="mt-1 text-xs leading-5 text-ink-muted">
+              Hindi naghahatid ng push ang Expo Go simula SDK 53. Kailangan ng development
+              build para gumana ito — tingnan ang README.
+            </Text>
           ) : null}
         </Card>
       </View>

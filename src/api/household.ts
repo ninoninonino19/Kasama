@@ -142,3 +142,18 @@ export async function setMemberRole(
 
   if (error) throw error;
 }
+
+export type PushPreferences = {
+  push_bills: boolean;
+  push_chores: boolean;
+  push_board: boolean;
+};
+
+/** Which kinds of notification this user wants. Their own row only. */
+export async function updatePushPreferences(
+  userId: string,
+  preferences: Partial<PushPreferences>
+): Promise<void> {
+  const { error } = await supabase.from('profiles').update(preferences).eq('id', userId);
+  if (error) throw error;
+}

@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from
 import { useRouter } from 'expo-router';
 
 import { postAnnouncement } from '../../src/api/announcements';
+import { notifyHousehold } from '../../src/api/notify';
 import type { TapeColor } from '../../src/lib/database.types';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
@@ -45,6 +46,17 @@ export default function NewAnnouncementScreen() {
     try {
       await postAnnouncement(household.id, userId, content, tape);
       haptics.success();
+
+      notifyHousehold({
+        householdId: household.id,
+        category: 'board',
+        title: `${profile?.display_name.split(' ')[0] ?? 'Isang kasama'} pinned a note`,
+        // The note itself, trimmed — a board post is short enough that the
+        // notification can just be the note.
+        body: content.trim().slice(0, 140),
+        data: { screen: 'announcements' },
+      });
+
       router.back();
     } catch (caught) {
       haptics.error();

@@ -272,6 +272,41 @@ Two flows deliberately run through database functions rather than direct writes:
   inserts the membership. Users can't read (or add themselves to) a household they aren't
   in, so the code is the only way in.
 
+### Push notifications
+
+Kasama sends three kinds of push — a new bill you owe on, your turn on a chore, and (opt-in)
+new board notes. The pieces:
+
+| Piece | Where |
+| --- | --- |
+| Token storage + preferences | `20260820040000_push_notifications.sql` |
+| Registration from the app | `src/lib/push.ts` |
+| Sending | `supabase/functions/notify/` (Deno Edge Function) |
+
+**Expo Go cannot receive push notifications.** Expo removed remote push from Expo Go in
+SDK 53, on both platforms. The app detects this and disables the switches rather than asking
+for a permission it can't use — but it means testing push needs a development build:
+
+```bash
+eas build --profile development --platform android
+```
+
+To deploy the sender:
+
+```bash
+supabase functions deploy notify
+```
+
+It needs no extra secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY` are injected by the platform. The service role key is what lets
+it read other people's device tokens, which is exactly why sending can't happen in the app —
+`device_tokens` is readable only by its owner, so a housemate can't harvest tokens and buzz
+people directly.
+
+The function checks two things before sending: that the caller is signed in, and that they
+belong to the household they're notifying. Without the second, anyone with a login could
+notify any household whose id they could guess.
+
 ### Testing the database
 
 The SQL that can't be checked by `tsc` — the `SECURITY DEFINER` functions and the rules they
@@ -279,7 +314,8 @@ enforce — has its own suite. It applies every migration to a throwaway local P
 exercises the results:
 
 ```bash
-supabase/tests/run.sh            # needs a local postgres you can create databases on
+npm run test:db                  # needs a local postgres you can create databases on
+npm run test:functions           # pure logic behind the notify Edge Function
 ```
 
 `supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
@@ -292,6 +328,13 @@ migrations run unmodified. Three suites run today:
 | `board_notes_test.sql` | `tape_color` rejects anything outside the palette tokens; a housemate can pin a note they didn't write but still can't edit it; pinned leads the feed and unpinning restores newest-first |
 | `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
 | `chore_streaks_test.sql` | Consecutive finished turns count; a turn due today doesn't break a run; a missed turn ends it and older wins don't carry over; an overdue turn reads as zero rather than as no row; the view is `security_invoker` |
+| `push_tokens_test.sql` | A token registers to the signed-in user; handing a phone to a housemate moves the token rather than duplicating or silently failing; there is no insert/update policy, so registration is the only door; reads are owner-scoped; unknown platforms are refused; deleting a user takes their tokens |
+
+`npm run test:functions` covers the sending decisions — who gets skipped (the actor, anyone
+who turned the category off, anyone with no device), Expo's 100-message batching, and the
+rule that only `DeviceNotRegistered` retires a token. The Edge Function's HTTP glue is
+reviewed rather than executed: Deno isn't part of this toolchain, which is why the decisions
+live in `logic.ts` where Node can test them.
 
 ### Regenerating types
 
@@ -374,6 +417,6 @@ Remaining steps, none of which can be done from this repo alone:
 
 ### Nice-to-haves not built yet
 
-- Push notifications for due bills and chore turns (`expo-notifications`)
-- Settlement history / "who paid whom" ledger
+- A scheduled digest ("kuryente is due tomorrow") — the event-driven pushes exist, but
+  nothing yet runs on a timer; that needs `pg_cron` plus a second Edge Function
 - A design pass over onboarding, settings and the auth screens (see *Not yet designed*)

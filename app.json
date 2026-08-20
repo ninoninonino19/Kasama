@@ -49,6 +49,12 @@
         {
           "photosPermission": "Kasama uses your photos so you can put a face next to your name for your housemates."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2F3D2C"
+        }
       ]
     ],
     "experiments": {

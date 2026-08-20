@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { fetchMembers, fetchMembership, fetchProfile } from '../api/household';
 import { messageFrom } from '../hooks/useAsyncData';
 import { useRealtime } from '../hooks/useRealtime';
+import { unregisterFromPush } from '../lib/push';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useSessionStore } from '../store/useSessionStore';
 
@@ -135,6 +136,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       signOut: async () => {
+        // Before the session goes, so the next person to log in on a shared
+        // phone doesn't inherit the last person's notifications.
+        await unregisterFromPush();
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         store.getState().reset();

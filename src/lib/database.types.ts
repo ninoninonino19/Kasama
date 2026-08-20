@@ -28,18 +28,27 @@ export type Database = {
           id: string;
           display_name: string;
           avatar_url: string | null;
+          push_bills: boolean;
+          push_chores: boolean;
+          push_board: boolean;
           created_at: string;
         };
         Insert: {
           id: string;
           display_name?: string;
           avatar_url?: string | null;
+          push_bills?: boolean;
+          push_chores?: boolean;
+          push_board?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           display_name?: string;
           avatar_url?: string | null;
+          push_bills?: boolean;
+          push_chores?: boolean;
+          push_board?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -209,6 +218,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      device_tokens: {
+        Row: {
+          id: string;
+          user_id: string;
+          token: string;
+          platform: 'ios' | 'android' | 'web';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          token: string;
+          platform: 'ios' | 'android' | 'web';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          token?: string;
+          platform?: 'ios' | 'android' | 'web';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       announcements: {
         Row: {
           id: string;
@@ -260,6 +296,10 @@ export type Database = {
       join_household_by_code: {
         Args: { code: string };
         Returns: Database['public']['Tables']['households']['Row'];
+      };
+      register_device_token: {
+        Args: { device_token: string; device_platform: string };
+        Returns: undefined;
       };
       set_announcement_pinned: {
         Args: { announcement_id: string; pinned: boolean };
