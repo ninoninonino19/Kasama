@@ -28,7 +28,7 @@ export default function Index() {
     );
   }
 
-  if (!session) return <Redirect href="/auth/sign-in" />;
+  if (!session) return <Redirect href="/welcome" />;
   if (!household) return <Redirect href="/onboarding" />;
   return <Redirect href="/(tabs)/home" />;
 }

@@ -41,6 +41,9 @@ export default function AccountSettingsScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  // Signing out is unrecoverable without a password, so the button only opens
+  // a caution panel; the panel's own button is what asks to confirm.
+  const [signOutArmed, setSignOutArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // The profile may still be loading when this screen mounts (cold start,
@@ -136,9 +139,11 @@ export default function AccountSettingsScreen() {
 
   function confirmSignOut() {
     void confirm({
-      title: 'Log out?',
-      message: "You'll need to log in again next time.",
-      confirmLabel: 'Log out',
+      title: 'Sign out of this device?',
+      message:
+        `There is no password to sign back in with, so this ends "${profile?.display_name ?? 'your'}" ` +
+        'for good. Rejoining means a new invite code and a new name in the list.',
+      confirmLabel: 'Sign out for good',
       onConfirm: handleSignOut,
     });
   }
@@ -255,21 +260,58 @@ export default function AccountSettingsScreen() {
       {/* Session --------------------------------------------------------- */}
       <View className="gap-2">
         <SectionTitle>Session</SectionTitle>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ busy: signingOut }}
-          disabled={signingOut}
-          onPress={confirmSignOut}
-          className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page ${
-            signingOut ? 'opacity-50' : ''
-          }`}
-        >
-          <Ionicons name="log-out-outline" size={20} color={colors.ink.soft} />
-          <Text className="flex-1 font-ui-semibold text-sm text-ink">
-            {signingOut ? 'Logging out…' : 'Log out'}
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
-        </Pressable>
+        {/* Kasama has no password, so signing out is not the reversible
+            convenience it is in most apps — it throws this identity away.
+            Arming first, and saying plainly what it costs, keeps it off the
+            list of things you can do by mis-tapping on the way past. */}
+        {signOutArmed ? (
+          <View className="gap-3 rounded-2xl border border-brick/40 bg-wash-brick p-4">
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="warning-outline" size={20} color={colors.deep.brick} />
+              <Text className="flex-1 font-ui-bold text-sm text-deep-brick">
+                This cannot be undone
+              </Text>
+            </View>
+
+            <View className="gap-1.5">
+              <CautionLine text="There is no password, so there is no signing back in as yourself." />
+              <CautionLine text="Rejoining needs a new invite code, and you appear as a new person." />
+              <CautionLine text="What you owe and are owed stays on record under the old name." />
+            </View>
+
+            <View className="mt-1 flex-row gap-2">
+              <Button
+                label="Stay"
+                variant="secondary"
+                size="md"
+                className="flex-1"
+                onPress={() => setSignOutArmed(false)}
+              />
+              <Button
+                label="Sign out"
+                variant="danger"
+                size="md"
+                className="flex-1"
+                icon="log-out-outline"
+                loading={signingOut}
+                onPress={confirmSignOut}
+              />
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              haptics.tap();
+              setSignOutArmed(true);
+            }}
+            className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
+          >
+            <Ionicons name="log-out-outline" size={20} color={colors.deep.brick} />
+            <Text className="flex-1 font-ui-semibold text-sm text-ink">Sign out of this device</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
+          </Pressable>
+        )}
       </View>
 
       {/* The two settings screens are only reachable from Home, so each one
@@ -296,5 +338,14 @@ export default function AccountSettingsScreen() {
 
       <Text className="text-center font-ui text-xs text-ink-muted">Kasama v1.0.0</Text>
     </ScrollView>
+  );
+}
+
+function CautionLine({ text }: { text: string }) {
+  return (
+    <View className="flex-row gap-2">
+      <Text className="font-ui text-xs leading-5 text-deep-brick">•</Text>
+      <Text className="flex-1 font-ui text-xs leading-5 text-deep-brick">{text}</Text>
+    </View>
   );
 }
