@@ -99,6 +99,17 @@ export default function RootLayout() {
               options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
             />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+            {/* Recovery sits outside the `auth` group: that layout redirects
+                away as soon as a session exists, and redeeming a recovery code
+                creates one mid-flow. */}
+            <Stack.Screen
+              name="forgot-password"
+              options={{ headerShown: true, title: 'Reset password' }}
+            />
+            <Stack.Screen
+              name="reset-password"
+              options={{ headerShown: true, title: 'New password' }}
+            />
           </Stack>
         </SessionProvider>
       </SafeAreaProvider>

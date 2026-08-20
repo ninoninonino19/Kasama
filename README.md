@@ -51,7 +51,21 @@ npm install
 3. **Auth → Providers → Email**: enable email/password. For a smoother first run, turn
    *Confirm email* off (with it on, users must confirm before they can log in — the sign-up
    screen handles both cases).
-4. **Database → Replication**: the migration already adds the app tables to the
+4. **Auth → Emails → Reset Password**: the in-app recovery flow asks for a six-digit code
+   rather than a link, so the template has to contain `{{ .Token }}`. Supabase's default
+   template only offers `{{ .ConfirmationURL }}`, which opens a browser and can't hand the
+   code back to the app. Replace the body with something like:
+
+   ```html
+   <h2>Reset your Kasama password</h2>
+   <p>Your code is <strong>{{ .Token }}</strong>. It expires in an hour.</p>
+   <p>If you didn't ask for this, you can ignore this email.</p>
+   ```
+
+   A code beats a link here because Expo Go serves the app from an `exp://` URL that changes
+   with your network, so link-based recovery would need re-allow-listing every time you moved
+   between Wi-Fi networks.
+5. **Database → Replication**: the migration already adds the app tables to the
    `supabase_realtime` publication, so live updates work out of the box.
 
 ### 3. Point the app at your project

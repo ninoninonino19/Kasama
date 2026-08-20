@@ -11,6 +11,10 @@ type SessionContextValue = {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Emails a six-digit recovery code. Never reveals whether the address exists. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** Redeems the code and sets the new password in one step — see the note below. */
+  completePasswordReset: (email: string, code: string, newPassword: string) => Promise<void>;
   /** Re-reads profile, household and member list — call after create/join/leave. */
   refreshHousehold: () => Promise<void>;
   bootstrapError: string | null;
@@ -134,6 +138,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         store.getState().reset();
+      },
+      requestPasswordReset: async (email) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+        // Supabase answers the same way whether or not the address is
+        // registered, and so do we — telling a stranger which emails have
+        // accounts is a gift to whoever is guessing.
+        if (error) throw error;
+      },
+      /**
+       * Verifying the code signs the user in, and `AuthLayout` redirects the
+       * moment a session exists. So the code and the new password are taken
+       * together and spent in one action: by the time the redirect fires the
+       * password is already changed, and the user lands in the app signed in
+       * rather than back at a login form.
+       */
+      completePasswordReset: async (email, code, newPassword) => {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: code.trim(),
+          type: 'recovery',
+        });
+        if (verifyError) throw verifyError;
+
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+        if (updateError) throw updateError;
       },
     }),
     [bootstrapError, refreshHousehold, store]

@@ -85,6 +85,12 @@ export default function SignInScreen() {
               loading={submitting}
               disabled={!canSubmit}
             />
+            <Link
+              href="/forgot-password"
+              className="text-center text-sm font-semibold text-brand-600"
+            >
+              Nakalimutan ang password?
+            </Link>
             <View className="flex-row justify-center gap-1">
               <Text className="text-sm text-ink-muted">Bago dito?</Text>
               <Link href="/auth/sign-up" className="text-sm font-semibold text-brand-600">
