@@ -95,6 +95,10 @@ export default function RootLayout() {
               options={{ presentation: 'modal', headerShown: true, title: 'Edit bill' }}
             />
             <Stack.Screen
+              name="bills/ledger"
+              options={{ headerShown: true, title: 'Bayaran' }}
+            />
+            <Stack.Screen
               name="chores/new"
               options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
             />

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { addDays, fromDateString, toDateString, todayString } from '../lib/format';
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
-import type { BalanceSummary, BillWithSplits } from '../types';
+import type { BalanceSummary, BillWithSplits, LedgerEntry } from '../types';
 
 export async function fetchBills(householdId: string): Promise<BillWithSplits[]> {
   const { data, error } = await supabase
@@ -327,4 +327,56 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
     // Sub-centavo residue from an uneven split isn't a debt worth showing.
     .filter((entry) => Math.abs(entry.net) >= 0.01)
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+}
+
+/**
+ * Settled shares across the household, newest first — the "who paid whom"
+ * record that `bill_splits.paid_at` has been quietly keeping all along.
+ *
+ * The payer's own share is excluded. `createBill` inserts it already paid
+ * because they fronted the money, so listing it would report every bill as
+ * opening with a payment from someone to themselves.
+ */
+export async function fetchLedger(
+  householdId: string,
+  limit = 50
+): Promise<LedgerEntry[]> {
+  const { data, error } = await supabase
+    .from('bill_splits')
+    .select(
+      'id, amount_owed, paid_at, user_id, bill:bills!inner(id, title, category, created_by, household_id)'
+    )
+    .eq('bill.household_id', householdId)
+    .eq('paid', true)
+    .not('paid_at', 'is', null)
+    .order('paid_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  type Row = {
+    id: string;
+    amount_owed: number;
+    paid_at: string;
+    user_id: string;
+    bill: {
+      id: string;
+      title: string;
+      category: LedgerEntry['category'];
+      created_by: string;
+    };
+  };
+
+  return ((data ?? []) as unknown as Row[])
+    .filter((row) => row.user_id !== row.bill.created_by)
+    .map((row) => ({
+      id: row.id,
+      amount: Number(row.amount_owed),
+      paidAt: row.paid_at,
+      billId: row.bill.id,
+      billTitle: row.bill.title,
+      category: row.bill.category,
+      payerId: row.user_id,
+      payeeId: row.bill.created_by,
+    }));
 }

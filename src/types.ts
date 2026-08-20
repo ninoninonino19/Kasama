@@ -42,3 +42,17 @@ export type BalanceSummary = {
   /** owing - owed. Positive means the household owes me. */
   net: number;
 };
+
+/** One settled share, for the "who paid whom" ledger. */
+export type LedgerEntry = {
+  id: string;
+  amount: number;
+  paidAt: string;
+  billId: string;
+  billTitle: string;
+  category: Bill['category'];
+  /** Who handed over the money. */
+  payerId: string;
+  /** Who had fronted the bill and was paid back. */
+  payeeId: string;
+};
