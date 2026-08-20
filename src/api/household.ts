@@ -108,3 +108,37 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
   if (error) throw error;
   return data;
 }
+
+/**
+ * Removes someone else from the household. Admins only — enforced by the
+ * `members leave or be removed by admin` policy, not just by the UI.
+ *
+ * Their bills, splits and chore turns stay behind. `bill_splits.user_id`
+ * cascades from `profiles`, not from membership, so a removed housemate's
+ * debts don't quietly vanish along with them — which is the whole reason
+ * anyone would remove a housemate mid-month.
+ */
+export async function removeMember(householdId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('household_members')
+    .delete()
+    .eq('household_id', householdId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}
+
+/** Promotes a housemate to admin, or hands the role back. Admins only. */
+export async function setMemberRole(
+  householdId: string,
+  userId: string,
+  role: 'admin' | 'member'
+): Promise<void> {
+  const { error } = await supabase
+    .from('household_members')
+    .update({ role })
+    .eq('household_id', householdId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}

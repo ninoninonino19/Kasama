@@ -4,7 +4,13 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { leaveHousehold, renameHousehold, updateDisplayName } from '../src/api/household';
+import {
+  leaveHousehold,
+  removeMember,
+  renameHousehold,
+  setMemberRole,
+  updateDisplayName,
+} from '../src/api/household';
 import { Avatar } from '../src/components/ui/Avatar';
 import { Badge } from '../src/components/ui/Chip';
 import { Button } from '../src/components/ui/Button';
@@ -17,6 +23,7 @@ import { haptics } from '../src/lib/haptics';
 import { formatShortDate } from '../src/lib/format';
 import { colors } from '../src/lib/theme';
 import { useSession } from '../src/providers/SessionProvider';
+import type { MemberWithProfile } from '../src/types';
 import { useSessionStore } from '../src/store/useSessionStore';
 
 export default function SettingsScreen() {
@@ -129,6 +136,76 @@ export default function SettingsScreen() {
     );
   }
 
+  /**
+   * Admin actions on a housemate. Sheet rather than inline buttons: these are
+   * rare and consequential, and a delete button sitting permanently next to
+   * someone's face on a shared-house screen invites exactly the mis-tap you
+   * don't want.
+   */
+  function manageMember(member: MemberWithProfile) {
+    if (!household || !isAdmin || member.user_id === userId) return;
+    haptics.tap();
+
+    const name = member.profile.display_name;
+    const isTheirAdmin = member.role === 'admin';
+    const adminCount = members.filter((entry) => entry.role === 'admin').length;
+    // Never leave the household with nobody who can manage it.
+    const wouldStrandHousehold = isTheirAdmin && adminCount === 1;
+
+    Alert.alert(name, wouldStrandHousehold
+      ? 'Siya lang ang admin. Gumawa muna ng ibang admin bago siya alisin o i-demote.'
+      : 'Ano ang gagawin?', [
+      { text: 'Cancel', style: 'cancel' },
+      ...(wouldStrandHousehold
+        ? []
+        : [
+            {
+              text: isTheirAdmin ? 'Gawing member' : 'Gawing admin',
+              onPress: async () => {
+                try {
+                  await setMemberRole(household.id, member.user_id, isTheirAdmin ? 'member' : 'admin');
+                  await refreshHousehold();
+                } catch (caught) {
+                  haptics.error();
+                  setError(messageFrom(caught));
+                }
+              },
+            },
+            {
+              text: 'Alisin sa bahay',
+              style: 'destructive' as const,
+              onPress: () => confirmRemove(member),
+            },
+          ]),
+    ]);
+  }
+
+  function confirmRemove(member: MemberWithProfile) {
+    if (!household) return;
+    const name = member.profile.display_name;
+
+    Alert.alert(
+      `Alisin si ${name}?`,
+      'Mananatili ang mga bill at split niya — hindi mabubura ang utang kapag inalis mo siya. Mawawala lang ang access niya sa household.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Alisin',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeMember(household.id, member.user_id);
+              await refreshHousehold();
+            } catch (caught) {
+              haptics.error();
+              setError(messageFrom(caught));
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function confirmSignOut() {
     Alert.alert('Log out?', 'Kailangan mong mag-log in ulit next time.', [
       { text: 'Cancel', style: 'cancel' },
@@ -200,28 +277,43 @@ export default function SettingsScreen() {
       {/* Members -------------------------------------------------------- */}
       <View>
         <SectionTitle>Housemates ({members.length})</SectionTitle>
+        {isAdmin && members.length > 1 ? (
+          <Text className="mb-2 -mt-1 text-xs text-ink-muted">
+            Tap a housemate to make them an admin or remove them.
+          </Text>
+        ) : null}
         <View className="gap-2">
-          {members.map((member) => (
-            <Card key={member.id}>
-              <View className="flex-row items-center gap-3">
-                <Avatar
-                  name={member.profile.display_name}
-                  userId={member.user_id}
-                  avatarUrl={member.profile.avatar_url}
-                />
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-ink">
-                    {member.profile.display_name}
-                    {member.user_id === userId ? ' (you)' : ''}
-                  </Text>
-                  <Text className="text-xs text-ink-muted">
-                    Joined {formatShortDate(member.joined_at)}
-                  </Text>
+          {members.map((member) => {
+            const manageable = isAdmin && member.user_id !== userId;
+
+            return (
+              <Card
+                key={member.id}
+                onPress={manageable ? () => manageMember(member) : undefined}
+              >
+                <View className="flex-row items-center gap-3">
+                  <Avatar
+                    name={member.profile.display_name}
+                    userId={member.user_id}
+                    avatarUrl={member.profile.avatar_url}
+                  />
+                  <View className="flex-1">
+                    <Text className="text-sm font-bold text-ink">
+                      {member.profile.display_name}
+                      {member.user_id === userId ? ' (you)' : ''}
+                    </Text>
+                    <Text className="text-xs text-ink-muted">
+                      Joined {formatShortDate(member.joined_at)}
+                    </Text>
+                  </View>
+                  {member.role === 'admin' ? <Badge label="Admin" tone="success" /> : null}
+                  {manageable ? (
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
+                  ) : null}
                 </View>
-                {member.role === 'admin' ? <Badge label="Admin" tone="success" /> : null}
-              </View>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </View>
       </View>
 
