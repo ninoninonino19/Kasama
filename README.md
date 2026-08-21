@@ -132,10 +132,22 @@ instead. It sidesteps the network completely and is worth defaulting to:
 
 1. Phone: **Settings → About phone →** tap *Build number* seven times, then
    **Developer options → USB debugging** on.
-2. Install **Android SDK Platform Tools** and put it on `PATH`, so `adb version` works.
-   *Open a new terminal afterwards* — PATH changes don't reach terminals already running,
-   and Expo failing to find `adb` surfaces as
-   `Error: The system cannot find the path specified` from `cross-spawn`.
+2. Install **Android SDK Platform Tools**, ideally through Android Studio's SDK Manager so
+   it lands in the default SDK location. *Open a new terminal afterwards* — PATH changes
+   don't reach terminals already running.
+
+   `PATH` alone is not enough, which is worth knowing before it costs an afternoon. Expo
+   builds `<sdk root>/platform-tools/adb` and only falls back to a bare `adb` when it can't
+   resolve an SDK root at all — and the Windows fallback root,
+   `%LOCALAPPDATA%\Android\Sdk`, is accepted merely for existing. So a machine where
+   Android Studio made that folder but platform-tools was installed separately and added to
+   `PATH` gets the worst version of this: `adb devices` lists the phone, while pressing `a`
+   fails with `Error: The system cannot find the path specified`, because Expo is looking
+   inside an SDK folder that has no `adb.exe` in it.
+
+   Point `ANDROID_HOME` at the folder *containing* your `platform-tools` directory if you
+   keep it elsewhere. A wrong `ANDROID_HOME` is the safe kind of wrong: Expo warns and falls
+   back to `PATH`. It is the plausible-but-empty default that fails silently.
 3. Plug in, accept *Allow USB debugging?*, check `adb devices` lists the phone.
 4. `npm run usb`, then press `a`.
 
