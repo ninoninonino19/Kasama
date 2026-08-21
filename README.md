@@ -83,6 +83,26 @@ Env changes are baked in at bundle time, so restart with a cleared cache after e
 npx expo start --clear
 ```
 
+`.env` is local and gitignored, which means an EAS build never sees it — a build made
+without the step below installs fine and then shows the setup notice, because
+`EXPO_PUBLIC_SUPABASE_URL` is empty inside it. Register the two variables with EAS once
+and every profile picks them up:
+
+```bash
+eas env:create --name EXPO_PUBLIC_SUPABASE_URL --value https://<project-ref>.supabase.co \
+  --environment development --environment preview --environment production \
+  --visibility plaintext
+eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon public key> \
+  --environment development --environment preview --environment production \
+  --visibility plaintext
+```
+
+They live in EAS rather than in `eas.json` on purpose. This repository is public, and
+while the anon key is safe by design — it ships inside the APK either way — a key sitting
+in a public file is a key that gets scraped and used against your project's rate limits,
+and rotating one that is committed means a code change rather than a command. Use
+`eas env:list` to check what a build will see.
+
 ### 4. Run it
 
 ```bash
