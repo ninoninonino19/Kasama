@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
 
 import { Button } from '../src/components/ui/Button';
 import { Logo } from '../src/components/ui/Logo';
@@ -11,6 +12,7 @@ import { messageFrom } from '../src/hooks/useAsyncData';
 import { haptics } from '../src/lib/haptics';
 import { colors } from '../src/lib/theme';
 import { useSession } from '../src/providers/SessionProvider';
+import { useSessionStore } from '../src/store/useSessionStore';
 
 const MIN_NAME = 2;
 
@@ -29,12 +31,24 @@ const MIN_NAME = 2;
  */
 export default function WelcomeScreen() {
   const { startSession } = useSession();
+  const status = useSessionStore((state) => state.status);
+  const session = useSessionStore((state) => state.session);
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = name.trim().length >= MIN_NAME && !submitting;
+
+  /**
+   * Every other route guards itself this way, and this one has to as well:
+   * routing lives in `app/index.tsx`, but reaching this screen *is* index
+   * redirecting, which unmounts it. So once the session opens there is no
+   * mounted component left watching for it, and the Continue button below
+   * spins forever on a session that already exists. Sending them back through
+   * index keeps the create-or-join decision in the one place that makes it.
+   */
+  if (status === 'ready' && session) return <Redirect href="/" />;
 
   async function handleSubmit() {
     if (!canSubmit) return;
@@ -43,8 +57,9 @@ export default function WelcomeScreen() {
     try {
       await startSession(name);
       haptics.success();
-      // The auth listener takes it from here: the entry point sends anyone
-      // without a household to create or join one.
+      // `submitting` deliberately stays true: the guard above redirects as soon
+      // as the auth listener has the session, and unmounting mid-spinner reads
+      // better than a button that goes idle for a frame first.
     } catch (caught) {
       haptics.error();
       setError(messageFrom(caught));
