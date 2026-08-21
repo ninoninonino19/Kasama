@@ -30,32 +30,73 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const store = useSessionStore;
   const loadingRef = useRef(false);
+  const pendingUserIdRef = useRef<string | null>(null);
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
-  const loadHouseholdState = useCallback(async (userId: string) => {
-    if (loadingRef.current) return;
+  const loadHouseholdState = useCallback((userId: string): Promise<void> => {
+    // Whatever prompted this call — a housemate joining, a household created —
+    // happened after the in-flight read sent its queries, so that read cannot
+    // contain it. Returning here would leave the stale answer on screen until
+    // something else happens to ask again, which for a realtime update means
+    // the housemate who just joined stays invisible. Queue it instead, and go
+    // round once more below.
+    //
+    // The in-flight pass drains that queue before it resolves, so handing its
+    // promise back keeps `await refreshHousehold()` honest: callers navigate
+    // and close dialogs on it, and it should not resolve on a read that is
+    // known to be one round out of date.
+    if (loadingRef.current) {
+      pendingUserIdRef.current = userId;
+      return inFlightRef.current ?? Promise.resolve();
+    }
     loadingRef.current = true;
 
-    try {
-      const [profile, membership] = await Promise.all([
-        fetchProfile(userId),
-        fetchMembership(userId),
-      ]);
+    const run = (async () => {
+      try {
+        // Carried rather than assumed: a queued reload can belong to a different
+        // person than the one this call started for, if the session changed while
+        // the read was out.
+        let nextUserId: string | null = userId;
 
-      store.getState().setProfile(profile);
-      store.getState().setHousehold(membership?.household ?? null, membership?.role ?? null);
+        while (nextUserId) {
+          const activeUserId = nextUserId;
+          pendingUserIdRef.current = null;
 
-      if (membership) {
-        store.getState().setMembers(await fetchMembers(membership.household.id));
-      } else {
-        store.getState().setMembers([]);
+          const [profile, membership] = await Promise.all([
+            fetchProfile(activeUserId),
+            fetchMembership(activeUserId),
+          ]);
+
+          store.getState().setProfile(profile);
+          store.getState().setHousehold(membership?.household ?? null, membership?.role ?? null);
+
+          if (membership) {
+            store.getState().setMembers(await fetchMembers(membership.household.id));
+          } else {
+            store.getState().setMembers([]);
+          }
+          setBootstrapError(null);
+
+          // Anything that arrived while those were in flight.
+          nextUserId = pendingUserIdRef.current;
+        }
+      } catch (error) {
+        setBootstrapError(messageFrom(error));
+      } finally {
+        // A failed pass drops the queue on purpose: the error is on screen, and
+        // retrying against a backend that just refused is how a loop starts.
+        pendingUserIdRef.current = null;
+        inFlightRef.current = null;
+        loadingRef.current = false;
+        store.getState().setStatus('ready');
       }
-      setBootstrapError(null);
-    } catch (error) {
-      setBootstrapError(messageFrom(error));
-    } finally {
-      loadingRef.current = false;
-      store.getState().setStatus('ready');
-    }
+    })();
+
+    // Assigned after the call, but before anything can observe it: the body
+    // above runs synchronously as far as its first await, and nothing else can
+    // reach this function in between.
+    inFlightRef.current = run;
+    return run;
   }, [store]);
 
   // Initial session + auth state changes.
