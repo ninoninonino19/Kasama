@@ -52,6 +52,11 @@ npm install
    to register — you give a display name and the app opens an anonymous session, which is a
    real `auth.users` row with no email and no password. That is what keeps `auth.uid()`
    meaningful, and with it every RLS policy in the schema. Email/password can be left off.
+   Supabase ships this **off**, and it is the only way into the app: leave it off and the
+   welcome screen answers every name with *"anonymous sign-ins are disabled"*. Running
+   locally with the CLI, the same switch is `enable_anonymous_sign_ins` in
+   `supabase/config.toml` (already on there); `npx supabase config push` applies that file
+   to a linked project if you would rather not click through the dashboard.
 4. **Auth → Rate Limits**: anonymous sign-ins are rate-limited per IP (30/hour by default).
    A household is a handful of people, so the default is generous — but a shared Wi-Fi
    network counts as one IP, which is worth knowing if a whole house signs up at once.

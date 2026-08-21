@@ -124,15 +124,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       bootstrapError,
       refreshHousehold,
       /**
-       * With "Confirm email" enabled, Supabase creates the user but withholds
-       * the session until the address is verified. That missing session — not
-       * anything on the user object — is the signal, and it is the same shape
-       * whether the address is genuinely new or already belongs to someone:
-       * Supabase deliberately answers identically so a stranger can't use this
-       * endpoint to discover who has an account. Sending both cases to the
-       * confirmation screen keeps that property intact.
-       */
-      /**
        * An anonymous Supabase user: a real row in `auth.users` with no email
        * and no password. That matters more than it sounds — `auth.uid()` still
        * returns a stable id, so every RLS policy in the schema keeps working
@@ -147,7 +138,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInAnonymously({
           options: { data: { display_name: displayName.trim() } },
         });
-        if (error) throw error;
+        if (error) {
+          // Anonymous sign-ins are off by default on a Supabase project, and
+          // with them off this is the *only* way in, so a fresh project rejects
+          // every name typed on the welcome screen. Supabase's own wording
+          // ("Anonymous sign-ins are disabled") reads like the app turned them
+          // off on purpose, which sends people looking in the wrong place, so
+          // say where the switch actually is instead.
+          if (error.code === 'anonymous_provider_disabled') {
+            throw new Error(
+              'This Kasama backend has anonymous sign-ins turned off, so there is no way ' +
+                'to open a session. Whoever set up the Supabase project needs to enable ' +
+                'Auth → Providers → Anonymous sign-ins.'
+            );
+          }
+          throw error;
+        }
       },
       /**
        * Without a password there is no way back in: this identity exists only
