@@ -106,13 +106,17 @@ and rotating one that is committed means a code change rather than a command. Us
 ### 4. Run it
 
 ```bash
-npm start          # then scan the QR code with Expo Go
+npm start          # then scan the QR code
 npm run usb        # Android over a USB cable — the reliable one, see below
 npm run tunnel     # routed over the internet — see below
 npm run android
 npm run ios
 npm run web        # handy for quick UI checks
 ```
+
+`expo-dev-client` is installed, so `npm start` targets a development build by default and
+the QR code opens that rather than Expo Go. Press **s** in the terminal to switch back —
+Expo Go still runs everything except push, which it cannot receive at all (see below).
 
 Useful checks:
 
@@ -348,11 +352,16 @@ handler expo-notifications drops those silently, and there is no second delivery
 
 **Expo Go cannot receive push notifications.** Expo removed remote push from Expo Go in
 SDK 53, on both platforms. The app detects this and disables the switches rather than asking
-for a permission it can't use — but it means testing push needs a development build:
+for a permission it can't use — but it means testing push, including what a tapped
+notification opens, needs a development build:
 
 ```bash
 eas build --profile development --platform android
 ```
+
+Install the APK it produces, then `npm start` and open it from there. The build reads the
+Supabase values from EAS, not from `.env`, so run the `eas env:create` commands above first
+or it will come up on the setup notice.
 
 To deploy the sender:
 
