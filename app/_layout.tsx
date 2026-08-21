@@ -1,7 +1,7 @@
 import '../global.css';
 
 import { useCallback, useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -34,6 +34,22 @@ import { colors, fonts } from '../src/lib/theme';
 void SplashScreen.preventAutoHideAsync().catch(() => {
   // The splash was already hidden — nothing to hold.
 });
+
+/**
+ * How the form screens arrive.
+ *
+ * A sheet on iOS, an ordinary push on Android. react-native-screens presents
+ * an Android modal in its own window, and that window does not receive the
+ * status bar inset this app draws under (`edgeToEdgeEnabled`), so the header
+ * lands at the very top of the display — back arrow beneath the clock, and on
+ * a phone with a centred cutout, beneath the camera. Unreachable, in a screen
+ * whose only other way out is filling the form in.
+ *
+ * The pushed screens here have always been fine, which is the tell: they are
+ * the ones that inset correctly. Android has no sheet idiom of its own to lose
+ * by pushing these too.
+ */
+const FORM_PRESENTATION = Platform.OS === 'ios' ? ('modal' as const) : ('card' as const);
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -90,12 +106,12 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="bills/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New bill' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'New bill' }}
               />
               <Stack.Screen name="bills/[id]" options={{ headerShown: true, title: 'Bill' }} />
               <Stack.Screen
                 name="bills/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit bill' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'Edit bill' }}
               />
               <Stack.Screen
                 name="bills/ledger"
@@ -103,19 +119,19 @@ export default function RootLayout() {
               />
               <Stack.Screen
                 name="chores/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'New chore' }}
               />
               <Stack.Screen
                 name="chores/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit chore' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'Edit chore' }}
               />
               <Stack.Screen
                 name="announcements/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'New note' }}
               />
               <Stack.Screen
                 name="announcements/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
+                options={{ presentation: FORM_PRESENTATION, headerShown: true, title: 'Edit note' }}
               />
               {/* Two screens rather than one: what belongs to you, and what
                   belongs to the house. Home routes to them separately. */}
