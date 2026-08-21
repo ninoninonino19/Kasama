@@ -318,6 +318,13 @@ new board notes. The pieces:
 | Registration from the app | `src/lib/push.ts` |
 | Sending | `supabase/functions/notify/` (Deno Edge Function) |
 | Daily "due tomorrow" digest | `supabase/functions/daily-digest/` + `pending_reminders()` |
+| Where a tap lands | `routeForNotification()` in `src/lib/push.ts`, applied by `useNotificationRouting()` |
+
+Every notification carries a `data` payload naming what it is about, and tapping one opens
+that: the bill, the rota, the board. A tap that launched the app cold waits for the
+household to load before it navigates, so it lands on the bill rather than over the welcome
+screen. Notifications arriving while the app is open are shown as a banner — without a
+handler expo-notifications drops those silently, and there is no second delivery.
 
 **Expo Go cannot receive push notifications.** Expo removed remote push from Expo Go in
 SDK 53, on both platforms. The app detects this and disables the switches rather than asking

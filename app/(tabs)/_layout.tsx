@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 
 import { BoardTabBar } from '../../src/components/ui/BoardTabBar';
+import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { usePushOnboarding } from '../../src/hooks/usePushOnboarding';
 import { colors } from '../../src/lib/theme';
 import { useSessionStore } from '../../src/store/useSessionStore';
@@ -25,6 +26,10 @@ export default function TabsLayout() {
 
   // First launch into the app proper is where notifications get offered.
   usePushOnboarding();
+  // Here rather than the root layout because a tapped notification always
+  // means a screen inside the house, and this layout is mounted for as long as
+  // any of them are — including under a bill opened on top of the tabs.
+  useNotificationRouting();
 
   if (status === 'ready' && !session) return <Redirect href="/welcome" />;
   if (status === 'ready' && !household) return <Redirect href="/onboarding" />;
