@@ -21,6 +21,67 @@ export const isExpoGo =
 export const pushSupported = !isExpoGo && Platform.OS !== 'web';
 
 /**
+ * What to do with a notification that lands while Kasama is open.
+ *
+ * Without a handler expo-notifications drops these silently, which is the
+ * wrong default here: the housemate who just got told a bill is due sees
+ * nothing if they happened to be reading the board at the time, and there is
+ * no second delivery. Set at module scope so it is in place before the first
+ * notification can arrive — `SessionProvider` imports this file at startup.
+ */
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    // Nothing in the app clears a badge, and a count that only ever goes up
+    // is worse than no count at all.
+    shouldSetBadge: false,
+  }),
+});
+
+/** Where a tapped notification should land. */
+export type NotificationRoute =
+  | '/(tabs)/bills'
+  | '/(tabs)/chores'
+  | '/(tabs)/announcements'
+  | `/bills/${string}`;
+
+/**
+ * Reads the `data` a notification was sent with and decides where to go.
+ *
+ * `billId` wins over `screen` when both are present: a nudge about one
+ * specific bill should open that bill, not the list it sits in.
+ *
+ * Two spellings of the board arrive here, and both are correct at their
+ * source — the app sends the route name it navigates to (`announcements`),
+ * the daily digest sends the category it grouped by (`board`, matching the
+ * preference column and the Android channel). Accepting both is cheaper than
+ * renaming a column or a channel id that phones already have.
+ */
+export function routeForNotification(data: unknown): NotificationRoute | null {
+  if (!data || typeof data !== 'object') return null;
+
+  const { screen, billId } = data as { screen?: unknown; billId?: unknown };
+
+  if (typeof billId === 'string' && billId.length > 0) return `/bills/${billId}`;
+
+  switch (screen) {
+    case 'bills':
+      return '/(tabs)/bills';
+    case 'chores':
+      return '/(tabs)/chores';
+    case 'board':
+    case 'announcements':
+      return '/(tabs)/announcements';
+    default:
+      // An older or malformed payload: opening the app is still the right
+      // outcome, it just lands wherever they left off.
+      return null;
+  }
+}
+
+/**
  * Android needs a channel per kind of notification, or everything arrives
  * silently and with no way for the user to mute one sort without muting all.
  * The ids match the `category` the Edge Function sends.
