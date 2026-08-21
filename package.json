@@ -7,6 +7,7 @@
     "tunnel": "expo start --tunnel",
     "android": "expo start --android",
     "usb": "adb reverse tcp:8081 tcp:8081 && expo start --clear --host localhost",
+    "go": "adb reverse tcp:8081 tcp:8081 && expo start --clear --host localhost --go",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",

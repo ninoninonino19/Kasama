@@ -107,16 +107,22 @@ and rotating one that is committed means a code change rather than a command. Us
 
 ```bash
 npm start          # then scan the QR code
-npm run usb        # Android over a USB cable — the reliable one, see below
+npm run go         # Expo Go over a USB cable — the everyday one, see below
+npm run usb        # same, but whichever target the CLI last used
 npm run tunnel     # routed over the internet — see below
 npm run android
 npm run ios
 npm run web        # handy for quick UI checks
 ```
 
-`expo-dev-client` is installed, so `npm start` targets a development build by default and
-the QR code opens that rather than Expo Go. Press **s** in the terminal to switch back —
-Expo Go still runs everything except push, which it cannot receive at all (see below).
+`expo-dev-client` is installed, so `expo start` targets a development build unless told
+otherwise, and pressing `a` then fails with *"No development build (com.kasama.app) for
+this project is installed"* on a phone that only has Expo Go. The `--go` in `npm run go`
+pins Expo Go instead, which is worth having as its own command because the CLI remembers
+the last target across runs — so the mode you get is otherwise a matter of what you did
+yesterday. Press **s** at any time to switch between the two.
+
+Expo Go runs everything here except push, which it cannot receive at all (see below).
 
 Useful checks:
 
@@ -124,7 +130,7 @@ Useful checks:
 npm run typecheck  # tsc --noEmit
 ```
 
-### Running over USB (`npm run usb`)
+### Running over USB (`npm run go`, `npm run usb`)
 
 When the phone and the computer can't reach each other over the network — a wired desktop
 and a wireless phone, a router that isolates clients, a firewall — plug the phone in
@@ -150,7 +156,8 @@ instead. It sidesteps the network completely and is worth defaulting to:
 
    A wrong `ANDROID_HOME` is the safe kind of wrong: Expo warns and falls back to `PATH`.
 3. Plug in, accept *Allow USB debugging?*, check `adb devices` lists the phone.
-4. `npm run usb`, then press `a`.
+4. `npm run go`, then press `a`. (`npm run usb` is the same command without `--go`, for
+   when the development build is what you want on the phone.)
 
 `--host localhost` is the part that isn't obvious. `adb reverse` gets Expo Go's *first*
 request through, so the connection looks fine — but Metro's reply carries a `bundleUrl`
@@ -159,8 +166,8 @@ manifest over USB and then tries to fetch the JavaScript from an IP it can't rea
 with **"Failed to download remote update"** while every check on the computer looks healthy.
 `--host localhost` writes `127.0.0.1` into that reply instead, which the USB tunnel carries.
 
-The mapping doesn't survive unplugging or a phone reboot. `npm run usb` re-adds it every
-time, so just run it again.
+The mapping doesn't survive unplugging or a phone reboot. Both scripts re-add it every
+time, so just run one again.
 
 ### Troubleshooting Expo Go on Android
 
@@ -189,7 +196,7 @@ either, especially if they land on different subnets: compare the computer's IPv
 first three groups differ, nothing on the computer will fix it. To test reachability from
 the phone without typing on it, `adb shell am start -a android.intent.action.VIEW -d
 "http://<computer-ip>:8081/status"` opens its browser at Metro. Route around it with
-`npm run usb` (above) or:
+`npm run go` (above) or:
 
 ```bash
 npm run tunnel                # expo start --tunnel
