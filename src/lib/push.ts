@@ -28,17 +28,23 @@ export const pushSupported = !isExpoGo && Platform.OS !== 'web';
  * nothing if they happened to be reading the board at the time, and there is
  * no second delivery. Set at module scope so it is in place before the first
  * notification can arrive — `SessionProvider` imports this file at startup.
+ *
+ * Guarded, because module scope means it also runs on web, where there is no
+ * native module behind any of this and the emitter it subscribes to is not
+ * something to hand an undefined module.
  */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    // Nothing in the app clears a badge, and a count that only ever goes up
-    // is worse than no count at all.
-    shouldSetBadge: false,
-  }),
-});
+if (pushSupported) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      // Nothing in the app clears a badge, and a count that only ever goes up
+      // is worse than no count at all.
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 /** Where a tapped notification should land. */
 export type NotificationRoute =
