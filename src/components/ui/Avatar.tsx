@@ -42,6 +42,10 @@ export function Avatar({ name, userId, avatarUrl, size = 40, ring = true }: Prop
       }}
     >
       <Text
+        // The circle is sized by its caller and can't grow with the text, so
+        // scaled-up initials would simply spill out of it. The name they stand
+        // for is always spelled out next to the face anyway.
+        allowFontScaling={false}
         style={{ color: palette.fg, fontSize: size * 0.36, fontFamily: fonts.bodyBold }}
       >
         {initials(name)}

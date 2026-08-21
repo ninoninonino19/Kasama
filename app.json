@@ -20,7 +20,7 @@
     "android": {
       "package": "com.kasama.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E3ECDE",
+        "backgroundColor": "#2F3D2C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -53,6 +53,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "color": "#2F3D2C"
         }
       ]

@@ -13,7 +13,7 @@ import {
   weekdayIndex,
 } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
-import { colors } from '../../lib/theme';
+import { colors, textCap } from '../../lib/theme';
 
 import { SectionTitle } from './Screen';
 
@@ -78,7 +78,13 @@ export function Calendar({
       <View className="flex-row">
         {WEEKDAY_INITIALS.map((initial, index) => (
           <View key={`${initial}-${index}`} className="flex-1 items-center pb-1">
-            <Text className="font-ui-bold text-[10px] uppercase text-ink-muted">{initial}</Text>
+            {/* Seven to a row in a fixed grid; the dates below carry the meaning. */}
+            <Text
+              className="font-ui-bold text-[11px] uppercase text-ink-muted"
+              maxFontSizeMultiplier={textCap.grid}
+            >
+              {initial}
+            </Text>
           </View>
         ))}
       </View>

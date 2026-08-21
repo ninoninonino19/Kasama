@@ -6,6 +6,7 @@ import { messageFrom } from '../hooks/useAsyncData';
 import { useRealtime } from '../hooks/useRealtime';
 import { unregisterFromPush } from '../lib/push';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { useBoardSeen } from '../store/useBoardSeen';
 import { useSessionStore } from '../store/useSessionStore';
 
 type SessionContextValue = {
@@ -221,6 +222,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         store.getState().reset();
+        // The board's "last seen" mark belongs to the person who was signed
+        // in, not to the phone: leaving it would hand the next person a board
+        // that claims to have been read.
+        useBoardSeen.getState().reset();
       },
     }),
     [bootstrapError, refreshHousehold, store]

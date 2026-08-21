@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { haptics } from '../../lib/haptics';
+import { textCap } from '../../lib/theme';
 
 type ChipProps = {
   label: string;
@@ -15,6 +16,9 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
     <View className="flex-row items-center gap-1.5">
       <Text
         className={`font-ui-semibold text-sm ${selected ? 'text-paper' : 'text-ink-soft'}`}
+        numberOfLines={1}
+        // Filter chips sit three across a row that doesn't wrap.
+        maxFontSizeMultiplier={textCap.control}
       >
         {label}
       </Text>
@@ -27,6 +31,7 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
         >
           <Text
             className={`font-ui-bold text-[11px] ${selected ? 'text-paper' : 'text-ink-muted'}`}
+            maxFontSizeMultiplier={textCap.control}
           >
             {count}
           </Text>

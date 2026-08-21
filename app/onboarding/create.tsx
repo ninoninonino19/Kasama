@@ -10,7 +10,6 @@ import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { colors } from '../../src/lib/theme';
-import { useSession } from '../../src/providers/SessionProvider';
 import { useSessionStore } from '../../src/store/useSessionStore';
 
 const SUGGESTIONS = ['Unit 4B', 'The Flat', 'Maple Street', 'Dorm 12'];
@@ -18,7 +17,6 @@ const SUGGESTIONS = ['Unit 4B', 'The Flat', 'Maple Street', 'Dorm 12'];
 export default function CreateHouseholdScreen() {
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
-  const { refreshHousehold } = useSession();
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +29,18 @@ export default function CreateHouseholdScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await createHousehold(name);
-      // Layout guard sends us to the dashboard as soon as the household lands.
-      await refreshHousehold();
+      const household = await createHousehold(name);
+      // Straight to the invite screen with the code already in hand, and
+      // deliberately *before* refreshing the store: the moment a household
+      // lands there, this stack's layout guard redirects to the dashboard, and
+      // the code goes back to being three taps into Settings. The invite
+      // screen does the refresh itself once it is the one on top.
+      router.replace({
+        pathname: '/invite',
+        params: { code: household.invite_code, name: household.name },
+      });
+      // `submitting` stays true — the screen is on its way out, and a button
+      // that goes idle for a frame on the way reads as a failed tap.
     } catch (caught) {
       setError(messageFrom(caught));
       setSubmitting(false);

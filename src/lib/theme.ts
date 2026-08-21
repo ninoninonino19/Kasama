@@ -139,6 +139,30 @@ export function tapeColorFor(seed: string, token?: string | null): string {
   return TAPE_HEX[TAPE_TOKENS[hash % TAPE_TOKENS.length]];
 }
 
+/**
+ * Caps for `maxFontSizeMultiplier`, by the kind of box the text sits in.
+ *
+ * The default is *no cap*: body copy, headings, card titles, hints and empty
+ * states all grow with the reader's text size, which is the whole point of the
+ * setting. These exist only for text inside a box that physically cannot grow
+ * with it — where the alternative isn't bigger text, it's clipped text.
+ *
+ * Anything capped here has to carry its meaning somewhere else as well: the
+ * week strip spells each day out in its accessibility label, the tab bar keeps
+ * its icons, the swipe panels keep their glyphs, and an avatar's initials are
+ * always sitting beside the name they stand for.
+ */
+export const textCap = {
+  /** Cannot grow at all — a count inside an 18pt badge. */
+  fixed: 1,
+  /** One of N cells sharing a row's width: the week strip, the day grid. */
+  grid: 1.2,
+  /** A label inside a control that can stretch a little: chips, swipe panels. */
+  control: 1.3,
+  /** A label riding inline beside body text: pills, the "your turn" tag. */
+  inline: 1.5,
+} as const;
+
 /** Android ripples, which want a translucent version of the surface tint. */
 export const ripple = {
   moss: '#2F3D2C20',

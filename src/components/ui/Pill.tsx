@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '../../lib/theme';
+import { colors, textCap } from '../../lib/theme';
 
 /**
  * The design system names three tones — muted / warn / ok — but Kasama tracks
@@ -43,7 +43,11 @@ export function Pill({
   return (
     <View className={`flex-row items-center gap-1 rounded-full px-2.5 py-1 ${style.container}`}>
       {icon ? <Ionicons name={icon} size={12} color={style.icon} /> : null}
-      <Text className={`font-ui-bold text-[11px] ${style.label}`}>{label}</Text>
+      {/* A pill rides at the end of a row that also holds a title and an
+          amount, so it is allowed to grow but not to take the row over. */}
+      <Text className={`font-ui-bold text-[11px] ${style.label}`} maxFontSizeMultiplier={textCap.inline}>
+        {label}
+      </Text>
     </View>
   );
 }

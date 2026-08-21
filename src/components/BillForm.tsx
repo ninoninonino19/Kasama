@@ -7,7 +7,7 @@ import { BILL_CATEGORIES, BILL_RECURRENCES, categoryMeta } from '../lib/categori
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
 import { formatPeso, nextWeekday, splitEvenly, weekdayIndex } from '../lib/format';
 import { haptics } from '../lib/haptics';
-import { colors } from '../lib/theme';
+import { colors, textCap } from '../lib/theme';
 import { useMembers, useSessionStore } from '../store/useSessionStore';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
@@ -208,12 +208,21 @@ export function BillForm({
                   >
                     <Ionicons name={meta.icon} size={20} color={meta.tint} />
                   </View>
-                  <Text className="text-center font-ui-bold text-xs text-ink" numberOfLines={1}>
+                  {/* Three cells to a row at a fixed share of the width, so
+                      the text grows only as far as the cell can take it. The
+                      accessible label on the cell already carries both lines
+                      in full. */}
+                  <Text
+                    className="text-center font-ui-bold text-xs text-ink"
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={textCap.control}
+                  >
                     {meta.label}
                   </Text>
                   <Text
-                    className="text-center font-ui text-[10px] text-ink-muted"
+                    className="text-center font-ui text-[11px] text-ink-muted"
                     numberOfLines={1}
+                    maxFontSizeMultiplier={textCap.control}
                   >
                     {meta.subtitle}
                   </Text>

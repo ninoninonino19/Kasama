@@ -184,7 +184,7 @@ function Row({
           >
             {formatPeso(entry.amount)}
           </Text>
-          <Text className="font-mono text-[10px] text-ink-muted">
+          <Text className="font-mono text-[11px] text-ink-muted">
             {formatTimeAgo(entry.paidAt)}
           </Text>
         </View>

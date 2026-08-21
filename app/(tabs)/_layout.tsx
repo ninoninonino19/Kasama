@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 
 import { BoardTabBar } from '../../src/components/ui/BoardTabBar';
+import type { TabBadge } from '../../src/components/ui/BoardTabBar';
 import { useNotificationRouting } from '../../src/hooks/useNotificationRouting';
 import { usePushOnboarding } from '../../src/hooks/usePushOnboarding';
+import { useTabSignals } from '../../src/hooks/useTabSignals';
 import { colors } from '../../src/lib/theme';
 import { useSessionStore } from '../../src/store/useSessionStore';
 
@@ -31,14 +33,28 @@ export default function TabsLayout() {
   // any of them are — including under a bill opened on top of the tabs.
   useNotificationRouting();
 
+  // Mounted here so the badges are right on the tabs you *aren't* looking at,
+  // which is the only place a badge earns anything.
+  const signals = useTabSignals();
+
   if (status === 'ready' && !session) return <Redirect href="/welcome" />;
   if (status === 'ready' && !household) return <Redirect href="/onboarding" />;
+
+  const badges: Record<string, TabBadge | undefined> = {
+    bills: signals.bills
+      ? {
+          count: signals.bills,
+          label: `${signals.bills} ${signals.bills === 1 ? 'bill' : 'bills'} past due`,
+        }
+      : undefined,
+    announcements: signals.board ? { dot: true, label: 'new notes' } : undefined,
+  };
 
   return (
     <Tabs
       // The rail draws itself — see BoardTabBar for the selected-tab treatment
       // and the haptic tick, which react-navigation's default bar can't express.
-      tabBar={(props) => <BoardTabBar {...props} />}
+      tabBar={(props) => <BoardTabBar {...props} badges={badges} />}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.screenBg },

@@ -26,7 +26,7 @@ import {
   todayString,
   WEEKDAY_INITIALS,
 } from '../../src/lib/format';
-import { colors } from '../../src/lib/theme';
+import { colors, textCap } from '../../src/lib/theme';
 import { useCurrentUserId, useMembers } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments, MemberWithProfile } from '../../src/types';
 
@@ -387,16 +387,26 @@ function WeekPicker({
           haptics.select();
           onSelect(null);
         }}
-        className={`min-h-[56px] justify-center rounded-xl border px-3 ${
+        className={`min-h-[56px] items-center justify-center rounded-xl border px-2.5 ${
           selected === null ? 'border-moss bg-moss' : 'border-line bg-paper'
         }`}
       >
+        {/* A glyph rather than the two stacked words this used to be: seven
+            day cells and a text label do not share a row at any text size
+            above the default, and "All week" was the first thing to clip. */}
+        <Ionicons
+          name="calendar-outline"
+          size={18}
+          color={selected === null ? colors.paper : colors.ink.muted}
+        />
         <Text
-          className={`font-ui-bold text-[11px] uppercase tracking-wider ${
+          className={`mt-0.5 font-ui-bold text-[11px] uppercase tracking-wider ${
             selected === null ? 'text-paper' : 'text-ink-muted'
           }`}
+          numberOfLines={1}
+          maxFontSizeMultiplier={textCap.grid}
         >
-          All{'\n'}week
+          All
         </Text>
       </Pressable>
 
@@ -425,15 +435,21 @@ function WeekPicker({
                   : 'border-line bg-paper'
             }`}
           >
+            {/* Seven cells share the width of the screen, so nothing in here
+                is allowed to grow much: the accessible label on the cell
+                spells the day and its count out in full for anyone who needs
+                it larger than this can go. */}
             <Text
-              className={`font-ui-bold text-[10px] uppercase ${
+              className={`font-ui-bold text-[11px] uppercase ${
                 isSelected ? 'text-paper/80' : 'text-ink-muted'
               }`}
+              maxFontSizeMultiplier={textCap.grid}
             >
               {WEEKDAY_INITIALS[index]}
             </Text>
             <Text
               className={`font-mono-bold text-sm ${isSelected ? 'text-paper' : 'text-ink'}`}
+              maxFontSizeMultiplier={textCap.grid}
             >
               {fromDateString(day).getDate()}
             </Text>
@@ -515,7 +531,12 @@ function TurnTag() {
       className="rounded-md bg-mustard px-2.5 py-0.5"
       style={{ transform: [{ rotate: '-3deg' }] }}
     >
-      <Text className="font-hand-bold text-base leading-5 text-ink">your turn</Text>
+      <Text
+        className="font-hand-bold text-base leading-5 text-ink"
+        maxFontSizeMultiplier={textCap.inline}
+      >
+        your turn
+      </Text>
     </View>
   );
 }
