@@ -100,6 +100,10 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="welcome" />
               <Stack.Screen name="onboarding" />
+              {/* Outside `onboarding` on purpose: that layout redirects to the
+                  dashboard as soon as a household exists, which is the exact
+                  moment this screen has something to say. */}
+              <Stack.Screen name="invite" options={{ gestureEnabled: false }} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="bills/new"

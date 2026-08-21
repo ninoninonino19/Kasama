@@ -223,6 +223,7 @@ app/                        # Expo Router routes
   index.tsx                 # entry redirect (welcome → onboarding → tabs)
   welcome.tsx               # pick a display name; opens the session
   onboarding/               # create a household, or join with an invite code
+  invite.tsx                # straight after creating one: here is your code, send it
   (tabs)/                   # Home, Bills, Chores, Board
   bills/new.tsx, [id].tsx   # add a bill, per-person split detail
   chores/new.tsx            # add a chore
@@ -234,9 +235,39 @@ src/
   hooks/                    # useAsyncData, useRealtime, useHouseholdData
   lib/                      # theme tokens, supabase client, formatting, DB types
   providers/                # SessionProvider (auth + household bootstrap)
-  store/                    # Zustand session store
+  store/                    # Zustand session store + the board's "last seen" mark
 supabase/migrations/        # schema + RLS + realtime setup
+tools/generate-icons.py     # renders the icon set from one mark
 ```
+
+### Getting a second person in
+
+Creating a household lands on `app/invite.tsx` rather than the dashboard. The invite code is
+the entire access model — there are no accounts, and the code is the door — so leaving it in
+Settings → Household, behind the housemates row on Home, put the one thing the app cannot
+work without three taps into a screen nobody had a reason to open yet. A household of one is
+a dead app.
+
+It sits at the root rather than under `onboarding/`, because that layout redirects to the
+dashboard the moment a household exists, which is exactly when this screen has something to
+say. The create screen navigates there with the code in hand and lets the invite screen
+refresh the store, so filling the store in can't race the redirect. `InviteCode` is shared
+with household settings, so the code and its share-sheet fallback only have to be right
+once.
+
+### What the tab bar knows
+
+`useTabSignals` runs in the tabs layout — not in a screen — because a badge only does any
+work on the tab you are *not* looking at. It reads two cheap queries of its own (`api/signals.ts`)
+rather than borrowing the screens' data, and listens on the same realtime channels.
+
+Bills carries a count of overdue bills; the Board carries a plain dot when a housemate has
+posted since this device last had the board open. A count on the board would invite you to
+clear it like an inbox, which is not what a house board is for. "Last open" lives in
+AsyncStorage via `useBoardSeen`: reading is a property of the person looking, and with no
+accounts there is nothing in the schema to hang it on. The board stamps itself seen on the
+way in *and* the way out, so a note that lands while you are reading doesn't leave the dot
+lit.
 
 ---
 
@@ -285,6 +316,49 @@ optional `Tape` and a fraction of a degree of pin skew). `Tape` is the decorativ
 card's top-left, hidden from screen readers. `Pill` is the status badge. `Avatar` carries a
 paper ring so faces can overlap. `BoardTabBar` replaces react-navigation's default bar.
 Status never rides on colour alone — every pill pairs its tone with a word and a glyph.
+
+### The mark
+
+Kasama's icon is a paper note pinned up with a strip of washi tape across its top-left
+corner — the same device `Tape.tsx` draws on every card, rather than a letter in a rounded
+square. At 48px on a home screen a "K" has to compete with every other app whose icon is its
+initial; the tape belongs to this app and nothing else.
+
+`tools/generate-icons.py` renders the whole set from one function (Pillow, and nothing the
+app itself depends on):
+
+```
+python3 tools/generate-icons.py
+```
+
+| Asset | Notes |
+| --- | --- |
+| `icon.png` | 1024², opaque and full bleed — iOS applies its own mask and rejects transparency |
+| `android-icon-{background,foreground,monochrome}.png` | The note is drawn small enough to survive Android's circle, squircle and teardrop masks; the tape overhang is allowed past that line |
+| `splash-icon.png` | The tile is drawn into the image, so the handover from launcher to splash is one object twice rather than two pictures |
+| `favicon.png` | Full bleed; a rounded corner is a wasted pixel at 16px |
+| `notification-icon.png` | Android keeps only the alpha, so this is one flat shape on transparent. Feed it the colour icon and every notification arrives as a white blob |
+
+`LogoMark` in `src/components/ui/Logo.tsx` draws the same geometry in views, for the auth
+screens and the cold-start frame. Change one, change the other.
+
+### Text size
+
+Text scales with the reader's setting by default, and that default is the point: body copy,
+headings, card titles, hints and empty states are all left alone to grow.
+
+`textCap` in `src/lib/theme.ts` names the four exceptions, for text inside a box that cannot
+grow with it — where the alternative to a cap isn't bigger text, it's clipped text. Anything
+capped has to carry its meaning somewhere else too: the week strip spells each day and its
+count out in its accessibility label, the tab bar keeps its icons, the swipe panels keep
+their glyphs, and an avatar's initials always sit beside the name they stand for.
+
+| Cap | For |
+| --- | --- |
+| `fixed` (1) | Cannot grow at all — a count inside an 18pt badge |
+| `grid` (1.2) | One of N cells sharing a row: the week strip, the day grid |
+| `control` (1.3) | A label inside a control that can stretch a little: chips, swipe panels |
+| `inline` (1.5) | A label riding beside body text: pills, the "your turn" tag |
 
 ### Where the design outran the schema
 

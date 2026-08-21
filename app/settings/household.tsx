@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Share, Text, View } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { leaveHousehold, removeMember, renameHousehold, setMemberRole } from '../../src/api/household';
+import { InviteCode } from '../../src/components/InviteCode';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
@@ -45,7 +45,6 @@ export default function HouseholdSettingsScreen() {
 
   const [name, setName] = useState(household?.name ?? '');
   const [savingName, setSavingName] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Leaving is irreversible without an invite code, so the button only opens
   // a caution panel; the panel's own button is what asks to confirm.
@@ -76,36 +75,6 @@ export default function HouseholdSettingsScreen() {
       setError(messageFrom(caught));
     } finally {
       setSavingName(false);
-    }
-  }
-
-  async function copyCode() {
-    if (!household) return;
-    await Clipboard.setStringAsync(household.invite_code);
-    haptics.success();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function shareCode() {
-    if (!household) return;
-    const message = `Join "${household.name}" on Kasama. Invite code: ${household.invite_code}`;
-
-    try {
-      await Share.share({ message });
-    } catch {
-      // The share sheet is native-only: on a browser without the Web Share
-      // API, `Share.share` rejects outright. Copying gets the code into the
-      // user's hands anyway, which is the whole point of the button — better
-      // than reporting that their browser is the problem.
-      try {
-        await Clipboard.setStringAsync(message);
-        haptics.success();
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (caught) {
-        setError(messageFrom(caught));
-      }
     }
   }
 
@@ -238,22 +207,12 @@ export default function HouseholdSettingsScreen() {
       <View>
         <SectionTitle>Invite code</SectionTitle>
         <Card className="items-center gap-3 py-6">
-          <Text className="font-mono-bold text-4xl tracking-[8px] text-ink">
-            {household.invite_code}
-          </Text>
-          <Text className="text-center font-ui text-sm leading-5 text-ink-muted">
-            Share this with your housemates so they can join the household.
-          </Text>
-          <View className="mt-1 flex-row gap-2">
-            <Button
-              label={copied ? 'Copied' : 'Copy'}
-              variant="secondary"
-              size="md"
-              icon={copied ? 'checkmark' : 'copy-outline'}
-              onPress={copyCode}
-            />
-            <Button label="Share" size="md" icon="share-outline" onPress={shareCode} />
-          </View>
+          <InviteCode
+            code={household.invite_code}
+            householdName={household.name}
+            caption="Share this with your housemates so they can join the household."
+            onError={setError}
+          />
         </Card>
       </View>
 

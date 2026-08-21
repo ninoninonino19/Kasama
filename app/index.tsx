@@ -1,7 +1,8 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { SetupNotice } from '../src/components/SetupNotice';
+import { LogoMark } from '../src/components/ui/Logo';
 import { isSupabaseConfigured } from '../src/lib/supabase';
 import { colors } from '../src/lib/theme';
 import { useSessionStore } from '../src/store/useSessionStore';
@@ -20,9 +21,10 @@ export default function Index() {
   if (status === 'loading') {
     return (
       <View className="flex-1 items-center justify-center gap-4 bg-canvas">
-        <View className="h-16 w-16 items-center justify-center rounded-3xl bg-moss">
-          <Text className="font-ui-black text-2xl text-paper">K</Text>
-        </View>
+        {/* The same mark the splash screen just showed, so the handover from
+            the native splash to this screen is one object staying put rather
+            than two pictures swapping. */}
+        <LogoMark size={64} />
         <ActivityIndicator color={colors.moss.DEFAULT} />
       </View>
     );

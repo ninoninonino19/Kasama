@@ -7,7 +7,7 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { colors } from '../../lib/theme';
+import { colors, textCap } from '../../lib/theme';
 
 type Tone = 'moss' | 'muted';
 
@@ -61,6 +61,8 @@ export function SwipeRow({
       <Text
         className="mt-1 px-1 text-center font-ui-bold text-[11px] text-paper"
         numberOfLines={1}
+        // PANEL_WIDTH is fixed, and the glyph above already names the action.
+        maxFontSizeMultiplier={textCap.control}
       >
         {action.label}
       </Text>

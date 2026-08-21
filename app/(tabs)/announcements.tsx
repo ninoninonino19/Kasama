@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import {
   deleteAnnouncement,
@@ -34,6 +34,7 @@ import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
 import { colors, TAPE_HEX, TAPE_TOKENS, tapeColorFor } from '../../src/lib/theme';
 import type { TapeColor } from '../../src/lib/database.types';
+import { useBoardSeen } from '../../src/store/useBoardSeen';
 import { useCurrentUserId, useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
 import type { AnnouncementWithAuthor } from '../../src/types';
 
@@ -62,6 +63,19 @@ export default function AnnouncementsScreen() {
   // A note posted on another device — or edited on the full-screen editor —
   // should be here when the tab comes back into view.
   useRefreshOnFocus(refresh);
+
+  // Marked on the way in *and* on the way out: a note that lands while you are
+  // reading the board has been seen, and stamping only on focus would leave
+  // the tab's dot lit for something already on screen.
+  const markBoardSeen = useBoardSeen((state) => state.markSeen);
+  const householdId = household?.id ?? null;
+  useFocusEffect(
+    useCallback(() => {
+      if (!householdId) return;
+      markBoardSeen(householdId);
+      return () => markBoardSeen(householdId);
+    }, [householdId, markBoardSeen])
+  );
 
   const { setData } = state;
 
@@ -257,7 +271,7 @@ export default function AnnouncementsScreen() {
                         {item.pinned ? (
                           <View className="flex-row items-center gap-0.5">
                             <Ionicons name="pin" size={11} color={colors.deep.mustard} />
-                            <Text className="font-ui-bold text-[10px] uppercase tracking-wider text-deep-mustard">
+                            <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-deep-mustard">
                               Pinned
                             </Text>
                           </View>
