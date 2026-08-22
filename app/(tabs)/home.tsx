@@ -18,6 +18,7 @@ import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso, formatRelativeDate, formatTimeAgo, todayString } from '../../src/lib/format';
 import { categoryMeta } from '../../src/lib/categories';
 import { haptics } from '../../src/lib/haptics';
+import { press, pressSmall } from '../../src/lib/motion';
 import { BILL_STATUS } from '../../src/lib/status';
 import { colors, tapeColorFor } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useMembers, useProfile } from '../../src/store/useSessionStore';
@@ -148,7 +149,7 @@ export default function HomeScreen() {
               haptics.tap();
               router.push('/settings/account');
             }}
-            className="h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper active:bg-page"
+            className={`h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper ${pressSmall} active:bg-page`}
           >
             <Ionicons name="person-circle-outline" size={22} color={colors.ink.soft} />
           </Pressable>
@@ -227,7 +228,15 @@ export default function HomeScreen() {
                   <View className="mb-2 flex-row items-center justify-between">
                     <SectionTitle className="mb-0">Next bill due</SectionTitle>
                     {unpaidCount > 1 ? (
-                      <Pressable accessibilityRole="button" onPress={() => router.push('/bills')}>
+                      // 11pt uppercase is a small thing to hit, and it sits
+                      // in the corner of a section header where a thumb has
+                      // nothing else to aim at.
+                      <Pressable
+                        accessibilityRole="button"
+                        hitSlop={12}
+                        onPress={() => router.push('/bills')}
+                        className={`${pressSmall} active:opacity-60`}
+                      >
                         <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
                           {unpaidCount - 1} more
                         </Text>
@@ -260,7 +269,9 @@ export default function HomeScreen() {
                     <SectionTitle className="mb-0">On the board</SectionTitle>
                     <Pressable
                       accessibilityRole="button"
+                      hitSlop={12}
                       onPress={() => router.push('/announcements')}
+                      className={`${pressSmall} active:opacity-60`}
                     >
                       <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
                         See all
@@ -345,7 +356,7 @@ function HousemateRow({
         haptics.tap();
         onPress();
       }}
-      className="flex-row items-center gap-3 active:opacity-80"
+      className={`flex-row items-center gap-3 ${press} active:opacity-80`}
     >
       <View className="flex-row">
         {shown.map((member, index) => (
@@ -488,7 +499,7 @@ function QuickAction({
         haptics.tap();
         onPress();
       }}
-      className="min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 py-3 active:bg-page"
+      className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 py-3 ${press} active:bg-page`}
     >
       <Ionicons name={icon} size={18} color={colors.moss.DEFAULT} />
       <Text className="font-ui-bold text-sm text-ink">{label}</Text>
@@ -544,7 +555,7 @@ function GetStarted({
               haptics.tap();
               step.onPress();
             }}
-            className={`min-h-[64px] flex-row items-center gap-3 rounded-lg p-3 active:bg-page ${
+            className={`min-h-[64px] flex-row items-center gap-3 rounded-lg p-3 ${press} active:bg-page ${
               index === 0 ? 'bg-wash-sage' : ''
             }`}
           >

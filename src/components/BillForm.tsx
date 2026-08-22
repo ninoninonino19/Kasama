@@ -7,6 +7,7 @@ import { BILL_CATEGORIES, BILL_RECURRENCES, categoryMeta } from '../lib/categori
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
 import { formatPeso, nextWeekday, splitEvenly, weekdayIndex } from '../lib/format';
 import { haptics } from '../lib/haptics';
+import { press } from '../lib/motion';
 import { colors, textCap } from '../lib/theme';
 import { useMembers, useSessionStore } from '../store/useSessionStore';
 import { Avatar } from './ui/Avatar';
@@ -282,7 +283,7 @@ export function BillForm({
               setTitleText(title);
               setHasOwnTitle(true);
             }}
-            className="min-h-[52px] flex-row items-center gap-2 rounded-xl border border-dashed border-line bg-paper/70 px-4 py-3 active:bg-page"
+            className={`min-h-[52px] flex-row items-center gap-2 rounded-xl border border-dashed border-line bg-paper/70 px-4 py-3 ${press} active:bg-page`}
           >
             <Text className="flex-1 font-ui text-sm text-ink-muted" numberOfLines={1}>
               Called <Text className="font-ui-bold text-ink">{title}</Text>

@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  ReduceMotion,
+} from 'react-native-reanimated';
 
 import { nextAssigneeId, openAssignment, setAssignmentCompleted } from '../../src/api/chores';
 import { Avatar } from '../../src/components/ui/Avatar';
@@ -16,6 +22,7 @@ import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { Fab } from '../../src/components/ui/Fab';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { haptics } from '../../src/lib/haptics';
+import { duration, easing, pressSmall } from '../../src/lib/motion';
 import {
   addDays,
   endOfWeek,
@@ -32,6 +39,29 @@ import type { AssignmentWithProfile, ChoreWithAssignments, MemberWithProfile } f
 
 /** How long a just-ticked chore stays in place before it moves to "Done". */
 const PAYOFF_MS = 1600;
+
+/**
+ * What happens at the end of that payoff.
+ *
+ * A ticked chore doesn't stay where it is: it leaves its section and reappears
+ * under "Done this week", and the rows below it close the gap. Without these
+ * three the whole screen re-lays-out between two frames, a second and a half
+ * after the tap that caused it — which reads as the list glitching rather than
+ * as the consequence of ticking a box.
+ *
+ * `ROW_MOVE` is what does the real work: it's the only motion here the user is
+ * meant to follow. The fades are there so a row doesn't wink in and out at the
+ * two ends of it.
+ *
+ * All three defer to the system's reduced-motion setting, where they collapse
+ * to the opacity change alone — the row still leaves and arrives, it just
+ * doesn't travel.
+ */
+const ROW_IN = FadeIn.duration(duration.state).reduceMotion(ReduceMotion.System);
+const ROW_OUT = FadeOut.duration(duration.state).reduceMotion(ReduceMotion.System);
+const ROW_MOVE = LinearTransition.duration(duration.panel)
+  .easing(easing.inOut)
+  .reduceMotion(ReduceMotion.System);
 
 type Entry = { chore: ChoreWithAssignments; assignment: AssignmentWithProfile };
 
@@ -191,17 +221,23 @@ export default function ChoresScreen() {
   const renderList = (entries: Entry[], overdueSection = false) => (
     <View className="gap-2.5">
       {entries.map(({ chore, assignment }, index) => (
-        <ChoreCard
+        <Animated.View
           key={assignment.id}
-          chore={chore}
-          assignment={assignment}
-          userId={userId}
-          members={members}
-          overdue={overdueSection || assignment.due_date < today}
-          rotate={index % 2 === 0 ? -0.4 : 0.4}
-          onEdit={() => router.push({ pathname: '/chores/edit', params: { id: chore.id } })}
-          onToggle={handleToggle}
-        />
+          layout={ROW_MOVE}
+          entering={ROW_IN}
+          exiting={ROW_OUT}
+        >
+          <ChoreCard
+            chore={chore}
+            assignment={assignment}
+            userId={userId}
+            members={members}
+            overdue={overdueSection || assignment.due_date < today}
+            rotate={index % 2 === 0 ? -0.4 : 0.4}
+            onEdit={() => router.push({ pathname: '/chores/edit', params: { id: chore.id } })}
+            onToggle={handleToggle}
+          />
+        </Animated.View>
       ))}
     </View>
   );
@@ -320,27 +356,34 @@ export default function ChoresScreen() {
               <SectionTitle>Done this week</SectionTitle>
               <View className="gap-2.5">
                 {doneThisWeek.map(({ chore, assignment }) => (
-                  <NoteCard key={assignment.id} className="flex-row items-center gap-3 opacity-80">
-                    <Ionicons name="checkmark-circle" size={22} color={colors.deep.sage} />
-                    <View className="flex-1">
-                      <Text className="font-ui-semibold text-sm text-ink line-through">
-                        {chore.title}
-                      </Text>
-                      <Text className="font-mono text-[11px] text-ink-muted">
-                        {assignment.profile?.display_name ?? 'Housemate'} ·{' '}
-                        {formatRelativeDate(assignment.due_date)}
-                      </Text>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Mark ${chore.title} as not done`}
-                      hitSlop={12}
-                      onPress={() => void handleToggle(chore, assignment, false)}
-                      className="min-h-[44px] justify-center px-2"
-                    >
-                      <Text className="font-ui-semibold text-xs text-ink-muted">Undo</Text>
-                    </Pressable>
-                  </NoteCard>
+                  <Animated.View
+                    key={assignment.id}
+                    layout={ROW_MOVE}
+                    entering={ROW_IN}
+                    exiting={ROW_OUT}
+                  >
+                    <NoteCard className="flex-row items-center gap-3 opacity-80">
+                      <Ionicons name="checkmark-circle" size={22} color={colors.deep.sage} />
+                      <View className="flex-1">
+                        <Text className="font-ui-semibold text-sm text-ink line-through">
+                          {chore.title}
+                        </Text>
+                        <Text className="font-mono text-[11px] text-ink-muted">
+                          {assignment.profile?.display_name ?? 'Housemate'} ·{' '}
+                          {formatRelativeDate(assignment.due_date)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Mark ${chore.title} as not done`}
+                        hitSlop={12}
+                        onPress={() => void handleToggle(chore, assignment, false)}
+                        className={`min-h-[44px] justify-center px-2 ${pressSmall}`}
+                      >
+                        <Text className="font-ui-semibold text-xs text-ink-muted">Undo</Text>
+                      </Pressable>
+                    </NoteCard>
+                  </Animated.View>
                 ))}
               </View>
             </View>
@@ -387,7 +430,7 @@ function WeekPicker({
           haptics.select();
           onSelect(null);
         }}
-        className={`min-h-[56px] items-center justify-center rounded-xl border px-2.5 ${
+        className={`min-h-[56px] items-center justify-center rounded-xl border px-2.5 ${pressSmall} ${
           selected === null ? 'border-moss bg-moss' : 'border-line bg-paper'
         }`}
       >
@@ -427,7 +470,7 @@ function WeekPicker({
               haptics.select();
               onSelect(isSelected ? null : day);
             }}
-            className={`min-h-[56px] flex-1 items-center justify-center gap-0.5 rounded-xl border ${
+            className={`min-h-[56px] flex-1 items-center justify-center gap-0.5 rounded-xl border ${pressSmall} ${
               isSelected
                 ? 'border-moss bg-moss'
                 : isToday
@@ -610,11 +653,29 @@ function ChoreCard({
             accessibilityHint="Double tap to switch between done and not done"
             hitSlop={16}
             onPress={() => onToggle(chore, assignment, !done)}
-            className={`h-8 w-8 items-center justify-center rounded-lg border-2 ${
+            className={`h-8 w-8 items-center justify-center rounded-lg border-2 ${pressSmall} ${
               done ? 'border-moss bg-moss' : 'border-moss-light active:bg-wash-sage'
             }`}
           >
-            {done ? <Ionicons name="checkmark" size={20} color={colors.paper} /> : null}
+            {/* The tick is always mounted, at nothing-yet size, so that
+                checking the box has something to animate from — a glyph that
+                only appears once it is already checked has no way to arrive.
+                Its box fills instantly underneath: the fill is the app saying
+                "got it", and delaying that by even 150ms is the one latency
+                the finger notices. The tick is the part worth watching, and it
+                grows into a box that has already turned. */}
+            <View
+              // The property list is spelled out rather than left as a bare
+              // `transition`: that one compiles to twenty-two properties, and
+              // naming the two that actually change here is the difference
+              // between a transition and a standing invitation to animate
+              // whatever this view is restyled with next.
+              className={`transition-[opacity,scaleX,scaleY] duration-150 ease-out-strong ${
+                done ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`}
+            >
+              <Ionicons name="checkmark" size={20} color={colors.paper} />
+            </View>
           </Pressable>
 
           <View className="flex-1">
@@ -670,7 +731,7 @@ function ChoreCard({
               haptics.tap();
               onEdit();
             }}
-            className="-my-2 h-9 w-9 items-center justify-center rounded-full active:bg-page"
+            className={`-my-2 h-9 w-9 items-center justify-center rounded-full ${pressSmall} active:bg-page`}
           >
             <Ionicons name="ellipsis-horizontal" size={16} color={colors.ink.muted} />
           </Pressable>

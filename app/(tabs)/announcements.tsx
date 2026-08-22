@@ -32,6 +32,7 @@ import { useAnnouncements } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
+import { pressSmall } from '../../src/lib/motion';
 import { colors, TAPE_HEX, TAPE_TOKENS, tapeColorFor } from '../../src/lib/theme';
 import type { TapeColor } from '../../src/lib/database.types';
 import { useBoardSeen } from '../../src/store/useBoardSeen';
@@ -284,7 +285,7 @@ export default function AnnouncementsScreen() {
                       hitSlop={12}
                       onPress={() => openNoteMenu(item, canDelete)}
                       // 44pt tap area around a visually small control.
-                      className="h-11 w-11 items-center justify-center rounded-full active:bg-page"
+                      className={`h-11 w-11 items-center justify-center rounded-full ${pressSmall} active:bg-page`}
                     >
                       <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
                     </Pressable>
@@ -404,7 +405,7 @@ const Composer = forwardRef<ComposerHandle, {
             haptics.tap();
             void send();
           }}
-          className={`h-9 w-9 items-center justify-center rounded-full ${
+          className={`h-9 w-9 items-center justify-center rounded-full ${pressSmall} ${
             canSend ? 'bg-moss active:bg-bezel' : 'bg-line'
           }`}
         >

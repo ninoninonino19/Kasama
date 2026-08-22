@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Screen } from '../../src/components/ui/Screen';
+import { press } from '../../src/lib/motion';
 import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 import { useProfile } from '../../src/store/useSessionStore';
@@ -76,7 +77,7 @@ function OptionCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-row items-center gap-4 rounded-3xl border border-line bg-paper p-5 active:bg-page"
+      className={`flex-row items-center gap-4 rounded-3xl border border-line bg-paper p-5 ${press} active:bg-page`}
     >
       <View className={`h-12 w-12 items-center justify-center rounded-2xl ${bg}`}>
         <Ionicons name={icon} size={24} color={color} />

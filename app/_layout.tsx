@@ -22,6 +22,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { DialogProvider } from '../src/components/ui/Dialog';
@@ -36,6 +37,11 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
+  // The one place a screen transition is overridden. Everywhere else the
+  // stack keeps the platform's own push and modal presentation, which is what
+  // the rest of the phone does and what the back gesture is calibrated to.
+  const reducedMotion = useReducedMotion();
+
   const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -90,6 +96,10 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: colors.screenBg },
+                // Reduced motion turns the slide and the modal's rise into a
+                // cross-fade: the screen still changes, and it still reads as
+                // a change, but nothing travels across the display.
+                animation: reducedMotion ? 'fade' : 'default',
               }}
             >
               <Stack.Screen name="index" />

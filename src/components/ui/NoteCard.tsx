@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import type { ReactNode } from 'react';
 
+import { press, pressRetention } from '../../lib/motion';
 import { colors, ripple } from '../../lib/theme';
 import { Tape } from './Tape';
 
@@ -44,8 +45,9 @@ export function NoteCard({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
-    ...(rotate === 0 ? null : { transform: [{ rotate: `${rotate}deg` }] }),
   };
+
+  const skew = rotate === 0 ? null : { transform: [{ rotate: `${rotate}deg` }] };
 
   const body = (
     <>
@@ -55,21 +57,29 @@ export function NoteCard({
   );
 
   if (onPress) {
+    // The pin-skew lives on a wrapper rather than on the card itself, because
+    // the card's own transform is now the press dip. A `transform` in the
+    // style prop beats the class that drives that dip and would silently
+    // cancel it — so the two transforms are kept on separate views, and the
+    // wrapper is the one that stays still.
     return (
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        android_ripple={{ color: ripple.card }}
-        className={`${base} active:bg-page`}
-        style={shadow}
-      >
-        {body}
-      </Pressable>
+      <View style={skew}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          android_ripple={{ color: ripple.card }}
+          pressRetentionOffset={pressRetention}
+          className={`${base} ${press} active:bg-page`}
+          style={shadow}
+        >
+          {body}
+        </Pressable>
+      </View>
     );
   }
 
   return (
-    <View className={base} style={shadow}>
+    <View className={base} style={{ ...shadow, ...skew }}>
       {body}
     </View>
   );

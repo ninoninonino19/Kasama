@@ -1,10 +1,18 @@
-import { useEffect, useRef } from 'react';
-import { Animated, View } from 'react-native';
+import { View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 /**
  * Pulsing placeholder blocks. On a phone these read as "content is coming"
  * far better than a lone spinner, and they keep the layout from jumping once
  * the real rows land.
+ *
+ * The pulse is `animate-pulse` rather than a hand-rolled loop: NativeWind
+ * compiles its keyframes to a Reanimated shared value, so it runs on the UI
+ * thread and keeps pulsing while the JS thread is busy doing the very fetch
+ * these blocks are standing in for — which is the one moment it has to.
+ *
+ * With reduced motion on, the blocks hold a steady dimmed state instead. They
+ * still say "not content yet"; they just stop breathing.
  */
 export function Skeleton({
   width,
@@ -17,23 +25,12 @@ export function Skeleton({
   rounded?: number;
   className?: string;
 }) {
-  const pulse = useRef(new Animated.Value(0.5)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.5, duration: 700, useNativeDriver: true }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [pulse]);
+  const reduced = useReducedMotion();
 
   return (
-    <Animated.View
-      className={`bg-page ${className}`}
-      style={{ width, height, borderRadius: rounded, opacity: pulse }}
+    <View
+      className={`bg-page ${reduced ? 'opacity-70' : 'animate-pulse'} ${className}`}
+      style={{ width, height, borderRadius: rounded }}
     />
   );
 }

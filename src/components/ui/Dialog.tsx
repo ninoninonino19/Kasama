@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
+import Animated, { Keyframe, ReduceMotion } from 'react-native-reanimated';
 
 import { haptics } from '../../lib/haptics';
+import { duration, easing, press } from '../../lib/motion';
 
 export type DialogActionStyle = 'default' | 'destructive' | 'cancel';
 
@@ -17,6 +19,29 @@ export type DialogOptions = {
   message?: string;
   actions: DialogAction[];
 };
+
+/**
+ * The card materialises; the scrim behind it fades (`animationType="fade"`).
+ *
+ * From 0.94 rather than from nothing — a dialog that scales up from zero
+ * reads as a cartoon, because nothing in the world appears from a point. The
+ * pair of them also gives the two layers different jobs: the scrim dims the
+ * screen, the card arrives on top of it.
+ *
+ * Only the entrance is animated. `Modal` unmounts its children the moment
+ * `visible` flips, so an exit animation would need the dialog to keep itself
+ * open past the user's decision — and a confirmation that lingers after you've
+ * answered it is worse than one that leaves with the scrim. Asymmetric on
+ * purpose: arriving is explained, leaving is instant.
+ */
+const CARD_IN = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.94 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: easing.out },
+})
+  .duration(duration.panel)
+  // Reduced motion keeps the fade — which is what says "something opened" —
+  // and drops the scale.
+  .reduceMotion(ReduceMotion.System);
 
 /**
  * Confirmation dialogs that work everywhere.
@@ -92,7 +117,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           />
 
           {options ? (
-            <View
+            <Animated.View
+              entering={CARD_IN}
               accessibilityViewIsModal
               className="w-full max-w-[360px] gap-3 rounded-2xl border border-line bg-paper p-5"
             >
@@ -119,7 +145,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                   <DialogButton action={cancelAction} onPress={() => run(cancelAction)} />
                 ) : null}
               </View>
-            </View>
+            </Animated.View>
           ) : null}
         </View>
       </Modal>
@@ -157,7 +183,7 @@ function DialogButton({
       onPress={onPress}
       className={`min-h-[48px] items-center justify-center rounded-xl border px-4 ${tone} ${
         inline ? 'flex-1' : ''
-      } active:opacity-80`}
+      } ${press} active:opacity-80`}
     >
       <Text className={`text-center font-ui-bold text-sm ${label}`} numberOfLines={2}>
         {action.label}

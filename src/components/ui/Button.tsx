@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { haptics } from '../../lib/haptics';
+import { press, pressRetention } from '../../lib/motion';
 import { colors, ripple } from '../../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -62,7 +63,13 @@ export function Button({
         onPress?.();
       }}
       android_ripple={{ color: variant === 'primary' ? ripple.light : ripple.moss }}
-      className={`flex-row items-center justify-center rounded-xl ${
+      // A press that starts a few pixels from where it ends is still a press.
+      pressRetentionOffset={pressRetention}
+      // The dip is on the button, not the label, so the icon and text travel
+      // with it — that's what makes it read as a physical surface rather than
+      // a colour swap. `press` also carries the transition, which NativeWind
+      // has to see on the first render, so it is never conditional.
+      className={`flex-row items-center justify-center rounded-xl ${press} ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
       } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
     >

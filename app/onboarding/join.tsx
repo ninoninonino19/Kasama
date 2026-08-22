@@ -9,6 +9,7 @@ import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
+import { pressSmall } from '../../src/lib/motion';
 import { colors, fonts } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 
@@ -50,7 +51,7 @@ export default function JoinHouseholdScreen() {
             accessibilityLabel="Go back"
             onPress={() => router.back()}
             hitSlop={8}
-            className="h-10 w-10 items-center justify-center rounded-full border border-line bg-paper active:bg-page"
+            className={`h-10 w-10 items-center justify-center rounded-full border border-line bg-paper ${pressSmall} active:bg-page`}
           >
             <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
           </Pressable>

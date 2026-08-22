@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CHORE_RECURRENCES, CHORE_SUGGESTIONS } from '../lib/categories';
 import type { ChoreRecurrence } from '../lib/database.types';
 import { nextWeekday, weekdayIndex } from '../lib/format';
+import { pressSmall } from '../lib/motion';
 import { colors } from '../lib/theme';
 import { useMembers, useSessionStore } from '../store/useSessionStore';
 import { Avatar } from './ui/Avatar';
@@ -107,7 +108,7 @@ export function ChoreForm({
                   key={suggestion}
                   accessibilityRole="button"
                   onPress={() => setTitle(suggestion)}
-                  className="rounded-full border border-line bg-paper px-3 py-1.5 active:bg-page"
+                  className={`rounded-full border border-line bg-paper px-3 py-1.5 ${pressSmall} active:bg-page`}
                 >
                   <Text className="font-ui-semibold text-xs text-ink-soft">{suggestion}</Text>
                 </Pressable>
