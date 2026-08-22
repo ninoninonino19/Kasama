@@ -51,6 +51,7 @@ export type NotificationRoute =
   | '/(tabs)/bills'
   | '/(tabs)/chores'
   | '/(tabs)/announcements'
+  | '/settings/household'
   | `/bills/${string}`;
 
 /**
@@ -80,6 +81,10 @@ export function routeForNotification(data: unknown): NotificationRoute | null {
     case 'board':
     case 'announcements':
       return '/(tabs)/announcements';
+    // A leave request rides on the board's category — see the note where it is
+    // sent — but it is answered in household settings, not on the board.
+    case 'household':
+      return '/settings/household';
     default:
       // An older or malformed payload: opening the app is still the right
       // outcome, it just lands wherever they left off.

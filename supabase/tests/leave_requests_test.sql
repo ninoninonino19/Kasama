@@ -9,6 +9,7 @@ declare
   dado uuid := 'eeeeeeee-0000-0000-0000-000000000004';
   house uuid;
   solo uuid;
+  third uuid;
   request public.leave_requests;
   bins uuid; boys_turn uuid; turn_owner uuid;
   failures int := 0;
@@ -187,21 +188,54 @@ begin
     raise notice 'PASS 12: with nobody left to ask, leaving is immediate';
   end if;
 
-  -- ---- 13. Nothing writes to these tables except the functions ------------
+  -- ---- 13. Removing a voter can be what completes a request ---------------
+  -- Ana, Cely and Dado in a new house. Dado asks to leave, Ana accepts, and
+  -- Cely is removed before she ever answers — which leaves the request
+  -- unanimous among everyone still there, with nothing else coming to notice.
+  perform set_config('test.uid', ana::text, true);
+  third := (public.create_household('Dorm 7')).id;
+  insert into public.household_members (household_id, user_id, role) values
+    (third, cely, 'member'), (third, dado, 'member');
+
+  perform set_config('test.uid', dado::text, true);
+  request := public.request_household_leave(third, null);
+
+  perform set_config('test.uid', ana::text, true);
+  request := public.vote_on_leave_request(request.id, 'accept');
+  if request.status <> 'pending' then
+    raise warning 'FAIL 13a: resolved while Cely still had a say'; failures := failures + 1;
+  end if;
+
+  delete from public.household_members where household_id = third and user_id = cely;
+
+  select * into request from public.leave_requests where id = request.id;
+  if request.status <> 'completed' then
+    raise warning 'FAIL 13b: request stuck at % with nobody left to ask', request.status;
+    failures := failures + 1;
+  elsif exists (
+    select 1 from public.household_members where household_id = third and user_id = dado
+  ) then
+    raise warning 'FAIL 13c: request completed but Dado is still a member';
+    failures := failures + 1;
+  else
+    raise notice 'PASS 13: removing the last undecided voter completes the request';
+  end if;
+
+  -- ---- 14. Nothing writes to these tables except the functions ------------
   if exists (
     select 1 from pg_policies
     where schemaname = 'public'
       and tablename in ('leave_requests', 'leave_request_votes')
       and cmd <> 'SELECT'
   ) then
-    raise warning 'FAIL 13: a leave request table has a direct write policy';
+    raise warning 'FAIL 14: a leave request table has a direct write policy';
     failures := failures + 1;
   else
-    raise notice 'PASS 13: reads only — every write goes through the functions';
+    raise notice 'PASS 14: reads only — every write goes through the functions';
   end if;
 
   if failures = 0 then
-    raise notice '=== ALL 13 LEAVE CHECKS PASSED ===';
+    raise notice '=== ALL 14 LEAVE CHECKS PASSED ===';
   else
     raise exception '% LEAVE CHECK(S) FAILED', failures;
   end if;

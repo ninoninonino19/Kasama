@@ -161,6 +161,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }, [refreshHousehold])
   );
 
+  /**
+   * The one membership change the subscription above cannot deliver: your own.
+   *
+   * When the last housemate accepts your request to leave, the row that
+   * disappears is the row that made you a member — and Realtime evaluates the
+   * `household_members` policy against a membership you no longer have, so the
+   * event never reaches you. You'd keep looking at a household you had left
+   * until something else happened to make the app re-read.
+   *
+   * `leave_requests` stays readable to the person it belongs to after they are
+   * out (see the `user_id = auth.uid()` arm of its select policy), so the
+   * status flipping to `completed` is the signal that does arrive. Watched here
+   * rather than on a screen because it can land while they are anywhere in the
+   * app, and what happens next is a route change for the whole session.
+   */
+  useRealtime(
+    `my-membership:${userId ?? 'none'}`,
+    userId ? [{ table: 'leave_requests', filter: `user_id=eq.${userId}` }] : [],
+    useCallback(() => {
+      void refreshHousehold();
+    }, [refreshHousehold])
+  );
+
   const value = useMemo<SessionContextValue>(
     () => ({
       bootstrapError,

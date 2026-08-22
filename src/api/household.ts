@@ -1,5 +1,12 @@
+import type { LeaveVote } from '../lib/database.types';
 import { supabase } from '../lib/supabase';
-import type { Household, MemberWithProfile, Profile } from '../types';
+import type {
+  Household,
+  LeaveRequest,
+  LeaveRequestWithVotes,
+  MemberWithProfile,
+  Profile,
+} from '../types';
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -75,14 +82,118 @@ export async function joinHouseholdByCode(code: string): Promise<Household> {
   return data as Household;
 }
 
-export async function leaveHousehold(householdId: string, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('household_members')
-    .delete()
-    .eq('household_id', householdId)
-    .eq('user_id', userId);
+// ---------------------------------------------------------------------------
+// Leaving
+//
+// Leaving used to be one delete: tap, confirm, gone. It is now something the
+// house answers, because the person with money outstanding is exactly the one
+// most likely to tap it and the housemates left behind found out by noticing a
+// name had gone from the split list. Every function below is a thin call over
+// a SECURITY DEFINER function — see the leave_requests migration for why the
+// rules live down there rather than up here.
+// ---------------------------------------------------------------------------
+
+/**
+ * Asks the household to let you go.
+ *
+ * Comes back `completed` straight away when there is nobody left to ask,
+ * `pending` otherwise. Asking twice returns the request already open rather
+ * than failing, so a double tap is not an error message.
+ */
+export async function requestLeave(
+  householdId: string,
+  reason: string | null
+): Promise<LeaveRequest> {
+  const { data, error } = await supabase.rpc('request_household_leave', {
+    target_household: householdId,
+    reason: reason?.trim() || null,
+  });
 
   if (error) throw error;
+  return data as LeaveRequest;
+}
+
+/**
+ * Answers someone else's request.
+ *
+ * A decline ends it there and then, with its note attached — "you still owe me
+ * for July's water" is the whole point of asking. An accept only completes the
+ * leave once every remaining housemate has given one.
+ *
+ * Voting again replaces your answer, right up until the request resolves. That
+ * is what makes "decline until you pay me back" workable: they settle up, you
+ * switch to accept, and nobody starts over.
+ */
+export async function voteOnLeaveRequest(
+  requestId: string,
+  decision: LeaveVote,
+  note: string | null
+): Promise<LeaveRequest> {
+  const { data, error } = await supabase.rpc('vote_on_leave_request', {
+    request: requestId,
+    decision,
+    note: note?.trim() || null,
+  });
+
+  if (error) throw error;
+  return data as LeaveRequest;
+}
+
+/** Takes a request back. The person leaving, or an admin clearing the board. */
+export async function cancelLeaveRequest(requestId: string): Promise<LeaveRequest> {
+  const { data, error } = await supabase.rpc('cancel_leave_request', {
+    request: requestId,
+  });
+
+  if (error) throw error;
+  return data as LeaveRequest;
+}
+
+/**
+ * Every request still waiting on the household, with who has answered so far.
+ *
+ * Only the open ones: a declined or withdrawn request is over, and a list that
+ * keeps them around turns a screen people visit to answer something into a
+ * history nobody asked for. What happened to a resolved request is told to the
+ * person it belonged to, on their own screen, and then it is done.
+ */
+export async function fetchOpenLeaveRequests(
+  householdId: string
+): Promise<LeaveRequestWithVotes[]> {
+  const { data, error } = await supabase
+    .from('leave_requests')
+    .select('*, profile:profiles(*), votes:leave_request_votes(*, voter:profiles(*))')
+    .eq('household_id', householdId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as unknown as LeaveRequestWithVotes[];
+}
+
+/**
+ * How the signed-in user's own most recent request ended, whatever that was.
+ *
+ * Separate from the list above because it answers a different question. The
+ * house wants to know what is still open; the person who asked wants to know
+ * whether they are out, still waiting, or have been told no and why — and that
+ * last one is a resolved row, which the household list deliberately drops.
+ */
+export async function fetchMyLeaveRequest(
+  householdId: string,
+  userId: string
+): Promise<LeaveRequestWithVotes | null> {
+  const { data, error } = await supabase
+    .from('leave_requests')
+    .select('*, profile:profiles(*), votes:leave_request_votes(*, voter:profiles(*))')
+    .eq('household_id', householdId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as unknown as LeaveRequestWithVotes | null;
 }
 
 export async function renameHousehold(householdId: string, name: string): Promise<Household> {
@@ -113,10 +224,15 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
  * Removes someone else from the household. Admins only — enforced by the
  * `members leave or be removed by admin` policy, not just by the UI.
  *
- * Their bills, splits and chore turns stay behind. `bill_splits.user_id`
- * cascades from `profiles`, not from membership, so a removed housemate's
- * debts don't quietly vanish along with them — which is the whole reason
- * anyone would remove a housemate mid-month.
+ * Their bills and splits stay behind. `bill_splits.user_id` cascades from
+ * `profiles`, not from membership, so a removed housemate's debts don't
+ * quietly vanish along with them — which is the whole reason anyone would
+ * remove a housemate mid-month.
+ *
+ * Their *unfinished* chore turns do not stay: the `on_household_member_removed`
+ * trigger hands them to whoever is next in the rotation, because a turn
+ * assigned to someone who has moved out is one nobody is going to do. Finished
+ * turns are left exactly where they are — that is the record of what happened.
  */
 export async function removeMember(householdId: string, userId: string): Promise<void> {
   const { error } = await supabase

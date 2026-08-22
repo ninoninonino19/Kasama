@@ -154,7 +154,21 @@ export async function setAssignmentCompleted(
 // Rotation helpers
 // ---------------------------------------------------------------------------
 
-/** Members rotate in the order they joined the household. */
+/**
+ * Members rotate in the order they joined the household.
+ *
+ * `members` is the *current* list, so someone who has moved out is not in it
+ * and the rotation closes over the gap on its own. The `index === -1` arm is
+ * the same case seen from the other side: the turn being finished belongs to
+ * somebody who has since left, and the rotation starts again from the top
+ * rather than handing the next turn to a person who isn't here.
+ *
+ * The database keeps the same rule for turns that are still open when someone
+ * goes — see `handle_member_removed` in the leave_requests migration. Two
+ * implementations of one rule, deliberately: this one runs when a chore is
+ * ticked, that one when a household changes shape, and neither can reach the
+ * other's moment.
+ */
 export function nextAssigneeId(currentUserId: string, members: MemberWithProfile[]): string {
   if (members.length === 0) return currentUserId;
   const index = members.findIndex((member) => member.user_id === currentUserId);

@@ -308,6 +308,83 @@ revoke all on function public.cancel_leave_request(uuid) from public;
 grant execute on function public.cancel_leave_request(uuid) to authenticated;
 
 -- ----------------------------------------------------------------------------
+-- Requests that a departure has just unblocked
+--
+-- A request waits for every *current* member, so removing one of them can be
+-- the thing that completes it: three housemates, one asks to leave, one
+-- accepts, and the third is removed by an admin — the request is now
+-- unanimous among the people still here, and nothing was going to notice.
+-- Left alone it reads "1 of 1 accepted" forever, which is a dead end nobody
+-- can get out of from the app.
+--
+-- Called from the trigger below rather than folded into it, so the recursion
+-- guard has an obvious place to live: completing a request deletes a
+-- membership, which fires that trigger again. Nested calls still do their own
+-- cleanup — chore turns and the leaver's own request — and skip only this
+-- sweep, which the outermost call finishes on their behalf: it re-checks each
+-- request as it reaches it, so one departure freeing a second request is
+-- handled inside the same loop.
+-- ----------------------------------------------------------------------------
+create or replace function public.settle_ready_leave_requests(hid uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  candidate uuid;
+  leaver uuid;
+begin
+  if coalesce(current_setting('kasama.settling_leaves', true), '') = 'on' then
+    return;
+  end if;
+  perform set_config('kasama.settling_leaves', 'on', true);
+
+  for candidate, leaver in
+    select r.id, r.user_id
+    from public.leave_requests r
+    where r.household_id = hid and r.status = 'pending'
+    order by r.created_at
+  loop
+    -- Re-checked here rather than in the query above, because a request
+    -- completed earlier in this loop may be what unblocked this one.
+    continue when exists (
+      select 1
+      from public.household_members m
+      where m.household_id = hid
+        and m.user_id <> leaver
+        and not exists (
+          select 1 from public.leave_request_votes v
+          where v.request_id = candidate
+            and v.voter_id = m.user_id
+            and v.decision = 'accept'
+        )
+    );
+
+    -- Nobody left to accept at all is a different situation, and not one to
+    -- resolve behind anyone's back: an empty household should not quietly
+    -- eject the person who was asking to leave it.
+    continue when not exists (
+      select 1 from public.household_members m
+      where m.household_id = hid and m.user_id <> leaver
+    );
+
+    update public.leave_requests r
+       set status = 'completed', resolved_at = now()
+     where r.id = candidate;
+
+    delete from public.household_members m
+    where m.household_id = hid and m.user_id = leaver;
+  end loop;
+
+  perform set_config('kasama.settling_leaves', 'off', true);
+end;
+$$;
+
+revoke all on function public.settle_ready_leave_requests(uuid) from public;
+
+-- ----------------------------------------------------------------------------
 -- Cleaning up behind someone who has gone
 --
 -- Whichever way a membership ends — an approved leave, an admin removing
@@ -360,6 +437,9 @@ begin
    where a.user_id = old.user_id
      and not a.completed
      and public.household_of_chore(a.chore_id) = old.household_id;
+
+  -- One fewer person to wait for may be what finishes somebody else's request.
+  perform public.settle_ready_leave_requests(old.household_id);
 
   return old;
 end;

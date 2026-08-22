@@ -8,6 +8,8 @@ export type BillSplit = Tables<'bill_splits'>;
 export type Chore = Tables<'chores'>;
 export type ChoreAssignment = Tables<'chore_assignments'>;
 export type Announcement = Tables<'announcements'>;
+export type LeaveRequest = Tables<'leave_requests'>;
+export type LeaveRequestVote = Tables<'leave_request_votes'>;
 
 export type MemberWithProfile = HouseholdMember & {
   profile: Profile;
@@ -40,6 +42,23 @@ export type AnnouncementWithAuthor = Announcement & {
    * null when the signing failed or the file has gone.
    */
   imageUrl?: string | null;
+};
+
+export type LeaveVoteWithVoter = LeaveRequestVote & {
+  voter: Profile | null;
+};
+
+/**
+ * A request to leave, with whoever has answered it so far.
+ *
+ * `votes` only ever holds answers that have been given — silence is not a row.
+ * Who is still to answer is worked out against the current member list rather
+ * than stored, so a housemate who joins while a request is open is asked too.
+ */
+export type LeaveRequestWithVotes = LeaveRequest & {
+  /** The person leaving. */
+  profile: Profile | null;
+  votes: LeaveVoteWithVoter[];
 };
 
 /** How much the signed-in user owes vs. is owed across all unsettled bills. */

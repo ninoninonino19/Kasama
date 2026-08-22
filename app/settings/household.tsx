@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 
-import { leaveHousehold, removeMember, renameHousehold, setMemberRole } from '../../src/api/household';
+import { isSettledAmount, summariseBalance } from '../../src/api/bills';
+import {
+  cancelLeaveRequest,
+  removeMember,
+  renameHousehold,
+  requestLeave,
+  setMemberRole,
+  voteOnLeaveRequest,
+} from '../../src/api/household';
+import { notifyHousehold } from '../../src/api/notify';
 import { InviteCode } from '../../src/components/InviteCode';
+import { LeaveVoteCard, MyLeaveRequestCard } from '../../src/components/LeaveRequest';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
@@ -14,12 +24,13 @@ import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError, LoadingState } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
-import { formatShortDate } from '../../src/lib/format';
+import { useBills, useMyLeaveRequest, useOpenLeaveRequests } from '../../src/hooks/useHouseholdData';
+import { formatPeso, formatShortDate } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
 import { press } from '../../src/lib/motion';
 import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
-import { useSessionStore } from '../../src/store/useSessionStore';
+import { useProfile, useSessionStore } from '../../src/store/useSessionStore';
 import type { MemberWithProfile } from '../../src/types';
 
 /**
@@ -43,13 +54,22 @@ export default function HouseholdSettingsScreen() {
   const role = useSessionStore((state) => state.role);
   const userId = useSessionStore((state) => state.userId);
   const status = useSessionStore((state) => state.status);
+  const profile = useProfile();
+  const profileFirstName = profile?.display_name.split(' ')[0] ?? 'A housemate';
 
   const [name, setName] = useState(household?.name ?? '');
   const [savingName, setSavingName] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Leaving is irreversible without an invite code, so the button only opens
-  // a caution panel; the panel's own button is what asks to confirm.
+  // Leaving asks the house rather than just happening, so the button opens a
+  // caution panel; the panel's own button is what sends the request.
   const [leaveArmed, setLeaveArmed] = useState(false);
+  const [leaveReason, setLeaveReason] = useState('');
+  const [leaveBusy, setLeaveBusy] = useState(false);
+  const [votingOn, setVotingOn] = useState<string | null>(null);
+
+  const bills = useBills();
+  const openRequests = useOpenLeaveRequests();
+  const myRequest = useMyLeaveRequest();
 
   // The household may still be loading when this screen mounts (cold start,
   // deep link), so seed the input once the real value lands.
@@ -64,6 +84,27 @@ export default function HouseholdSettingsScreen() {
     isAdmin &&
     members.filter((member) => member.role === 'admin').length === 1 &&
     members.length > 1;
+
+  const allBills = bills.data ?? [];
+  // Everyone else's open requests. Yours is shown by `MyLeaveRequestCard`,
+  // which reads differently — a tally you're waiting on rather than a decision
+  // you're being asked for — and you can't vote on it anyway.
+  const toAnswer = (openRequests.data ?? []).filter((request) => request.user_id !== userId);
+  const mine = myRequest.data;
+  const awaitingHouse = mine?.status === 'pending';
+  // A pending request or a declined one both put a card on screen that already
+  // carries its own way forward — the tally with a withdraw button, or the
+  // reason with "ask again". The collapsed row underneath would be a second
+  // door to the same panel.
+  const showingMyRequest = awaitingHouse || mine?.status === 'declined';
+
+  // What the person reading this owes, for the panel that opens before they
+  // ask. Shown to them first because it is the thing their housemates are
+  // about to be shown, and finding that out from a decline is worse.
+  const myBalance = userId
+    ? summariseBalance(allBills, userId)
+    : { owed: 0, owing: 0, net: 0 };
+  const iOweSomething = !isSettledAmount(myBalance.owed);
 
   async function handleRename() {
     if (!household || !nameChanged) return;
@@ -156,43 +197,159 @@ export default function HouseholdSettingsScreen() {
    * Step two. The caution panel has already said what leaving costs; this is
    * the deliberate second tap, in a dialogue that can't be hit by accident on
    * the way past.
+   *
+   * What it sends is a request, not a departure — unless there is nobody left
+   * to ask, in which case `request_household_leave` completes it on the spot
+   * and this navigates straight out. Waiting for a vote that can never be cast
+   * would lock the last person in the house into it.
    */
   function confirmLeave() {
     if (!household || !userId) return;
     haptics.tap();
 
+    const alone = members.length <= 1;
+
     void confirm({
-      title: `Leave ${household.name}?`,
-      message: lastAdmin
-        ? "You are the only admin. Leaving hands the household to nobody, and you'll need a new invite code to come back."
-        : "You'll need an invite code to join again. Your share of past bills stays on record either way.",
-      confirmLabel: 'Leave household',
+      title: alone ? `Leave ${household.name}?` : `Ask to leave ${household.name}?`,
+      message: alone
+        ? "There's nobody else here, so this happens straight away. You'll need a new invite code to come back."
+        : lastAdmin
+          ? "You are the only admin. Your housemates each have to accept, and once they have, nobody will be left who can manage this household."
+          : 'Each of your housemates has to accept before you go. They can see what you still owe and are owed, and can decline until it is settled.',
+      confirmLabel: alone ? 'Leave household' : 'Send request',
       cancelLabel: 'Stay',
       onConfirm: async () => {
+        setLeaveBusy(true);
         try {
-          await leaveHousehold(household.id, userId);
+          const request = await requestLeave(household.id, leaveReason);
           setLeaveArmed(false);
-          await refreshHousehold();
-          router.replace('/onboarding');
+          setLeaveReason('');
+
+          if (request.status === 'completed') {
+            await refreshHousehold();
+            router.replace('/onboarding');
+            return;
+          }
+
+          haptics.success();
+          await myRequest.refresh({ silent: true });
+          await openRequests.refresh({ silent: true });
+
+          notifyHousehold({
+            householdId: household.id,
+            // The board's own category. A leave request is a household notice
+            // rather than a bill or a chore, and giving it a fourth category
+            // would mean a new preference column, a new switch in settings and
+            // a change to the notify function — for one message a housemate
+            // sends at most once.
+            category: 'board',
+            title: `${profileFirstName} wants to leave the household`,
+            body: 'Open Kasama to accept or decline — check what is still outstanding first.',
+            data: { screen: 'household' },
+            only: members
+              .filter((member) => member.user_id !== userId)
+              .map((member) => member.user_id),
+          });
         } catch (caught) {
           haptics.error();
           setError(messageFrom(caught));
+        } finally {
+          setLeaveBusy(false);
         }
       },
     });
   }
 
+  /** Withdraws my own open request. Plans change. */
+  function withdrawLeave() {
+    if (!mine) return;
+    haptics.tap();
+    void (async () => {
+      setLeaveBusy(true);
+      try {
+        await cancelLeaveRequest(mine.id);
+        await Promise.all([
+          myRequest.refresh({ silent: true }),
+          openRequests.refresh({ silent: true }),
+        ]);
+      } catch (caught) {
+        haptics.error();
+        setError(messageFrom(caught));
+      } finally {
+        setLeaveBusy(false);
+      }
+    })();
+  }
+
+  /**
+   * Answering someone else's request.
+   *
+   * An accept that turns out to be the last one removes them then and there,
+   * so the member list has to be re-read as well as the requests — otherwise
+   * the housemate who cast it keeps seeing a household with one more person in
+   * it than it has.
+   */
+  function answerLeave(requestId: string, decision: 'accept' | 'decline', note: string | null) {
+    if (!household) return;
+    haptics.tap();
+
+    void (async () => {
+      setVotingOn(requestId);
+      setError(null);
+      try {
+        const resolved = await voteOnLeaveRequest(requestId, decision, note);
+        haptics.success();
+
+        await Promise.all([
+          openRequests.refresh({ silent: true }),
+          myRequest.refresh({ silent: true }),
+          refreshHousehold(),
+        ]);
+
+        // Only the person it concerns hears about it. The rest of the house
+        // sees the tally move next time they open this screen, which is
+        // enough — a decline is between two people.
+        notifyHousehold({
+          householdId: household.id,
+          category: 'board',
+          title:
+            resolved.status === 'completed'
+              ? 'You have left the household'
+              : decision === 'accept'
+                ? `${profileFirstName} accepted your request to leave`
+                : `${profileFirstName} isn't ready for you to go`,
+          body:
+            resolved.status === 'completed'
+              ? 'Everyone accepted. Your share of past bills stays on record.'
+              : decision === 'accept'
+                ? 'Waiting on the rest of the house now.'
+                : (note ?? 'Open Kasama to see why.'),
+          data: { screen: 'household' },
+          only: [resolved.user_id],
+        });
+      } catch (caught) {
+        haptics.error();
+        setError(messageFrom(caught));
+        await openRequests.refresh({ silent: true });
+      } finally {
+        setVotingOn(null);
+      }
+    })();
+  }
+
+  // No household, and the session has finished loading: either a cold start
+  // that hasn't got one, or — now that leaving happens by vote — the moment
+  // the last acceptance landed and this screen's subject stopped existing
+  // underneath it. Index decides where they belong, the same as `/invite`
+  // does; a dead-end message with only a back arrow was the old answer and it
+  // led to tabs that redirect anyway.
   if (!household) {
+    if (status !== 'loading') return <Redirect href="/" />;
+
     return (
       <FormScreen title="Household">
         <View className="flex-1 items-center justify-center p-6">
-          {status === 'loading' ? (
-            <LoadingState />
-          ) : (
-            <Text className="font-ui text-base text-ink-soft">
-              You are not in a household right now.
-            </Text>
-          )}
+          <LoadingState />
         </View>
       </FormScreen>
     );
@@ -281,13 +438,55 @@ export default function HouseholdSettingsScreen() {
         </View>
       </View>
 
+      {/* Housemates on their way out ------------------------------------ */}
+      {/* Above the Leaving section, and above nothing else: an unanswered
+          request is the only thing on this screen that somebody else is
+          waiting on, so it goes where the eye lands after the member list it
+          is about to change. */}
+      {toAnswer.length > 0 && userId ? (
+        <View className="gap-2">
+          <SectionTitle>
+            {toAnswer.length === 1 ? 'A housemate is leaving' : 'Housemates are leaving'}
+          </SectionTitle>
+          <View className="gap-3">
+            {toAnswer.map((request) => (
+              <LeaveVoteCard
+                key={request.id}
+                request={request}
+                members={members}
+                bills={allBills}
+                viewerId={userId}
+                busy={votingOn === request.id}
+                onAccept={() => answerLeave(request.id, 'accept', null)}
+                onDecline={(note) => answerLeave(request.id, 'decline', note)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       {/* Leaving --------------------------------------------------------- */}
       <View className="gap-2">
         <SectionTitle>Leaving</SectionTitle>
-        {/* Step one. Arming reveals what leaving actually costs, in place,
-            before any dialogue appears — a confirm sheet on its own is
+        {/* Three states, and the order they're checked in is the order they
+            happen: a request already sent, a panel opened to send one, or the
+            row that opens it. Arming reveals what leaving actually costs, in
+            place, before any dialogue appears — a confirm sheet on its own is
             something people tap through without reading. */}
-        {leaveArmed ? (
+        {mine && (mine.status === 'pending' || mine.status === 'declined') ? (
+          <MyLeaveRequestCard
+            request={mine}
+            members={members}
+            busy={leaveBusy}
+            onWithdraw={withdrawLeave}
+            onAskAgain={() => {
+              setLeaveArmed(true);
+              haptics.tap();
+            }}
+          />
+        ) : null}
+
+        {leaveArmed && !awaitingHouse ? (
           <View className="gap-3 rounded-2xl border border-brick/40 bg-wash-brick p-4">
             <View className="flex-row items-center gap-2">
               <Ionicons name="warning-outline" size={20} color={colors.deep.brick} />
@@ -297,6 +496,9 @@ export default function HouseholdSettingsScreen() {
             </View>
 
             <View className="gap-1.5">
+              {members.length > 1 ? (
+                <CautionLine text="Every housemate has to accept before you go." />
+              ) : null}
               <CautionLine text="You lose access to its bills, chores and board." />
               <CautionLine text="Getting back in needs a new invite code from a housemate." />
               <CautionLine text="What you owe and are owed stays on record — leaving settles nothing." />
@@ -308,25 +510,53 @@ export default function HouseholdSettingsScreen() {
               ) : null}
             </View>
 
+            {/* Your own number, before your housemates see it.
+                They are shown exactly this figure when they answer, and
+                finding out what you still owe from somebody's decline is a
+                worse way to learn it than reading it here first. */}
+            {iOweSomething ? (
+              <View className="flex-row items-center gap-2 rounded-xl bg-paper px-3 py-2.5">
+                <Ionicons name="wallet-outline" size={16} color={colors.deep.brick} />
+                <Text className="flex-1 font-ui text-xs leading-5 text-deep-brick">
+                  You still owe {formatPeso(myBalance.owed)}. Your housemates see this when they
+                  answer, and can decline until it's settled.
+                </Text>
+              </View>
+            ) : null}
+
+            {members.length > 1 ? (
+              <TextField
+                label="Anything to tell them? (optional)"
+                placeholder="e.g. Moving back to Cebu at the end of the month"
+                value={leaveReason}
+                onChangeText={setLeaveReason}
+                maxLength={300}
+              />
+            ) : null}
+
             <View className="mt-1 flex-row gap-2">
               <Button
                 label="Stay"
                 variant="secondary"
                 size="md"
                 className="flex-1"
-                onPress={() => setLeaveArmed(false)}
+                onPress={() => {
+                  setLeaveArmed(false);
+                  setLeaveReason('');
+                }}
               />
               <Button
-                label="Leave household"
+                label={members.length > 1 ? 'Ask the house' : 'Leave household'}
                 variant="danger"
                 size="md"
                 className="flex-1"
                 icon="exit-outline"
+                loading={leaveBusy}
                 onPress={confirmLeave}
               />
             </View>
           </View>
-        ) : (
+        ) : showingMyRequest ? null : (
           <Pressable
             accessibilityRole="button"
             onPress={() => {
@@ -336,7 +566,9 @@ export default function HouseholdSettingsScreen() {
             className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 ${press} active:bg-page`}
           >
             <Ionicons name="exit-outline" size={20} color={colors.deep.brick} />
-            <Text className="flex-1 font-ui-semibold text-sm text-ink">Leave household</Text>
+            <Text className="flex-1 font-ui-semibold text-sm text-ink">
+              {members.length > 1 ? 'Ask to leave the household' : 'Leave household'}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
           </Pressable>
         )}
