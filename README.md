@@ -6,7 +6,9 @@ the announcements.
 
 - Split bills (renta, kuryente, tubig, WiFi, grocery) and see who still owes what
 - Rotate recurring chores and tick them off
-- Post short announcements to the household feed
+- Post short announcements to the household feed, with a photo of the receipt so the house
+  can check a total before it becomes a bill
+- Leaving is something the household agrees to, with what you still owe on the table
 - Everything syncs live across everyone's phone
 
 Built with Expo (React Native) + TypeScript, NativeWind, and Supabase. One codebase for
@@ -432,6 +434,7 @@ faked, and have since been built:
 | Chore streaks | `chore_streaks`, a `security_invoker` view. Walking a housemate's turns newest-first, count the finished ones until a missed turn; a turn that is open but not yet late is skipped rather than treated as a break |
 | Tape colour per note | `announcements.tape_color`, a palette *token* rather than a hex, so re-tuning a colour isn't a data migration. Notes written before the column keep a colour hashed from their id |
 | Pinned notes | `announcements.pinned`, plus `set_announcement_pinned()`. Pinning is open to the whole household while editing stays with the author — see the migration for why those can't share one policy |
+| A receipt on a note | `announcements.image_path` plus the private `receipts` bucket. The photo is what the house checks a total against, so it belongs on the post that asks — see *Data model* |
 
 ### One palette, everywhere
 
@@ -467,25 +470,75 @@ the product name.
 | `bill_splits` | Per-person share of a bill and whether it's settled |
 | `chores` | Title, notes, recurrence |
 | `chore_assignments` | Whose turn it is, when it's due, whether it's done |
-| `announcements` | Household feed posts, whether they're pinned, and their tape colour |
+| `announcements` | Household feed posts, whether they're pinned, their tape colour, and the path of any receipt pinned to them |
+| `leave_requests` | Somebody asking the house to let them go, and how it ended |
+| `leave_request_votes` | One housemate's answer to a request, and the reason on a decline |
 
-One **Storage bucket**, `avatars`, is created by
-`20260820020000_avatars_bucket.sql`. It's public — an avatar isn't a secret, and a public
-bucket lets `profiles.avatar_url` hold a plain durable URL rather than one that has to be
-signed on every render. Writes are locked to `<user-id>/…`, so "public" covers reading only.
+Two **Storage buckets**:
+
+- `avatars`, from `20260820020000_avatars_bucket.sql`. Public — an avatar isn't a secret, and
+  a public bucket lets `profiles.avatar_url` hold a plain durable URL rather than one that
+  has to be signed on every render. Writes are locked to `<user-id>/…`, so "public" covers
+  reading only.
+- `receipts`, from `20260822010000_board_receipts.sql`. **Private**, unlike avatars: a
+  statement of account carries an account number, an address and a payment history, and a
+  public object URL can't be revoked without deleting the file. Objects live at
+  `<household-id>/<user-id>/…` — the first segment decides which house may read it, the
+  second which person may replace or remove it — and `announcements.image_path` stores that
+  path rather than a URL, because the only URL that works is a signed one that expires.
+  `fetchAnnouncements` signs a whole page in one call; thirty notes would otherwise open
+  thirty requests before the board could draw.
 
 **Row level security** is on for every table. Access is granted only to members of the
 owning household, checked through `SECURITY DEFINER` helpers
 (`is_household_member`, `is_household_admin`, `shares_household_with`) so the policy on
 `household_members` doesn't recurse into itself.
 
-Two flows deliberately run through database functions rather than direct writes:
+Several flows deliberately run through database functions rather than direct writes:
 
 - **Creating a household** — a trigger adds the creator as the first `admin`, which is also
   what lets `insert … returning` pass the select policy.
 - **Joining a household** — `join_household_by_code(code)` resolves the invite code and
   inserts the membership. Users can't read (or add themselves to) a household they aren't
   in, so the code is the only way in.
+- **Leaving a household** — see below. `leave_requests` and `leave_request_votes` have a
+  select policy and nothing else; every write goes through
+  `request_household_leave`, `vote_on_leave_request` or `cancel_leave_request`.
+
+### Leaving is something the house answers
+
+Leaving used to be one delete: tap, confirm, gone. That's the right shape for a group chat
+and the wrong one for a house where money is outstanding — the person with ₱3,000 unsettled
+is exactly the one most motivated to tap it, and the housemates left behind found out by
+noticing a name had disappeared from the split list.
+
+Now it's a request. Every remaining housemate accepts, or one declines and says why; the
+app shows each of them what the leaver still owes, what the house owes the leaver, and what
+sits between the two of them specifically, all read off bills already loaded. An accept
+stays changeable until the request resolves, which is what makes "not until you pay me back"
+a position rather than a veto.
+
+What the database deliberately does *not* do is refuse a leave over an unpaid bill.
+Housemates forgive debts, write them off, or settle in cash the app never sees, and a hard
+block would strand someone in a household they've physically moved out of. The house
+decides; the schema makes sure the house is asked. Two valves keep that from becoming a trap
+the other way: an admin can cancel a request, and the last person in a household has nobody
+to ask, so theirs completes immediately.
+
+Three things about it are easy to get wrong and are handled:
+
+- A request waits on every *current* member, so removing one can be what completes it —
+  three housemates, one accepts, the third is removed by an admin, and nothing was going to
+  notice. `settle_ready_leave_requests()` sweeps for that, guarded against the recursion of
+  a completion that removes another member.
+- The leaver stops being a member at the moment their request completes, so Realtime
+  evaluates the `household_members` policy against a membership they no longer have and the
+  one event they most need never arrives. `leave_requests` stays readable to the person it
+  belongs to afterwards, and the session watches that row instead.
+- Whichever way a membership ends — an approved leave, an admin removing someone — the
+  `on_household_member_removed` trigger hands their *unfinished* chore turns to whoever is
+  next in the rotation. Bills, splits and finished turns stay exactly where they are: that's
+  the record of what happened, and moving out doesn't un-owe what you owed.
 
 ### Push notifications
 
@@ -591,16 +644,18 @@ npm run test:functions           # pure logic behind the notify Edge Function
 
 `supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
 (`auth.users`, `auth.uid()`, the Supabase roles, the realtime publication) so the real
-migrations run unmodified. Three suites run today:
+migrations run unmodified. Eight suites run today:
 
 | File | Covers |
 | --- | --- |
-| `roll_recurring_bill_test.sql` | A partly paid bill doesn't roll; a settled one lands on the right date with the original payer and their share prepaid; re-settling is a no-op; non-members are refused; one-offs never roll; an undated recurring bill counts from today |
+| `roll_recurring_bill_test.sql` | A partly paid bill doesn't roll; a settled one lands on the right date with the original collector and *nobody's* share prepaid; re-settling is a no-op; non-members are refused; one-offs never roll; an undated recurring bill counts from today; a housemate who has left is dropped from the next occurrence and their open chore turn moves on |
 | `board_notes_test.sql` | `tape_color` rejects anything outside the palette tokens; a housemate can pin a note they didn't write but still can't edit it; pinned leads the feed and unpinning restores newest-first |
 | `avatars_test.sql` | The bucket is public, capped at 2MB and images only; the upload path convention the storage policies depend on; writes are folder-scoped while reads aren't |
 | `chore_streaks_test.sql` | Consecutive finished turns count; a turn due today doesn't break a run; a missed turn ends it and older wins don't carry over; an overdue turn reads as zero rather than as no row; the view is `security_invoker` |
 | `push_tokens_test.sql` | A token registers to the signed-in user; handing a phone to a housemate moves the token rather than duplicating or silently failing; there is no insert/update policy, so registration is the only door; reads are owner-scoped; unknown platforms are refused; deleting a user takes their tokens |
 | `pending_reminders_test.sql` | Only the person who still owes is reminded, with their own share quoted; settling stops it; a finished chore turn is skipped; an empty day produces nothing; housemates can't run it to enumerate each other's debts |
+| `leave_requests_test.sql` | You can't vote on your own departure and outsiders can't vote at all; asking twice returns the open request; one accept isn't enough and one decline ends it, with its reason kept; unanimity removes them and moves their open chore turn; withdrawing is open to the leaver and to an admin; the last person in a household doesn't wait for a vote; removing the last undecided voter completes the request; the tables have no write policies |
+| `board_receipts_test.sql` | The bucket is private, capped at 6MB and images only; `<household>/<user>/<file>` resolves to both halves and a malformed path denies rather than throws; reads are household-scoped; uploads must land in your own folder inside your own house; the note stores a path rather than a signed URL |
 
 `npm run test:functions` covers the sending decisions — who gets skipped (the actor, anyone
 who turned the category off, anyone with no device), Expo's 100-message batching, the rule
