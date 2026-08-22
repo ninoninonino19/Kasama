@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
-import { addDays, fromDateString, toDateString, todayString } from '../lib/format';
+import { addDays, endOfMonth, fromDateString, toDateString, todayString } from '../lib/format';
 import type { BillCategory, BillRecurrence } from '../lib/database.types';
-import type { BalanceSummary, BillWithSplits, LedgerEntry } from '../types';
+import type { BalanceSummary, BillWithSplits, LedgerEntry, MonthBalance } from '../types';
 
 export async function fetchBills(householdId: string): Promise<BillWithSplits[]> {
   const { data, error } = await supabase
@@ -226,6 +226,47 @@ export function billProgress(bill: BillWithSplits): { paid: number; total: numbe
   return { paid, total, ratio: total === 0 ? 0 : paid / total };
 }
 
+/**
+ * Whether the person collecting for a bill has actually covered it yet.
+ *
+ * This is the distinction the balance figures used to miss. Logging the
+ * electricity bill does not hand anybody any money: until the collector has
+ * paid it, every unpaid share is owed to the electricity company, not to them.
+ * A brand-new bill therefore came up as "+₱2,000 — what the house owes you" on
+ * the screen of the person who had paid precisely nothing, which is the one
+ * reading of it nobody in the house would agree with.
+ *
+ * Their own share being ticked is the app's record of the moment they settled
+ * with the biller, so that is what turns the other shares into debts to them.
+ * A collector who kept no share of their own has nothing to tick and is taken
+ * to have covered it — otherwise a bill split among the others could never be
+ * owed to anybody at all.
+ */
+export function billFronted(bill: BillWithSplits): boolean {
+  const collectorShare = bill.splits.find((split) => split.user_id === bill.created_by);
+  return collectorShare ? collectorShare.paid : true;
+}
+
+/**
+ * The soonest unpaid bill in the household — undated ones sit behind the dated.
+ *
+ * Lives here rather than in the dashboard because the balance card and the
+ * bills tab both lead with it, and "next due" meaning two different bills on
+ * two screens is the kind of disagreement this file exists to prevent.
+ */
+export function nextBillDue(bills: BillWithSplits[]): BillWithSplits | null {
+  return (
+    bills
+      .filter((bill) => !isBillSettled(bill))
+      .sort((a, b) => {
+        if (a.due_date === b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      })[0] ?? null
+  );
+}
+
 export type BillStatus = 'settled' | 'overdue' | 'due-soon' | 'open';
 
 /** Days from today at which an unpaid bill starts reading as urgent. */
@@ -273,8 +314,10 @@ export function isSettledAmount(amount: number): boolean {
  *    not paying it, so a share they have not ticked is a share they owe —
  *    which is the number the Bills header leads with, and the one that has to
  *    read ₱0.00 the moment the last tick lands.
- *  - `owing` is what the house still owes them: unpaid shares belonging to
- *    other people, on bills they are collecting for.
+ *  - `owing` is what housemates owe *them*: unpaid shares on bills they are
+ *    collecting for and have already covered. A bill they have logged but not
+ *    yet paid puts nothing here — see `billFronted`. Nobody owes you for money
+ *    you have not spent, and counting it made a new bill read as credit.
  *
  * Their own share never appears on both sides — the second branch skips it —
  * so a bill they logged and have not paid counts once, as something owed.
@@ -284,6 +327,8 @@ export function summariseBalance(bills: BillWithSplits[], userId: string): Balan
   let owing = 0;
 
   for (const bill of bills) {
+    const fronted = billFronted(bill);
+
     for (const split of bill.splits) {
       if (split.paid) continue;
       const amount = Number(split.amount_owed);
@@ -291,8 +336,8 @@ export function summariseBalance(bills: BillWithSplits[], userId: string): Balan
       if (split.user_id === userId) {
         // Mine to pay, whoever logged the bill.
         owed += amount;
-      } else if (bill.created_by === userId) {
-        // I'm collecting for this one and this housemate hasn't settled.
+      } else if (bill.created_by === userId && fronted) {
+        // I covered this one and this housemate hasn't paid me back yet.
         owing += amount;
       }
     }
@@ -302,6 +347,69 @@ export function summariseBalance(bills: BillWithSplits[], userId: string): Balan
   owing = toCentavos(owing);
 
   return { owed, owing, net: toCentavos(owing - owed) };
+}
+
+/**
+ * What the signed-in user still has to pay this month, and how far through it
+ * they are.
+ *
+ * The window is everything due on or before the last day of the current month,
+ * plus bills with no due date at all. Anything still unpaid from an earlier
+ * month is carried in rather than dropped: money you were meant to have paid in
+ * July is money you still have to find in August, and a card that quietly
+ * forgets it is worse than no card. Bills dated into next month stay out — they
+ * are not this month's problem yet.
+ *
+ * `remaining` is the headline the dashboard leads with. It is deliberately not
+ * a net figure: it is the user's own unpaid shares, which is a number they can
+ * act on, unlike a balance that mixes in what other people owe.
+ */
+export function summariseMonth(
+  bills: BillWithSplits[],
+  userId: string,
+  today = todayString()
+): MonthBalance {
+  const windowEnd = toDateString(endOfMonth(fromDateString(today)));
+
+  let remaining = 0;
+  let paid = 0;
+  let householdRemaining = 0;
+  let openBills = 0;
+
+  for (const bill of bills) {
+    // An undated bill belongs to whatever month you are looking at: there is no
+    // later month for it to be waiting in.
+    if (bill.due_date && bill.due_date.slice(0, 10) > windowEnd) continue;
+
+    let mineOutstanding = false;
+
+    for (const split of bill.splits) {
+      const amount = Number(split.amount_owed);
+      if (!split.paid) householdRemaining += amount;
+      if (split.user_id !== userId) continue;
+
+      if (split.paid) {
+        paid += amount;
+      } else {
+        remaining += amount;
+        mineOutstanding = true;
+      }
+    }
+
+    if (mineOutstanding) openBills += 1;
+  }
+
+  remaining = toCentavos(remaining);
+  paid = toCentavos(paid);
+
+  return {
+    month: today.slice(0, 7),
+    remaining,
+    paid,
+    total: toCentavos(remaining + paid),
+    householdRemaining: toCentavos(householdRemaining),
+    openBills,
+  };
 }
 
 /**
@@ -352,6 +460,11 @@ export type SettleUpEntry = {
  * is why neither branch below can match it, and why `summariseBalance` is the
  * one that counts it.
  *
+ * A bill the collector has not covered yet is skipped entirely, in both
+ * directions. Until they pay it there is no debt between housemates to net off
+ * — everyone simply owes the biller their share — and showing one meant a
+ * freshly logged bill put the whole house in debt to whoever typed it in.
+ *
  * Their profile comes from their own split, so a bill whose collector has
  * since left the household falls back to a generic name rather than dropping
  * the debt.
@@ -380,6 +493,8 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
   };
 
   for (const bill of bills) {
+    if (!billFronted(bill)) continue;
+
     const payer = bill.splits.find((split) => split.user_id === bill.created_by);
 
     for (const split of bill.splits) {

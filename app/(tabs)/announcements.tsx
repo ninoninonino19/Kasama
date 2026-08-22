@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  RefreshControl,
   Text,
   TextInput,
   View,
@@ -63,6 +62,7 @@ export default function AnnouncementsScreen() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const composer = useRef<ComposerHandle>(null);
+  const feed = useRef<FlatList<AnnouncementWithAuthor>>(null);
 
   // A note posted on another device — or edited on the full-screen editor —
   // should be here when the tab comes back into view.
@@ -104,15 +104,14 @@ export default function AnnouncementsScreen() {
       const note = await postAnnouncement(household.id, userId, content, tape, imagePath);
       haptics.success();
 
-      // Newest-first, but *below* the pinned block — the feed is ordered
-      // pinned-first, and dropping a fresh note above a pinned one would show
-      // an ordering the next refetch immediately undoes.
-      setData((current) => {
-        const list = current ?? [];
-        const firstUnpinned = list.findIndex((entry) => !entry.pinned);
-        const at = firstUnpinned === -1 ? list.length : firstUnpinned;
-        return [...list.slice(0, at), note, ...list.slice(at)];
-      });
+      // Straight onto the front of the loaded page. The feed is drawn in date
+      // order now, so where a fresh note lands in this array doesn't decide
+      // where it appears — `conversation` sorts it to the bottom either way,
+      // which is where the person who just wrote it is looking.
+      setData((current) => [note, ...(current ?? [])]);
+
+      // ...and follow it down, in case they had scrolled up through history.
+      feed.current?.scrollToOffset({ offset: 0, animated: true });
 
       notifyHousehold({
         householdId: household.id,
@@ -132,6 +131,38 @@ export default function AnnouncementsScreen() {
   const announcements = data ?? [];
   // A full page back means there is probably another one.
   const mayHaveMore = announcements.length >= limit;
+
+  /**
+   * The board, read as a conversation: oldest at the top, newest above the
+   * composer, the way every group chat in the house already works.
+   *
+   * The list is `inverted`, so this stays newest-first and React Native draws
+   * index 0 at the bottom. That is what makes it behave: the feed opens on the
+   * latest note instead of on whatever was said last month, a new note appears
+   * next to the box you typed it in, and paging back through history grows the
+   * list away from where you are reading rather than under your thumb.
+   *
+   * Sorted here rather than in the query, because the fetch still orders
+   * pinned notes first — that is what puts them in the page at all, however
+   * old they are, and what the dashboard reads to find the note leading the
+   * board. Date order is a presentation choice, so it is made in the screen
+   * that presents it.
+   */
+  const conversation = useMemo(
+    () => [...announcements].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [announcements]
+  );
+
+  /**
+   * Pinned notes, held above the conversation instead of floating to the top
+   * of it.
+   *
+   * In date order a pinned note would drift up out of sight like any other,
+   * which is the one thing pinning is meant to prevent. So it keeps its place
+   * in the conversation — it is still a note somebody wrote on a Tuesday — and
+   * gets a line up here that doesn't scroll away.
+   */
+  const pinned = useMemo(() => announcements.filter((note) => note.pinned), [announcements]);
 
   const loadMore = useCallback(() => {
     if (!mayHaveMore || loading || refreshing) return;
@@ -228,100 +259,113 @@ export default function AnnouncementsScreen() {
             <ErrorState message={error} onRetry={() => void refresh()} />
           </View>
         ) : (
-          <FlatList
-            data={announcements}
-            keyExtractor={(item) => item.id}
-            contentContainerClassName="gap-4 px-5 pb-4 pt-2"
-            keyboardDismissMode="on-drag"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => void refresh()}
-                tintColor={colors.moss.DEFAULT}
-              />
-            }
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.4}
-            ListFooterComponent={
-              mayHaveMore ? (
-                <View className="items-center py-4">
-                  <ActivityIndicator color={colors.moss.DEFAULT} />
-                </View>
-              ) : announcements.length > 0 ? (
-                <Text className="py-4 text-center font-ui text-xs text-ink-muted">
-                  That's every note on the board.
-                </Text>
-              ) : null
-            }
-            renderItem={({ item, index }) => {
-              const name = item.profile?.display_name ?? 'Housemate';
-              const canDelete = item.user_id === userId || role === 'admin';
-
-              return (
-                <NoteCard
-                  // The author's chosen tape, falling back to a colour hashed
-                  // from the id for notes written before the column existed.
-                  tape={tapeColorFor(item.id, item.tape_color)}
-                  rotate={index % 2 === 0 ? -0.5 : 0.5}
-                  className={`pt-5 ${item.pinned ? 'border-moss-light' : ''}`}
-                >
-                  <View className="flex-row items-center gap-3">
-                    <Avatar
-                      name={name}
-                      userId={item.user_id}
-                      avatarUrl={item.profile?.avatar_url}
-                      size={36}
-                    />
-                    <View className="flex-1">
-                      <Text className="font-ui-bold text-sm text-ink" numberOfLines={1}>
-                        {name}
-                        {item.user_id === userId ? ' (you)' : ''}
-                      </Text>
-                      <View className="flex-row items-center gap-1.5">
-                        <Text className="font-mono text-[11px] text-ink-muted">
-                          {formatTimeAgo(item.created_at)}
-                        </Text>
-                        {/* A pinned note is out of date order, so it says why
-                            rather than just appearing to be the newest. */}
-                        {item.pinned ? (
-                          <View className="flex-row items-center gap-0.5">
-                            <Ionicons name="pin" size={11} color={colors.deep.mustard} />
-                            <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-deep-mustard">
-                              Pinned
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Options for the note from ${name}`}
-                      hitSlop={12}
-                      onPress={() => openNoteMenu(item, canDelete)}
-                      // 44pt tap area around a visually small control.
-                      className={`h-11 w-11 items-center justify-center rounded-full ${pressSmall} active:bg-page`}
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
-                    </Pressable>
+          <>
+            <PinnedStrip
+              notes={pinned}
+              onOpen={(note) => openNoteMenu(note, note.user_id === userId || role === 'admin')}
+            />
+            <FlatList
+              ref={feed}
+              data={conversation}
+              keyExtractor={(item) => item.id}
+              contentContainerClassName="gap-4 px-5 py-3"
+              keyboardDismissMode="on-drag"
+              // Newest at the bottom. Everything else here follows from it: the
+              // footer draws at the top of the screen, `onEndReached` fires when
+              // you reach the *oldest* loaded note, and no scrolling has to be
+              // managed by hand for a new note to land in view.
+              //
+              // Pull-to-refresh goes with it: a RefreshControl on an inverted
+              // list is drawn by the flipped scroll view, so it arrives upside
+              // down at the bottom of the screen. The board is on a realtime
+              // subscription and refetches whenever the tab regains focus, so
+              // what it was for still happens — just without the gesture.
+              inverted
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                mayHaveMore ? (
+                  <View className="items-center py-4">
+                    <ActivityIndicator color={colors.moss.DEFAULT} />
                   </View>
-                  {/* The whole point of the board: a note in someone's hand. */}
-                  <Text className="mt-2 font-hand text-2xl leading-8 text-ink">{item.content}</Text>
-                  {item.imageUrl ? (
-                    <ReceiptImage url={item.imageUrl} author={name} />
-                  ) : null}
-                </NoteCard>
-              );
-            }}
-            ListEmptyComponent={
-              <EmptyState
-                icon="reader-outline"
-                title="Quiet in here"
-                message="Pin the first note — payment reminders, visitors, or whose turn it is to chase the internet."
-                actionLabel="Write one"
-                onAction={() => composer.current?.focus()}
-              />
-            }
-          />
+                ) : announcements.length > 0 ? (
+                  <Text className="py-4 text-center font-ui text-xs text-ink-muted">
+                    That's the start of the board.
+                  </Text>
+                ) : null
+              }
+              renderItem={({ item, index }) => {
+                const name = item.profile?.display_name ?? 'Housemate';
+                const canDelete = item.user_id === userId || role === 'admin';
+
+                return (
+                  <NoteCard
+                    // The author's chosen tape, falling back to a colour hashed
+                    // from the id for notes written before the column existed.
+                    tape={tapeColorFor(item.id, item.tape_color)}
+                    rotate={index % 2 === 0 ? -0.5 : 0.5}
+                    className={`pt-5 ${item.pinned ? 'border-moss-light' : ''}`}
+                  >
+                    <View className="flex-row items-center gap-3">
+                      <Avatar
+                        name={name}
+                        userId={item.user_id}
+                        avatarUrl={item.profile?.avatar_url}
+                        size={36}
+                      />
+                      <View className="flex-1">
+                        <Text className="font-ui-bold text-sm text-ink" numberOfLines={1}>
+                          {name}
+                          {item.user_id === userId ? ' (you)' : ''}
+                        </Text>
+                        <View className="flex-row items-center gap-1.5">
+                          <Text className="font-mono text-[11px] text-ink-muted">
+                            {formatTimeAgo(item.created_at)}
+                          </Text>
+                          {/* The same note sits in the pinned strip above the
+                              feed. The badge is what connects the two, so a
+                              line you half remember reading up there can be
+                              found in full down here. */}
+                          {item.pinned ? (
+                            <View className="flex-row items-center gap-0.5">
+                              <Ionicons name="pin" size={11} color={colors.deep.mustard} />
+                              <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-deep-mustard">
+                                Pinned
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Options for the note from ${name}`}
+                        hitSlop={12}
+                        onPress={() => openNoteMenu(item, canDelete)}
+                        // 44pt tap area around a visually small control.
+                        className={`h-11 w-11 items-center justify-center rounded-full ${pressSmall} active:bg-page`}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.ink.muted} />
+                      </Pressable>
+                    </View>
+                    {/* The whole point of the board: a note in someone's hand. */}
+                    <Text className="mt-2 font-hand text-2xl leading-8 text-ink">{item.content}</Text>
+                    {item.imageUrl ? (
+                      <ReceiptImage url={item.imageUrl} author={name} />
+                    ) : null}
+                  </NoteCard>
+                );
+              }}
+              ListEmptyComponent={
+                <EmptyState
+                  icon="reader-outline"
+                  title="Quiet in here"
+                  message="Pin the first note — payment reminders, visitors, or whose turn it is to chase the internet."
+                  actionLabel="Write one"
+                  onAction={() => composer.current?.focus()}
+                />
+              }
+            />
+          </>
         )}
 
         <Composer
@@ -334,6 +378,75 @@ export default function AnnouncementsScreen() {
         />
       </KeyboardAvoidingView>
     </Screen>
+  );
+}
+
+/**
+ * Pinned notes, as a strip that stays put above the conversation.
+ *
+ * The board used to float pinned notes to the top of the feed, which worked
+ * while the feed was newest-first and stopped working the moment it became a
+ * conversation: in date order the pinned note is wherever it was written, and
+ * "pin to the top" has no top to go to. So it gets one line each up here,
+ * always on screen, and keeps its place and its badge in the conversation
+ * below — the strip points at the note rather than replacing it.
+ *
+ * Two at most. A strip that grows without limit is a second feed, and it eats
+ * the screen the notes underneath are meant to have; past that it says how
+ * many more there are and leaves them to the conversation.
+ */
+function PinnedStrip({
+  notes,
+  onOpen,
+}: {
+  notes: AnnouncementWithAuthor[];
+  onOpen: (note: AnnouncementWithAuthor) => void;
+}) {
+  if (notes.length === 0) return null;
+
+  const shown = notes.slice(0, 2);
+  const extra = notes.length - shown.length;
+
+  return (
+    <View className="mx-5 mb-1 gap-1 rounded-2xl border border-mustard/50 bg-wash-mustard px-3 py-2">
+      <View className="flex-row items-center gap-1.5">
+        <Ionicons name="pin" size={12} color={colors.deep.mustard} />
+        <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-deep-mustard">
+          Pinned{notes.length > 1 ? ` · ${notes.length}` : ''}
+        </Text>
+      </View>
+
+      {shown.map((note) => {
+        const name = note.profile?.display_name.split(' ')[0] ?? 'Housemate';
+
+        return (
+          <Pressable
+            key={note.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Pinned note from ${name}: ${note.content}. Opens its options.`}
+            onPress={() => onOpen(note)}
+            className={`min-h-[36px] flex-row items-center gap-2 rounded-lg px-1 ${pressSmall} active:bg-paper`}
+          >
+            {/* One line of it. The whole note is a scroll away in the
+                conversation, and a pinned strip that unfolds to six lines is
+                the thing it was supposed to save you from. */}
+            <Text className="flex-1 font-hand text-lg leading-6 text-ink" numberOfLines={1}>
+              {note.content}
+            </Text>
+            {note.image_path ? (
+              <Ionicons name="image-outline" size={13} color={colors.deep.mustard} />
+            ) : null}
+            <Text className="font-ui-semibold text-[11px] text-deep-mustard">{name}</Text>
+          </Pressable>
+        );
+      })}
+
+      {extra > 0 ? (
+        <Text className="px-1 font-ui text-[11px] text-deep-mustard">
+          +{extra} more pinned, further down the board.
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
