@@ -41,6 +41,29 @@ const ICON: Record<Variant, string> = {
   danger: colors.deep.brick,
 };
 
+/**
+ * Disabled is its own look, not a faded version of the enabled one.
+ *
+ * Every variant used to render at `opacity-50`. On the moss primary that
+ * produces a washed olive that reads as a button someone got the colour wrong
+ * on rather than one that is waiting for you — and the buttons it happens to
+ * most are the ones that open disabled: Continue on the welcome screen, Create
+ * household, Join household. Those are the first three buttons anyone sees, so
+ * the app's first impression was a mis-painted control.
+ *
+ * `page` is already the design system's word for a recessed surface, so a
+ * disabled button sits in it with muted ink on top — visibly inert, visibly
+ * deliberate — and the moss comes back the moment the form is valid. Ghost
+ * keeps its transparent background either way: filling it in would give a
+ * button that has no surface one to say it can't be pressed.
+ */
+const DISABLED: Record<Variant, string> = {
+  primary: 'bg-page border border-line',
+  secondary: 'bg-page border border-line',
+  ghost: 'bg-transparent',
+  danger: 'bg-page border border-line',
+};
+
 export function Button({
   label,
   onPress,
@@ -52,6 +75,12 @@ export function Button({
   className = '',
 }: Props) {
   const isDisabled = disabled || loading;
+  // Loading keeps the enabled colours. The action is under way, not
+  // unavailable, and greying it out mid-press reads as the tap being rejected.
+  const inert = disabled && !loading;
+  const containerClass = inert ? DISABLED[variant] : CONTAINER[variant];
+  const labelClass = inert ? 'text-ink-muted' : LABEL[variant];
+  const iconTint = inert ? colors.ink.muted : ICON[variant];
 
   return (
     <Pressable
@@ -71,18 +100,14 @@ export function Button({
       // has to see on the first render, so it is never conditional.
       className={`flex-row items-center justify-center rounded-xl ${press} ${
         size === 'lg' ? 'h-14 px-6' : 'h-11 px-4'
-      } ${CONTAINER[variant]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
+      } ${containerClass} ${className}`}
     >
       {loading ? (
         <ActivityIndicator color={ICON[variant]} />
       ) : (
         <View className="flex-row items-center gap-2">
-          {icon ? (
-            <Ionicons name={icon} size={size === 'lg' ? 20 : 18} color={ICON[variant]} />
-          ) : null}
-          <Text
-            className={`font-ui-bold ${LABEL[variant]} ${size === 'lg' ? 'text-base' : 'text-sm'}`}
-          >
+          {icon ? <Ionicons name={icon} size={size === 'lg' ? 20 : 18} color={iconTint} /> : null}
+          <Text className={`font-ui-bold ${labelClass} ${size === 'lg' ? 'text-base' : 'text-sm'}`}>
             {label}
           </Text>
         </View>

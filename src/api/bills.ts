@@ -33,7 +33,7 @@ export type NewBillInput = {
   category: BillCategory;
   dueDate: string | null;
   recurrence: BillRecurrence;
-  /** user_id → amount owed. The payer's own share is inserted as already paid. */
+  /** user_id → amount owed. Everyone starts unpaid, whoever logged it included. */
   splits: { userId: string; amount: number }[];
 };
 
@@ -55,13 +55,13 @@ export async function createBill(input: NewBillInput): Promise<BillWithSplits> {
   if (error) throw error;
 
   const rows = input.splits
-    .filter((split) => split.amount > 0 || split.userId === input.createdBy)
+    // A share of nothing is not a share. Someone left out of a bill has no row
+    // on it, rather than a ₱0.00 one that keeps it looking unsettled.
+    .filter((split) => split.amount > 0)
     .map((split) => ({
       bill_id: bill.id,
       user_id: split.userId,
       amount_owed: split.amount,
-      // Whoever logged the bill fronted the money, so their share starts settled.
-      paid: split.userId === input.createdBy,
     }));
 
   if (rows.length > 0) {
@@ -82,12 +82,13 @@ export async function createBill(input: NewBillInput): Promise<BillWithSplits> {
  * Whether a bill's money is settled enough that editing it would rewrite
  * someone's record of having paid.
  *
- * The payer's own share is created already paid by `createBill`, so it never
- * counts — it's an artefact of how the bill was logged, not a payment anyone
- * made.
+ * Every paid share counts, the collector's included. It used to skip theirs,
+ * because `createBill` set it for them and a flag nobody chose is not a
+ * payment — but nothing sets it for them any more, so a tick on their row
+ * means what it means on everyone else's.
  */
 export function billSplitsLocked(bill: BillWithSplits): boolean {
-  return bill.splits.some((split) => split.paid && split.user_id !== bill.created_by);
+  return bill.splits.some((split) => split.paid);
 }
 
 export type BillUpdateInput = {
@@ -146,8 +147,8 @@ export async function updateBill(
         bill_id: bill.id,
         user_id: split.userId,
         amount_owed: split.amount,
-        // Same rule as when the bill was created: whoever fronted it is square.
-        paid: split.userId === bill.created_by,
+        // Same rule as when the bill was created: a new share starts owed.
+        // Adding someone to a bill cannot mark them as having paid it.
       }))
     );
     if (insertError) throw insertError;
@@ -188,8 +189,9 @@ export async function settleWholeBill(billId: string): Promise<void> {
  * Safe to call after any payment: the database function decides whether there
  * is anything to do, and doing it twice is a no-op. It has to run there rather
  * than here because the bills insert policy requires `created_by = auth.uid()`
- * — done from the client, whoever ticked the last split would become the payer
- * of next month's rent with their share already marked paid.
+ * — done from the client, whoever ticked the last split would become the
+ * collector of next month's rent. It also drops housemates who have moved out
+ * in the meantime, which the client cannot see from a single bill.
  */
 export async function rollRecurringBill(billId: string): Promise<void> {
   const { error } = await supabase.rpc('roll_recurring_bill', {
@@ -243,6 +245,40 @@ export function billStatus(bill: BillWithSplits, today = todayString()): BillSta
   return due <= toDateString(addDays(fromDateString(today), DUE_SOON_DAYS)) ? 'due-soon' : 'open';
 }
 
+/**
+ * The smallest amount of money this app can talk about.
+ *
+ * Every total below is rounded to it before anyone sees it. Splitting ₱1,000
+ * three ways and adding the thirds back leaves 2.2e-13 behind, and a residue
+ * that small still fails `!== 0` — which is how "You owe ₱0.00" ends up drawn
+ * in red next to a bill everybody has paid. Rounding at the boundary means the
+ * screens can compare against a centavo and trust the answer.
+ */
+const CENTAVO = 0.01;
+
+function toCentavos(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+/** Whether a total is money, or floating-point dust left over from a split. */
+export function isSettledAmount(amount: number): boolean {
+  return Math.abs(amount) < CENTAVO;
+}
+
+/**
+ * Where the signed-in user stands across every unsettled bill.
+ *
+ *  - `owed` is everything they still have to hand over: their own unpaid
+ *    shares, on their own bills as much as anyone else's. Logging a bill is
+ *    not paying it, so a share they have not ticked is a share they owe —
+ *    which is the number the Bills header leads with, and the one that has to
+ *    read ₱0.00 the moment the last tick lands.
+ *  - `owing` is what the house still owes them: unpaid shares belonging to
+ *    other people, on bills they are collecting for.
+ *
+ * Their own share never appears on both sides — the second branch skips it —
+ * so a bill they logged and have not paid counts once, as something owed.
+ */
 export function summariseBalance(bills: BillWithSplits[], userId: string): BalanceSummary {
   let owed = 0;
   let owing = 0;
@@ -253,16 +289,37 @@ export function summariseBalance(bills: BillWithSplits[], userId: string): Balan
       const amount = Number(split.amount_owed);
 
       if (split.user_id === userId) {
-        // I still owe this to whoever fronted the bill.
+        // Mine to pay, whoever logged the bill.
         owed += amount;
       } else if (bill.created_by === userId) {
-        // I fronted this bill and this housemate hasn't paid me back.
+        // I'm collecting for this one and this housemate hasn't settled.
         owing += amount;
       }
     }
   }
 
-  return { owed, owing, net: owing - owed };
+  owed = toCentavos(owed);
+  owing = toCentavos(owing);
+
+  return { owed, owing, net: toCentavos(owing - owed) };
+}
+
+/**
+ * How many unsettled bills a housemate still has a hand in, either direction.
+ *
+ * Written for the leave vote, where "₱1,240 outstanding" on its own doesn't
+ * say whether that is one forgotten share or five months of avoidance — and
+ * the housemate deciding whether to let them go is answering exactly that.
+ */
+export function openBillCount(bills: BillWithSplits[], userId: string): number {
+  return bills.filter((bill) =>
+    bill.splits.some(
+      (split) =>
+        !split.paid &&
+        Number(split.amount_owed) > 0 &&
+        (split.user_id === userId || bill.created_by === userId)
+    )
+  ).length;
 }
 
 export type SettleUpEntry = {
@@ -278,11 +335,15 @@ export type SettleUpEntry = {
  * leads with.
  *
  * Debts here are always between the signed-in user and one other person: a
- * split is owed to whoever fronted the bill, so a bill nobody in the pair
- * created contributes nothing. The payer's own split is inserted already paid
- * by `createBill`, which is also where their profile comes from — a bill whose
- * payer has since left the household falls back to a generic name rather than
- * dropping the debt.
+ * split is owed to whoever is collecting for the bill, so a bill nobody in the
+ * pair logged contributes nothing. The collector's own share is not a debt to
+ * anybody — they owe it to the electricity company, not to a housemate — which
+ * is why neither branch below can match it, and why `summariseBalance` is the
+ * one that counts it.
+ *
+ * Their profile comes from their own split, so a bill whose collector has
+ * since left the household falls back to a generic name rather than dropping
+ * the debt.
  */
 export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry[] {
   const totals = new Map<string, SettleUpEntry>();
@@ -325,7 +386,7 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
 
   return [...totals.values()]
     // Sub-centavo residue from an uneven split isn't a debt worth showing.
-    .filter((entry) => Math.abs(entry.net) >= 0.01)
+    .filter((entry) => !isSettledAmount(entry.net))
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
 }
 
@@ -333,9 +394,13 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
  * Settled shares across the household, newest first — the "who paid whom"
  * record that `bill_splits.paid_at` has been quietly keeping all along.
  *
- * The payer's own share is excluded. `createBill` inserts it already paid
- * because they fronted the money, so listing it would report every bill as
- * opening with a payment from someone to themselves.
+ * The collector's own share used to be dropped here, because it was set paid
+ * by the act of logging the bill and listing it would report every bill as
+ * opening with a payment from someone to themselves. Nothing sets it for them
+ * any more, so when it appears it is a payment they actually made and it
+ * belongs in the history like any other. It comes back with `payeeId` equal to
+ * `payerId`, which is the ledger's way of saying the money went to the biller
+ * rather than to a housemate.
  */
 export async function fetchLedger(
   householdId: string,
@@ -368,7 +433,6 @@ export async function fetchLedger(
   };
 
   return ((data ?? []) as unknown as Row[])
-    .filter((row) => row.user_id !== row.bill.created_by)
     .map((row) => ({
       id: row.id,
       amount: Number(row.amount_owed),

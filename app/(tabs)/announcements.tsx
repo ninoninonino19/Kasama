@@ -20,7 +20,10 @@ import {
   setAnnouncementPinned,
 } from '../../src/api/announcements';
 import { notifyHousehold } from '../../src/api/notify';
+import { uploadReceipt } from '../../src/api/receipts';
 import { MAX_NOTE_LENGTH } from '../../src/components/NoteComposer';
+import { ReceiptField, ReceiptImage } from '../../src/components/Receipt';
+import type { ReceiptState } from '../../src/components/Receipt';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { NoteCard } from '../../src/components/ui/NoteCard';
@@ -88,10 +91,17 @@ export default function AnnouncementsScreen() {
    * costs a round trip and a scroll jump to show something we already have.
    */
   const postNote = useCallback(
-    async (content: string, tape: TapeColor) => {
+    async (content: string, tape: TapeColor, receipt: ReceiptState) => {
       if (!household || !userId) return;
 
-      const note = await postAnnouncement(household.id, userId, content, tape);
+      // The file goes up first, so the row can be written with somewhere to
+      // point. `postAnnouncement` cleans it back up if that write fails.
+      const imagePath =
+        receipt.status === 'picked'
+          ? await uploadReceipt(household.id, userId, receipt.receipt)
+          : null;
+
+      const note = await postAnnouncement(household.id, userId, content, tape, imagePath);
       haptics.success();
 
       // Newest-first, but *below* the pinned block — the feed is ordered
@@ -107,7 +117,9 @@ export default function AnnouncementsScreen() {
       notifyHousehold({
         householdId: household.id,
         category: 'board',
-        title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} pinned a note`,
+        title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} ${
+          imagePath ? 'pinned a receipt' : 'pinned a note'
+        }`,
         // A board post is short enough that the notification can just be
         // the note.
         body: content.trim().slice(0, 140),
@@ -167,7 +179,7 @@ export default function AnnouncementsScreen() {
               {
                 label: 'Take it down',
                 style: 'destructive' as const,
-                onPress: () => confirmDelete(item.id),
+                onPress: () => confirmDelete(item.id, item.image_path),
               },
             ]
           : []),
@@ -176,14 +188,16 @@ export default function AnnouncementsScreen() {
     });
   }
 
-  function confirmDelete(id: string) {
+  function confirmDelete(id: string, imagePath: string | null) {
     void confirm({
       title: 'Take this note down?',
-      message: 'Nobody else will be able to see it.',
+      message: imagePath
+        ? 'Nobody else will be able to see it, and its receipt goes with it.'
+        : 'Nobody else will be able to see it.',
       confirmLabel: 'Delete',
       onConfirm: async () => {
         try {
-          await deleteAnnouncement(id);
+          await deleteAnnouncement(id, imagePath);
           await refresh({ silent: true });
         } catch (caught) {
           haptics.error();
@@ -292,6 +306,9 @@ export default function AnnouncementsScreen() {
                   </View>
                   {/* The whole point of the board: a note in someone's hand. */}
                   <Text className="mt-2 font-hand text-2xl leading-8 text-ink">{item.content}</Text>
+                  {item.imageUrl ? (
+                    <ReceiptImage url={item.imageUrl} author={name} />
+                  ) : null}
                 </NoteCard>
               );
             }}
@@ -331,6 +348,12 @@ export type ComposerHandle = { focus: () => void };
  * the bar in place and reveals the tape swatches, so the fuller options are
  * there without being in the way of the common case.
  *
+ * The camera sits beside the send button rather than inside the expanded row,
+ * because attaching a receipt is a reason to open the composer at all — you
+ * arrive holding the photo, and the words come after. It also means a receipt
+ * can go up with nothing more than "kuryente for August", which is exactly the
+ * post the house is meant to argue with.
+ *
  * The full-screen `NoteComposer` still backs editing, where you are reworking
  * an existing note rather than dashing one off.
  */
@@ -338,30 +361,35 @@ const Composer = forwardRef<ComposerHandle, {
   name: string;
   userId: string;
   avatarUrl?: string | null;
-  onSubmit: (content: string, tape: TapeColor) => Promise<void>;
+  onSubmit: (content: string, tape: TapeColor, receipt: ReceiptState) => Promise<void>;
   onError: (message: string) => void;
 }>(function Composer({ name, userId, avatarUrl, onSubmit, onError }, ref) {
   const input = useRef<TextInput>(null);
   const [content, setContent] = useState('');
   const [tape, setTape] = useState<TapeColor>('mustard');
+  const [receipt, setReceipt] = useState<ReceiptState>({ status: 'none' });
   const [focused, setFocused] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }), []);
 
   const trimmed = content.trim();
+  const hasReceipt = receipt.status !== 'none';
   const canSend = trimmed.length > 0 && !busy;
-  // Collapsed while empty and unfocused, so the feed keeps the screen.
-  const expanded = focused || content.length > 0;
+  // Collapsed while empty and unfocused, so the feed keeps the screen. A
+  // receipt waiting to go up counts as content — it has to stay visible, and
+  // the tape row is how you take it back off.
+  const expanded = focused || content.length > 0 || hasReceipt;
   const remaining = MAX_NOTE_LENGTH - content.length;
 
   async function send() {
     if (!canSend) return;
     setBusy(true);
     try {
-      await onSubmit(trimmed, tape);
+      await onSubmit(trimmed, tape, receipt);
       setContent('');
       setTape('mustard');
+      setReceipt({ status: 'none' });
       Keyboard.dismiss();
     } catch (caught) {
       haptics.error();
@@ -396,6 +424,13 @@ const Composer = forwardRef<ComposerHandle, {
           textAlignVertical="top"
         />
 
+        {/* Only while it is empty — once something is attached the thumbnail
+            below is the control, and two ways to change one photo sitting
+            next to each other is one too many. */}
+        {hasReceipt ? null : (
+          <ReceiptField value={receipt} onChange={setReceipt} onError={onError} compact />
+        )}
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Post this note"
@@ -416,6 +451,16 @@ const Composer = forwardRef<ComposerHandle, {
           />
         </Pressable>
       </View>
+
+      {hasReceipt ? (
+        <View className="mt-2 flex-row items-center gap-3 rounded-2xl border border-line bg-page p-2">
+          <ReceiptField value={receipt} onChange={setReceipt} onError={onError} compact />
+          <Text className="flex-1 font-ui text-xs text-ink-muted">
+            Receipt attached. Say what it's for, then post it — housemates can check the total
+            before anyone turns it into a bill.
+          </Text>
+        </View>
+      ) : null}
 
       {/* Tape and the character count only earn their space once someone is
           actually writing. */}

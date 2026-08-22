@@ -3,13 +3,14 @@ import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { fetchAnnouncement, updateAnnouncement } from '../../src/api/announcements';
+import { uploadReceipt } from '../../src/api/receipts';
 import { NoteComposer } from '../../src/components/NoteComposer';
 import { FormScreen } from '../../src/components/ui/Screen';
 import { ErrorState, LoadingState } from '../../src/components/ui/States';
 import { useAsyncData } from '../../src/hooks/useAsyncData';
 import { formatTimeAgo } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
-import { useCurrentUserId } from '../../src/store/useSessionStore';
+import { useCurrentUserId, useHousehold } from '../../src/store/useSessionStore';
 
 /**
  * Rewriting your own note.
@@ -21,6 +22,7 @@ import { useCurrentUserId } from '../../src/store/useSessionStore';
 export default function EditAnnouncementScreen() {
   const router = useRouter();
   const userId = useCurrentUserId();
+  const household = useHousehold();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const load = useCallback(() => (id ? fetchAnnouncement(id) : Promise.resolve(null)), [id]);
@@ -70,9 +72,27 @@ export default function EditAnnouncementScreen() {
       subtitle={`written ${formatTimeAgo(note.created_at)}`}
       initialContent={note.content}
       initialTape={note.tape_color ?? 'mustard'}
+      initialReceipt={
+        note.image_path
+          ? { status: 'kept', path: note.image_path, url: note.imageUrl ?? null }
+          : { status: 'none' }
+      }
       submitLabel="Save changes"
-      onSubmit={async (content, tape) => {
-        await updateAnnouncement(note.id, content, tape);
+      onSubmit={async (content, tape, receipt) => {
+        // Three outcomes, and the middle one is the reason `ReceiptState` has
+        // three cases: a new photo is uploaded and the old file cleaned up, an
+        // untouched one keeps the path it already had, and a removed one
+        // leaves the note with nothing.
+        const imagePath =
+          receipt.status === 'picked'
+            ? household && userId
+              ? await uploadReceipt(household.id, userId, receipt.receipt)
+              : null
+            : receipt.status === 'kept'
+              ? receipt.path
+              : null;
+
+        await updateAnnouncement(note.id, content, tape, imagePath, note.image_path);
         haptics.success();
         router.back();
       }}

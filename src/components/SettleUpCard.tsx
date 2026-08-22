@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { settleUp, summariseBalance } from '../api/bills';
+import { isSettledAmount, settleUp, summariseBalance } from '../api/bills';
 import { formatPeso } from '../lib/format';
 import { colors } from '../lib/theme';
 import type { BillWithSplits } from '../types';
@@ -27,7 +27,10 @@ export function SettleUpCard({
   const balance = summariseBalance(bills, userId);
   const people = compact ? [] : settleUp(bills, userId);
 
-  const settled = balance.net === 0;
+  // `isSettledAmount` rather than `=== 0`: an even split of ₱1,000 three ways
+  // leaves a fraction of a centavo behind, and comparing against zero draws
+  // "+₱0.00" in green over a household that has settled everything.
+  const settled = isSettledAmount(balance.net);
   const inCredit = balance.net > 0;
   const headline = settled
     ? 'All settled'
@@ -55,6 +58,9 @@ export function SettleUpCard({
             : 'What you owe the house, on balance.'}
       </Text>
 
+      {/* Both tiles read ₱0.00 once the house is square, rather than
+          disappearing — an absent number is not the same answer as a zero,
+          and "how much do I owe?" deserves the zero. */}
       <View className="mt-4 flex-row gap-3">
         <Totals label="You owe" amount={balance.owed} tone="brick" />
         <Totals label="Owed to you" amount={balance.owing} tone="sage" />
@@ -117,10 +123,15 @@ function Totals({
       </Text>
       <Text
         className={`mt-0.5 font-mono-bold text-base ${
-          tone === 'brick' ? 'text-deep-brick' : 'text-deep-sage'
+          // Nothing outstanding is not bad news, so it stops being red.
+          isSettledAmount(amount)
+            ? 'text-ink-muted'
+            : tone === 'brick'
+              ? 'text-deep-brick'
+              : 'text-deep-sage'
         }`}
       >
-        {formatPeso(amount)}
+        {formatPeso(isSettledAmount(amount) ? 0 : amount)}
       </Text>
     </View>
   );

@@ -31,6 +31,15 @@ export type ChoreWithAssignments = Chore & {
 
 export type AnnouncementWithAuthor = Announcement & {
   profile: Profile | null;
+  /**
+   * A viewable link to `image_path`, signed when the board was fetched.
+   *
+   * Not a column — the receipts bucket is private, so the row stores a storage
+   * path and this is what an `<Image>` can actually load. It expires; see
+   * `RECEIPT_URL_TTL_SECONDS`. Undefined on a note that was never signed,
+   * null when the signing failed or the file has gone.
+   */
+  imageUrl?: string | null;
 };
 
 /** How much the signed-in user owes vs. is owed across all unsettled bills. */
@@ -53,6 +62,10 @@ export type LedgerEntry = {
   category: Bill['category'];
   /** Who handed over the money. */
   payerId: string;
-  /** Who had fronted the bill and was paid back. */
+  /**
+   * Who was paid back — whoever is collecting for the bill. Equal to `payerId`
+   * when they were settling their own share, which goes to the biller rather
+   * than to a housemate.
+   */
   payeeId: string;
 };

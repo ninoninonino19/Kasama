@@ -1,42 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 
+import { decodeBase64 } from '../lib/base64';
 import { supabase } from '../lib/supabase';
 
 const BUCKET = 'avatars';
 
 /** Mirrors the bucket's own limit, so an oversized pick fails here, not after the upload. */
 const MAX_BYTES = 2 * 1024 * 1024;
-
-const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-/**
- * base64 → bytes.
- *
- * Hand-rolled rather than pulled from a package: React Native's `atob` has
- * moved between the engine and a polyfill more than once, and an avatar upload
- * silently producing garbage on one platform is a miserable bug to chase. Ten
- * lines that behave the same everywhere are worth more than the dependency.
- */
-function decodeBase64(input: string): Uint8Array {
-  const clean = input.replace(/[^A-Za-z0-9+/]/g, '');
-  const bytes = new Uint8Array((clean.length * 3) >> 2);
-
-  let byte = 0;
-  let buffer = 0;
-  let bits = 0;
-
-  for (const character of clean) {
-    buffer = (buffer << 6) | BASE64_ALPHABET.indexOf(character);
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes[byte] = (buffer >> bits) & 0xff;
-      byte += 1;
-    }
-  }
-
-  return bytes.subarray(0, byte);
-}
 
 export class AvatarError extends Error {}
 

@@ -47,7 +47,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Kasama uses your photos so you can put a face next to your name for your housemates."
+          "photosPermission": "Kasama uses your photos so you can put a face next to your name, and pin a receipt to the household board.",
+          "cameraPermission": "Kasama uses your camera so you can photograph a receipt for your housemates to check."
         }
       ],
       [

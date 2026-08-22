@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 
 import { postAnnouncement } from '../../src/api/announcements';
 import { notifyHousehold } from '../../src/api/notify';
+import { uploadReceipt } from '../../src/api/receipts';
 import { NoteComposer } from '../../src/components/NoteComposer';
 import { haptics } from '../../src/lib/haptics';
 import { useHousehold, useProfile, useSessionStore } from '../../src/store/useSessionStore';
@@ -20,15 +21,25 @@ export default function NewAnnouncementScreen() {
       authorAvatarUrl={profile?.avatar_url}
       subtitle={`pinning to ${household?.name ?? 'your household'}`}
       submitLabel="Pin it up"
-      onSubmit={async (content, tape) => {
+      onSubmit={async (content, tape, receipt) => {
         if (!household || !userId) return;
-        await postAnnouncement(household.id, userId, content, tape);
+
+        // Uploaded before the row that points at it — `postAnnouncement`
+        // clears the file back up if that write fails.
+        const imagePath =
+          receipt.status === 'picked'
+            ? await uploadReceipt(household.id, userId, receipt.receipt)
+            : null;
+
+        await postAnnouncement(household.id, userId, content, tape, imagePath);
         haptics.success();
 
         notifyHousehold({
           householdId: household.id,
           category: 'board',
-          title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} pinned a note`,
+          title: `${profile?.display_name.split(' ')[0] ?? 'A housemate'} ${
+            imagePath ? 'pinned a receipt' : 'pinned a note'
+          }`,
           // A board post is short enough that the notification can just be
           // the note.
           body: content.trim().slice(0, 140),

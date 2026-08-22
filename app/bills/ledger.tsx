@@ -37,8 +37,7 @@ export default function LedgerScreen() {
   useRefreshOnFocus(refresh);
 
   const entries = useMemo(() => data ?? [], [data]);
-  // fetchLedger drops the payer's own auto-paid share after the query, so a
-  // short page doesn't prove the end — compare against what was asked for.
+  // A full page back means there is probably another one.
   const mayHaveMore = entries.length >= limit;
 
   const loadMore = useCallback(() => {
@@ -63,6 +62,9 @@ export default function LedgerScreen() {
   /** Month headings, so a long history reads as a statement rather than a list. */
   const sections = useMemo(() => groupByMonth(entries), [entries]);
 
+  // Each entry counts once, even the ones where both sides are the same
+  // person — otherwise paying your own share of a bill you logged would show
+  // up as twice the money.
   const total = useMemo(
     () =>
       entries
@@ -162,6 +164,11 @@ function Row({
   onPress: () => void;
 }) {
   const meta = categoryMeta(entry.category);
+  // The person collecting for a bill pays their own share to the biller, not
+  // to a housemate — `fetchLedger` marks that by handing back the same id on
+  // both sides. "Ana → Ana" would read as an accounting error rather than as
+  // someone paying the electricity company.
+  const toThemselves = entry.payerId === entry.payeeId;
 
   return (
     <NoteCard onPress={onPress}>
@@ -169,7 +176,9 @@ function Row({
         <Avatar name={payer} userId={entry.payerId} avatarUrl={payerAvatar} size={36} />
         <View className="flex-1">
           <Text className="font-ui-semibold text-sm text-ink" numberOfLines={1}>
-            {payer} → {payee}
+            {toThemselves
+              ? `${payer} — own share`
+              : `${payer} → ${payee}`}
           </Text>
           <View className="mt-0.5 flex-row items-center gap-1.5">
             <Ionicons name={meta.icon} size={11} color={colors.ink.muted} />

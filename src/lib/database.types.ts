@@ -19,6 +19,13 @@ export type ChoreRecurrence = 'once' | 'daily' | 'weekly' | 'monthly';
  * union is still worth spelling out on this side.
  */
 export type TapeColor = 'mustard' | 'sage' | 'brick' | 'moss';
+/**
+ * Where a request to leave the household ended up. `completed` covers both
+ * ways it can succeed — the house voting someone out the door, and the last
+ * person in a household letting themselves out, who has nobody to ask.
+ */
+export type LeaveRequestStatus = 'pending' | 'declined' | 'cancelled' | 'completed';
+export type LeaveVote = 'accept' | 'decline';
 
 export type Database = {
   public: {
@@ -254,6 +261,12 @@ export type Database = {
           pinned: boolean;
           /** A palette token — see TAPE_TOKENS. Null on notes predating it. */
           tape_color: TapeColor | null;
+          /**
+           * A receipt pinned to the note, as an object path inside the private
+           * `receipts` bucket — never a URL. Reads go through a signed URL that
+           * expires, so a stored one would be a dead link within the hour.
+           */
+          image_path: string | null;
           created_at: string;
         };
         Insert: {
@@ -263,6 +276,7 @@ export type Database = {
           content: string;
           pinned?: boolean;
           tape_color?: TapeColor | null;
+          image_path?: string | null;
           created_at?: string;
         };
         Update: {
@@ -272,8 +286,38 @@ export type Database = {
           content?: string;
           pinned?: boolean;
           tape_color?: TapeColor | null;
+          image_path?: string | null;
           created_at?: string;
         };
+        Relationships: [];
+      };
+      leave_requests: {
+        Row: {
+          id: string;
+          household_id: string;
+          /** The person leaving. They never vote on their own request. */
+          user_id: string;
+          status: LeaveRequestStatus;
+          reason: string | null;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      leave_request_votes: {
+        Row: {
+          id: string;
+          request_id: string;
+          voter_id: string;
+          decision: LeaveVote;
+          /** Attached to a decline: what still has to happen first. */
+          note: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
         Relationships: [];
       };
     };
@@ -310,6 +354,18 @@ export type Database = {
         /** The new bill's id, or null when there was nothing to roll. */
         Returns: string | null;
       };
+      request_household_leave: {
+        Args: { target_household: string; reason?: string | null };
+        Returns: Database['public']['Tables']['leave_requests']['Row'];
+      };
+      vote_on_leave_request: {
+        Args: { request: string; decision: LeaveVote; note?: string | null };
+        Returns: Database['public']['Tables']['leave_requests']['Row'];
+      };
+      cancel_leave_request: {
+        Args: { request: string };
+        Returns: Database['public']['Tables']['leave_requests']['Row'];
+      };
       is_household_member: {
         Args: { hid: string };
         Returns: boolean;
@@ -324,6 +380,8 @@ export type Database = {
       bill_category: BillCategory;
       bill_recurrence: BillRecurrence;
       chore_recurrence: ChoreRecurrence;
+      leave_request_status: LeaveRequestStatus;
+      leave_vote: LeaveVote;
     };
     CompositeTypes: Record<string, never>;
   };
