@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
 
-import { isSettledAmount, summariseBalance } from '../../src/api/bills';
+import { isSettledAmount, openBillCount, summariseBalance } from '../../src/api/bills';
 import {
   cancelLeaveRequest,
   removeMember,
@@ -14,7 +14,7 @@ import {
 } from '../../src/api/household';
 import { notifyHousehold } from '../../src/api/notify';
 import { InviteCode } from '../../src/components/InviteCode';
-import { LeaveVoteCard, MyLeaveRequestCard } from '../../src/components/LeaveRequest';
+import { leaveTally, LeaveVoteCard, MyLeaveRequestCard } from '../../src/components/LeaveRequest';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
@@ -31,7 +31,7 @@ import { press } from '../../src/lib/motion';
 import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 import { useProfile, useSessionStore } from '../../src/store/useSessionStore';
-import type { MemberWithProfile } from '../../src/types';
+import type { LeaveRequestWithVotes, MemberWithProfile } from '../../src/types';
 
 /**
  * Everything that belongs to the house rather than to you: the invite code,
@@ -209,13 +209,21 @@ export default function HouseholdSettingsScreen() {
 
     const alone = members.length <= 1;
 
+    // Said in the dialogue as well as in the panel behind it. This is the
+    // last screen before the house is asked, and "you still owe ₱1,240" is
+    // the fact that decides how that goes — it should not be something you
+    // have to scroll back to check.
+    const owedLine = iOweSomething
+      ? ` You still owe ${formatPeso(myBalance.owed)}.`
+      : '';
+
     void confirm({
       title: alone ? `Leave ${household.name}?` : `Ask to leave ${household.name}?`,
       message: alone
-        ? "There's nobody else here, so this happens straight away. You'll need a new invite code to come back."
+        ? `There's nobody else here, so this happens straight away.${owedLine} You'll need a new invite code to come back.`
         : lastAdmin
-          ? "You are the only admin. Your housemates each have to accept, and once they have, nobody will be left who can manage this household."
-          : 'Each of your housemates has to accept before you go. They can see what you still owe and are owed, and can decline until it is settled.',
+          ? `You are the only admin. Your housemates each have to accept, and once they have, nobody will be left who can manage this household.${owedLine}`
+          : `Each of your housemates has to accept before you go.${owedLine} They can see what you still owe and are owed, and can decline until it is settled.`,
       confirmLabel: alone ? 'Leave household' : 'Send request',
       cancelLabel: 'Stay',
       onConfirm: async () => {
@@ -279,6 +287,60 @@ export default function HouseholdSettingsScreen() {
         setLeaveBusy(false);
       }
     })();
+  }
+
+  /**
+   * Accepting somebody's departure, with the money said out loud first.
+   *
+   * The vote card already shows what they owe and are owed, but a housemate
+   * scrolling a settings screen taps "Accept" the way they tap anything else,
+   * and an accept is the one answer that cannot be taken back — the last one
+   * removes them from the household then and there. So the amount is repeated
+   * in a dialogue that has to be read, and the dialogue says whether this
+   * particular answer is the one that completes it.
+   *
+   * It asks rather than refuses. A house forgives debts, settles in cash the
+   * app never sees, and blocking the accept outright would strand somebody who
+   * has physically moved out — the same reasoning `vote_on_leave_request`
+   * gives for not enforcing it in the database. The house decides; this makes
+   * sure it decides knowingly.
+   */
+  function confirmAccept(request: LeaveRequestWithVotes) {
+    if (!userId) return;
+    haptics.tap();
+
+    const name = request.profile?.display_name.split(' ')[0] ?? 'This housemate';
+    const balance = summariseBalance(allBills, request.user_id);
+    const openBills = openBillCount(allBills, request.user_id);
+    const owes = !isSettledAmount(balance.owed);
+    const isOwed = !isSettledAmount(balance.owing);
+
+    // Whether mine is the answer that finishes it, so "they leave now" and
+    // "they leave once the others answer" are never confused for each other.
+    const { waiting } = leaveTally(request, members);
+    const lastToAnswer = waiting.length === 1 && waiting[0].user_id === userId;
+
+    const money =
+      owes && isOwed
+        ? `${name} still owes ${formatPeso(balance.owed)} and is owed ${formatPeso(balance.owing)}, across ${openBills} unsettled ${openBills === 1 ? 'bill' : 'bills'}.`
+        : owes
+          ? `${name} still owes ${formatPeso(balance.owed)} across ${openBills} unsettled ${openBills === 1 ? 'bill' : 'bills'}.`
+          : isOwed
+            ? `The house still owes ${name} ${formatPeso(balance.owing)}.`
+            : `Nothing is outstanding between ${name} and the house.`;
+
+    void confirm({
+      title: owes ? `Let ${name} go with ${formatPeso(balance.owed)} unsettled?` : `Accept ${name}'s request?`,
+      message: `${money} ${
+        lastToAnswer
+          ? 'Yours is the last answer needed, so accepting removes them from the household now.'
+          : 'They leave once every housemate has accepted.'
+      } Leaving settles nothing — what they owe stays on record either way.`,
+      confirmLabel: 'Accept',
+      cancelLabel: owes ? 'Not yet' : 'Cancel',
+      destructive: owes,
+      onConfirm: () => answerLeave(request.id, 'accept', null),
+    });
   }
 
   /**
@@ -457,7 +519,7 @@ export default function HouseholdSettingsScreen() {
                 bills={allBills}
                 viewerId={userId}
                 busy={votingOn === request.id}
-                onAccept={() => answerLeave(request.id, 'accept', null)}
+                onAccept={() => confirmAccept(request)}
                 onDecline={(note) => answerLeave(request.id, 'decline', note)}
               />
             ))}

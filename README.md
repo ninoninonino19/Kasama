@@ -797,8 +797,8 @@ payments.
 Fixing it properly is a schema change with a wide blast radius: either an `amount_paid`
 column alongside `amount_owed` with `paid` derived from it, or a `bill_payments` table with
 one row per payment. Either way every money calculation moves —
-`isBillSettled`, `billOutstanding`, `billProgress`, `summariseBalance`, `settleUp`,
-`fetchLedger` and `pending_reminders` — plus the tick-box on the bill detail screen becomes
+`isBillSettled`, `billOutstanding`, `billProgress`, `billFronted`, `summariseBalance`,
+`summariseMonth`, `settleUp`, `fetchLedger` and `pending_reminders` — plus the tick-box on the bill detail screen becomes
 an amount entry. It hasn't been done because it is a product decision, not an oversight:
 plenty of split apps keep shares atomic on purpose.
 

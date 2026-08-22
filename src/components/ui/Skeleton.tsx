@@ -70,17 +70,12 @@ export function ListSkeleton({
 }
 
 /**
- * The dashboard's shape, in the order the screen actually draws it: quick
- * actions, the month's balance, today's chore, the latest note.
+ * The dashboard's shape, in the order the screen actually draws it: the
+ * month's balance, today's chore, the latest note, then the quick actions.
  */
 export function DashboardSkeleton() {
   return (
     <View className="gap-6">
-      {/* Quick actions, so the row doesn't pop in above the balance. */}
-      <View className="flex-row gap-3">
-        <Skeleton width="47%" height={52} rounded={16} />
-        <Skeleton width="47%" height={52} rounded={16} />
-      </View>
       {/* The balance card: headline, progress bar, then the next bill due
           under its own rule — one card where there used to be two. */}
       <View className="gap-3 rounded-xl border border-line bg-paper p-5">
@@ -112,6 +107,11 @@ export function DashboardSkeleton() {
         </View>
         <Skeleton width="90%" height={16} />
         <Skeleton width="70%" height={16} />
+      </View>
+      {/* Quick actions, which now close the dashboard rather than open it. */}
+      <View className="flex-row gap-3">
+        <Skeleton width="47%" height={52} rounded={16} />
+        <Skeleton width="47%" height={52} rounded={16} />
       </View>
     </View>
   );

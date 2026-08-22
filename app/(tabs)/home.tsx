@@ -210,23 +210,6 @@ export default function HomeScreen() {
               />
             ) : (
               <>
-                {/* Quick actions ------------------------------------- */}
-                {/* Home has no FAB. These are the two things people open the
-                    app to do, so they lead the dashboard rather than waiting
-                    at the end of a scroll. */}
-                <View className="flex-row gap-3">
-                  <QuickAction
-                    icon="receipt-outline"
-                    label="Add a bill"
-                    onPress={() => router.push('/bills/new')}
-                  />
-                  <QuickAction
-                    icon="checkmark-done-outline"
-                    label="Add a chore"
-                    onPress={() => router.push('/chores/new')}
-                  />
-                </View>
-
                 {/* Money --------------------------------------------- */}
                 {/* One card, not two. "Where you stand" and "next bill due"
                     were always halves of the same question — how much is left
@@ -352,6 +335,25 @@ export default function HomeScreen() {
                       onAction={() => router.push('/announcements/new')}
                     />
                   )}
+                </View>
+
+                {/* Quick actions ------------------------------------- */}
+                {/* Home has no FAB, so these are the two doors out of the
+                    dashboard — and they sit at the end of it. Everything above
+                    is the house reporting in; adding something is what you do
+                    once you've read it, so the summary gets the top of the
+                    screen and the actions close the page. */}
+                <View className="flex-row gap-3">
+                  <QuickAction
+                    icon="receipt-outline"
+                    label="Add a bill"
+                    onPress={() => router.push('/bills/new')}
+                  />
+                  <QuickAction
+                    icon="checkmark-done-outline"
+                    label="Add a chore"
+                    onPress={() => router.push('/chores/new')}
+                  />
                 </View>
               </>
             )}
