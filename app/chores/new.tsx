@@ -16,6 +16,7 @@ export default function NewChoreScreen() {
   return (
     <ChoreForm
       mode="create"
+      title="New chore"
       submitLabel="Save chore"
       onSubmit={async (values) => {
         if (!household) return;

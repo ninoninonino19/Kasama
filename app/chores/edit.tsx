@@ -15,7 +15,7 @@ import { ChoreForm } from '../../src/components/ChoreForm';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
-import { SectionTitle } from '../../src/components/ui/Screen';
+import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { LoadingState, ErrorState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
 import { formatRelativeDate, fromDateString, toDateString } from '../../src/lib/format';
@@ -39,16 +39,27 @@ export default function EditChoreScreen() {
 
   const [deleting, setDeleting] = useState(false);
 
-  if (loading) return <LoadingState label="Loading chore…" />;
+  // Neither of these reaches `ChoreForm`, which is what carries the header on
+  // the way through — so they have to bring their own, or a chore that failed
+  // to load is a screen with no way out of it.
+  if (loading) {
+    return (
+      <FormScreen title="Edit chore">
+        <LoadingState label="Loading chore…" />
+      </FormScreen>
+    );
+  }
 
   if (error || !chore) {
     return (
-      <View className="flex-1 justify-center bg-canvas p-5">
-        <ErrorState
-          message={error ?? 'This chore no longer exists.'}
-          onRetry={() => void refresh()}
-        />
-      </View>
+      <FormScreen title="Edit chore">
+        <View className="flex-1 justify-center p-5">
+          <ErrorState
+            message={error ?? 'This chore no longer exists.'}
+            onRetry={() => void refresh()}
+          />
+        </View>
+      </FormScreen>
     );
   }
 
@@ -92,6 +103,7 @@ export default function EditChoreScreen() {
   return (
     <ChoreForm
       mode="edit"
+      title="Edit chore"
       submitLabel="Save changes"
       initial={{
         title: chore.title,

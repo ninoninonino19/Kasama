@@ -7,7 +7,7 @@ import { haptics } from '../lib/haptics';
 import { colors, TAPE_HEX, TAPE_TOKENS } from '../lib/theme';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
-import { SectionTitle } from './ui/Screen';
+import { FormScreen, SectionTitle } from './ui/Screen';
 import { InlineError } from './ui/States';
 import { Tape } from './ui/Tape';
 
@@ -22,6 +22,7 @@ export const MAX_NOTE_LENGTH = 500;
  * more than one line.
  */
 export function NoteComposer({
+  title: screenTitle,
   authorName,
   authorId,
   authorAvatarUrl,
@@ -32,6 +33,8 @@ export function NoteComposer({
   onSubmit,
   footer,
 }: {
+  /** The header's title. The composer owns its header — see `FormHeader`. */
+  title: string;
   authorName: string;
   authorId: string;
   authorAvatarUrl?: string | null;
@@ -65,10 +68,11 @@ export function NoteComposer({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-canvas"
-    >
+    <FormScreen title={screenTitle}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1"
+      >
       <View className="flex-1 gap-4 p-5">
         <View className="flex-row items-center gap-3">
           <Avatar name={authorName} userId={authorId} avatarUrl={authorAvatarUrl} size={36} />
@@ -145,6 +149,7 @@ export function NoteComposer({
 
         {footer}
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </FormScreen>
   );
 }

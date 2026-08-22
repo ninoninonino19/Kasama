@@ -317,6 +317,30 @@ card's top-left, hidden from screen readers. `Pill` is the status badge. `Avatar
 paper ring so faces can overlap. `BoardTabBar` replaces react-navigation's default bar.
 Status never rides on colour alone — every pill pairs its tone with a word and a glyph.
 
+### Every screen draws its own header
+
+There is no native header anywhere in the app. `ScreenHeader` sits on the tabs, `FormHeader`
+on everything in the root stack, and `Stack` is configured `headerShown: false` throughout.
+
+That is a bug fix, not a preference. react-navigation's header on Android is a platform
+Toolbar that pads itself in `CustomToolbar.onApplyWindowInsets`; under `edgeToEdgeEnabled`
+it never got a status bar inset here, so on the form screens the title drew on top of the
+clock and the back arrow sat under the camera cutout. Pushing those screens instead of
+presenting them didn't move it. Nor did declaring `statusBarTranslucent`, which is the knob
+react-navigation reads to decide the same thing.
+
+`SafeAreaView` doesn't depend on that inset dispatch reaching it — it re-reads
+`rootWindowInsets` off the root view on every pre-draw — and it is what the tab screens have
+always used, which is why the bug never reached them.
+
+One wrinkle worth knowing before touching `FormScreen`: a `SafeAreaView` insets by the
+*nearest provider's* safe area, not by its own position on screen. With a single provider at
+the app root, a screen presented as a sheet on iOS would be padded as though it started at
+the top of the display, opening a status bar's worth of empty space above its title. So
+`FormScreen` nests a `SafeAreaProvider` of its own, and the inset gets measured where the
+screen actually is. Nothing has to be guessed from the platform or the presentation, which
+is what the two failed attempts had in common.
+
 ### The mark
 
 Kasama's icon is a paper note pinned up with a strip of washi tape across its top-left

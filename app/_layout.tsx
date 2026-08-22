@@ -26,7 +26,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { DialogProvider } from '../src/components/ui/Dialog';
 import { SessionProvider } from '../src/providers/SessionProvider';
-import { colors, fonts } from '../src/lib/theme';
+import { colors } from '../src/lib/theme';
 
 // Hold the native splash until the faces are in memory. Without this the first
 // frame paints in the system font and every card reflows a beat later, which on
@@ -73,28 +73,23 @@ export default function RootLayout() {
           <DialogProvider>
             <StatusBar style="dark" />
             <Stack
+              // No native header anywhere in the app. Every screen draws its
+              // own — `FormHeader` for the pushed and presented ones, and
+              // `ScreenHeader` on the tabs, as it always did.
+              //
+              // The native one could not be made to sit below the status bar.
+              // It is a platform Toolbar that pads itself from whatever window
+              // it is in, and under `edgeToEdgeEnabled` on a modal that window
+              // reported no status bar inset, so the title landed on top of the
+              // clock. Pushing the form screens instead of presenting them did
+              // not move it; nor did declaring `statusBarTranslucent`.
+              // `SafeAreaView` needs to be told none of this — it insets by the
+              // part of the view that actually overlaps the bar — and it is
+              // what the tab screens have always used, which is why the bug
+              // never reached them.
               screenOptions={{
                 headerShown: false,
-                // The header's top padding, without which it draws at the very
-                // top of the display: back arrow under the status bar clock,
-                // and on a phone with a centred cutout, under the camera.
-                //
-                // react-navigation decides that padding with
-                // `typeof statusBarTranslucent === 'boolean' ? statusBarTranslucent
-                // : topInset !== 0`, so leaving this unset makes it a question
-                // of whether the safe-area inset happens to have arrived — and
-                // when it reads 0, the header gets no padding at all rather
-                // than waiting for a better answer. Saying so outright settles
-                // it. The status bar genuinely is translucent here: the app
-                // sets `edgeToEdgeEnabled` and draws underneath it.
-                statusBarTranslucent: true,
                 contentStyle: { backgroundColor: colors.screenBg },
-                // Warm the stack chrome to match the canvas — the default header
-                // is a cool system grey that reads as a different app.
-                headerStyle: { backgroundColor: colors.screenBg },
-                headerTintColor: colors.moss.DEFAULT,
-                headerTitleStyle: { color: colors.ink.DEFAULT, fontFamily: fonts.bodyBold },
-                headerShadowVisible: false,
               }}
             >
               <Stack.Screen name="index" />
@@ -105,45 +100,18 @@ export default function RootLayout() {
                   moment this screen has something to say. */}
               <Stack.Screen name="invite" options={{ gestureEnabled: false }} />
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="bills/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New bill' }}
-              />
-              <Stack.Screen name="bills/[id]" options={{ headerShown: true, title: 'Bill' }} />
-              <Stack.Screen
-                name="bills/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit bill' }}
-              />
-              <Stack.Screen
-                name="bills/ledger"
-                options={{ headerShown: true, title: 'Payment history' }}
-              />
-              <Stack.Screen
-                name="chores/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New chore' }}
-              />
-              <Stack.Screen
-                name="chores/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit chore' }}
-              />
-              <Stack.Screen
-                name="announcements/new"
-                options={{ presentation: 'modal', headerShown: true, title: 'New note' }}
-              />
-              <Stack.Screen
-                name="announcements/edit"
-                options={{ presentation: 'modal', headerShown: true, title: 'Edit note' }}
-              />
+              <Stack.Screen name="bills/new" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="bills/[id]" />
+              <Stack.Screen name="bills/edit" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="bills/ledger" />
+              <Stack.Screen name="chores/new" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="chores/edit" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="announcements/new" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="announcements/edit" options={{ presentation: 'modal' }} />
               {/* Two screens rather than one: what belongs to you, and what
                   belongs to the house. Home routes to them separately. */}
-              <Stack.Screen
-                name="settings/account"
-                options={{ headerShown: true, title: 'Your account' }}
-              />
-              <Stack.Screen
-                name="settings/household"
-                options={{ headerShown: true, title: 'Household' }}
-              />
+              <Stack.Screen name="settings/account" />
+              <Stack.Screen name="settings/household" />
             </Stack>
           </DialogProvider>
         </SessionProvider>

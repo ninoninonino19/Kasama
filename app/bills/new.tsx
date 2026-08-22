@@ -16,6 +16,7 @@ export default function NewBillScreen() {
   return (
     <BillForm
       mode="create"
+      title="New bill"
       submitLabel="Save bill"
       onSubmit={async (values) => {
         if (!household || !userId) return;

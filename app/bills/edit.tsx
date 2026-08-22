@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { billSplitsLocked, fetchBill, updateBill } from '../../src/api/bills';
 import { BillForm } from '../../src/components/BillForm';
+import { FormScreen } from '../../src/components/ui/Screen';
 import { ErrorState, LoadingState } from '../../src/components/ui/States';
 import { useAsyncData } from '../../src/hooks/useAsyncData';
 import { fromDateString, toDateString } from '../../src/lib/format';
@@ -16,16 +17,27 @@ export default function EditBillScreen() {
   const load = useCallback(() => (id ? fetchBill(id) : Promise.resolve(null)), [id]);
   const { data: bill, loading, error, refresh } = useAsyncData(load, [id]);
 
-  if (loading) return <LoadingState label="Loading bill…" />;
+  // These two never reach `BillForm`, which is what carries the header on the
+  // way through — so they have to bring their own, or a bill that failed to
+  // load is a screen with no way out of it.
+  if (loading) {
+    return (
+      <FormScreen title="Edit bill">
+        <LoadingState label="Loading bill…" />
+      </FormScreen>
+    );
+  }
 
   if (error || !bill) {
     return (
-      <View className="flex-1 justify-center bg-canvas p-5">
-        <ErrorState
-          message={error ?? 'This bill no longer exists.'}
-          onRetry={() => void refresh()}
-        />
-      </View>
+      <FormScreen title="Edit bill">
+        <View className="flex-1 justify-center p-5">
+          <ErrorState
+            message={error ?? 'This bill no longer exists.'}
+            onRetry={() => void refresh()}
+          />
+        </View>
+      </FormScreen>
     );
   }
 
@@ -40,6 +52,7 @@ export default function EditBillScreen() {
   return (
     <BillForm
       mode="edit"
+      title="Edit bill"
       splitsLocked={locked}
       submitLabel="Save changes"
       initial={{

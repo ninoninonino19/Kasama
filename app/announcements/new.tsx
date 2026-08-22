@@ -14,6 +14,7 @@ export default function NewAnnouncementScreen() {
 
   return (
     <NoteComposer
+      title="New note"
       authorName={profile?.display_name ?? 'You'}
       authorId={userId ?? 'me'}
       authorAvatarUrl={profile?.avatar_url}
