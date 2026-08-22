@@ -322,6 +322,17 @@ export function openBillCount(bills: BillWithSplits[], userId: string): number {
   ).length;
 }
 
+/**
+ * What to call someone whose name we can no longer read.
+ *
+ * `profiles readable by housemates` is scoped to people you currently share a
+ * household with, so a housemate who has moved out doesn't have a missing
+ * profile — they have one you are no longer allowed to see. "Housemate" read
+ * as a placeholder for a name that hadn't loaded; this says what happened, and
+ * matches the payment history, which has always worded it this way.
+ */
+const PAST_HOUSEMATE = 'A past housemate';
+
 export type SettleUpEntry = {
   userId: string;
   name: string;
@@ -357,12 +368,12 @@ export function settleUp(bills: BillWithSplits[], userId: string): SettleUpEntry
     if (existing) {
       existing.net += delta;
       // A later bill may be the one that knows their name.
-      if (existing.name === 'Housemate' && profile) existing.name = profile.display_name;
+      if (existing.name === PAST_HOUSEMATE && profile) existing.name = profile.display_name;
       return;
     }
     totals.set(otherId, {
       userId: otherId,
-      name: profile?.display_name ?? 'Housemate',
+      name: profile?.display_name ?? PAST_HOUSEMATE,
       avatarUrl: profile?.avatar_url ?? null,
       net: delta,
     });
