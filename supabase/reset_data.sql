@@ -5,23 +5,25 @@
 --   in the database it is run against. There is no undo. Run it against a
 --   development project, never a production one.
 --
--- Schema, policies, functions, triggers and the avatars bucket are all left in
--- place — this clears data only, so the app comes up exactly as it would for a
--- brand-new project rather than needing the migrations run again.
+-- Schema, policies, functions, triggers and both storage buckets are all left
+-- in place — this clears data only, so the app comes up exactly as it would
+-- for a brand-new project rather than needing the migrations run again.
 --
 -- How to run it:
 --   Supabase dashboard -> SQL Editor -> paste -> Run
 --   or: psql "$DATABASE_URL" -f supabase/reset_data.sql
 --
--- Uploaded avatars are NOT cleared here. Storage objects are rows pointing at
--- files, so Supabase blocks direct deletes against `storage.objects` — a
--- deleted row would strand the file it refers to. Clearing them goes through
--- the Storage API instead:
+-- Uploaded files — avatars and board receipts — are NOT cleared here. Storage
+-- objects are rows pointing at files, so Supabase blocks direct deletes
+-- against `storage.objects`: the row would go and the file would be stranded.
+-- Clearing them goes through the Storage API instead:
 --
---   node supabase/reset_avatars.mjs
+--   node supabase/reset_storage.mjs
 --
 -- Skipping it is harmless: the files are orphaned but nothing reads them once
--- the profiles are gone. They just keep taking up space in the bucket.
+-- the notes and profiles pointing at them are gone. They just keep taking up
+-- space in the buckets — and receipts are photos of A4 statements, so that
+-- adds up faster than avatars did.
 --
 -- On the device, after running this:
 --   - Log out, or delete and reinstall the app. The old session points at a
@@ -42,6 +44,11 @@ begin;
 delete from auth.users;
 
 delete from public.device_tokens;
+-- Votes before the requests they hang off, and both before the households and
+-- profiles they cascade from. Ordered by hand rather than left to the cascade
+-- so this list is also a readable inventory of what a reset actually clears.
+delete from public.leave_request_votes;
+delete from public.leave_requests;
 delete from public.announcements;
 delete from public.chore_assignments;
 delete from public.chores;
@@ -54,8 +61,8 @@ delete from public.profiles;
 commit;
 
 -- ---------------------------------------------------------------------------
--- Check: every count below should be 0, except "avatar files" — those are
--- cleared separately by supabase/reset_avatars.mjs, and are only orphaned
+-- Check: every count below should be 0, except the two file counts — those
+-- are cleared separately by supabase/reset_storage.mjs, and are only orphaned
 -- files at this point.
 -- ---------------------------------------------------------------------------
 select 'auth.users'        as table_name, count(*) from auth.users
@@ -67,10 +74,15 @@ union all select 'bill_splits',        count(*) from public.bill_splits
 union all select 'chores',             count(*) from public.chores
 union all select 'chore_assignments',  count(*) from public.chore_assignments
 union all select 'announcements',      count(*) from public.announcements
+union all select 'leave_requests',     count(*) from public.leave_requests
+union all select 'leave_request_votes', count(*) from public.leave_request_votes
 union all select 'device_tokens',      count(*) from public.device_tokens
-union all select 'avatar files (see reset_avatars.mjs)',
+union all select 'avatar files (see reset_storage.mjs)',
                                        count(*) from storage.objects
-                                       where bucket_id = 'avatars';
+                                       where bucket_id = 'avatars'
+union all select 'receipt files (see reset_storage.mjs)',
+                                       count(*) from storage.objects
+                                       where bucket_id = 'receipts';
 
 
 -- ============================================================================
@@ -85,7 +97,8 @@ union all select 'avatar files (see reset_avatars.mjs)',
 --
 -- begin;
 --
--- -- Everything below a household cascades from it.
+-- -- Everything below a household cascades from it — bills, chores, notes and
+-- -- any leave request that was open when you reset.
 -- delete from public.households;
 --
 -- -- Leftovers that hang off profiles rather than households.
