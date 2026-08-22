@@ -69,12 +69,41 @@ export function ListSkeleton({
   );
 }
 
-/** The dashboard's shape: two summary notes, a board note, then the balance. */
+/**
+ * The dashboard's shape, in the order the screen actually draws it: quick
+ * actions, the month's balance, today's chore, the latest note.
+ */
 export function DashboardSkeleton() {
   return (
     <View className="gap-6">
-      {/* Today's chore and the next bill, in the order the screen shows them. */}
-      <ListSkeleton rows={2} padded={false} />
+      {/* Quick actions, so the row doesn't pop in above the balance. */}
+      <View className="flex-row gap-3">
+        <Skeleton width="47%" height={52} rounded={16} />
+        <Skeleton width="47%" height={52} rounded={16} />
+      </View>
+      {/* The balance card: headline, progress bar, then the next bill due
+          under its own rule — one card where there used to be two. */}
+      <View className="gap-3 rounded-xl border border-line bg-paper p-5">
+        <View className="items-center gap-3">
+          <Skeleton width="40%" height={10} />
+          <Skeleton width="50%" height={28} />
+          <Skeleton width="60%" height={10} />
+        </View>
+        <Skeleton width="100%" height={6} rounded={999} />
+        <View className="mt-1 flex-row items-center gap-3 border-t border-line pt-3">
+          <Skeleton width={40} height={40} rounded={16} />
+          <View className="flex-1 gap-2">
+            <Skeleton width="60%" height={14} />
+            <Skeleton width="40%" height={10} />
+          </View>
+          <View className="items-end gap-2">
+            <Skeleton width={64} height={14} />
+            <Skeleton width={54} height={18} rounded={999} />
+          </View>
+        </View>
+      </View>
+      {/* Today's chore. */}
+      <ListSkeleton rows={1} padded={false} />
       {/* The latest note — taller, because it carries three lines of Caveat. */}
       <View className="gap-3 rounded-xl border border-line bg-paper p-4">
         <View className="flex-row items-center gap-2">
@@ -83,20 +112,6 @@ export function DashboardSkeleton() {
         </View>
         <Skeleton width="90%" height={16} />
         <Skeleton width="70%" height={16} />
-      </View>
-      {/* Settle up. */}
-      <View className="items-center gap-3 rounded-xl border border-line bg-paper p-5">
-        <Skeleton width="30%" height={10} />
-        <Skeleton width="50%" height={28} />
-        <View className="mt-1 w-full flex-row gap-3">
-          <Skeleton width="48%" height={52} rounded={12} />
-          <Skeleton width="48%" height={52} rounded={12} />
-        </View>
-      </View>
-      {/* Quick actions, so the row doesn't pop in under the balance. */}
-      <View className="flex-row gap-3">
-        <Skeleton width="47%" height={52} rounded={16} />
-        <Skeleton width="47%" height={52} rounded={16} />
       </View>
     </View>
   );

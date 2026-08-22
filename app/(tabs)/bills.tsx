@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { billStatus, isBillSettled, isSettledAmount, summariseBalance } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
-import { SettleUpCard } from '../../src/components/SettleUpCard';
+import { MonthBalanceCard } from '../../src/components/MonthBalanceCard';
 import { Screen, ScreenHeader } from '../../src/components/ui/Screen';
 import { EmptyState, ErrorState } from '../../src/components/ui/States';
 import { Fab } from '../../src/components/ui/Fab';
@@ -131,13 +131,17 @@ export default function BillsScreen() {
               tintColor={colors.moss.DEFAULT}
             />
           }
-          // The settle-up card scrolls with the receipts rather than pinning
+          // The balance card scrolls with the receipts rather than pinning
           // above them: once you're deep in the list you're reading bills, not
           // balances, and a sticky summary just costs a third of the screen.
           ListHeaderComponent={
             userId && bills.length > 0 ? (
               <View className="pb-1">
-                <SettleUpCard bills={bills} userId={userId} />
+                <MonthBalanceCard
+                  bills={bills}
+                  userId={userId}
+                  onPressBill={(bill) => router.push(`/bills/${bill.id}`)}
+                />
               </View>
             ) : null
           }

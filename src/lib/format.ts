@@ -88,6 +88,11 @@ export function daysInMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
 
+/** Last day of the month containing `date`, at local midnight. */
+export function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), daysInMonth(date));
+}
+
 /**
  * Month arithmetic that clamps rather than overflowing — a month on from
  * 31 January is 28 February, not 3 March.
@@ -109,6 +114,16 @@ export function isSameDay(a: Date, b: Date): boolean {
 /** "August 2026" — the calendar's own heading. */
 export function formatMonthYear(date: Date): string {
   return date.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * "August" — the month on its own.
+ *
+ * The balance card says "your share of August", where the year is noise: it is
+ * always the month you are standing in.
+ */
+export function formatMonthName(date: Date): string {
+  return date.toLocaleDateString('en-PH', { month: 'long' });
 }
 
 /** "Aug 13" / "Aug 13, 2027" once the year differs from today's. */

@@ -4,9 +4,9 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { billOutstanding, billStatus, isBillSettled } from '../../src/api/bills';
+import { isBillSettled } from '../../src/api/bills';
 import { openAssignment } from '../../src/api/chores';
-import { SettleUpCard } from '../../src/components/SettleUpCard';
+import { MonthBalanceCard } from '../../src/components/MonthBalanceCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { NoteCard } from '../../src/components/ui/NoteCard';
 import { Pill } from '../../src/components/ui/Pill';
@@ -21,16 +21,13 @@ import {
   useOpenLeaveRequests,
 } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
-import { formatPeso, formatRelativeDate, formatTimeAgo, todayString } from '../../src/lib/format';
-import { categoryMeta } from '../../src/lib/categories';
+import { formatRelativeDate, formatTimeAgo, todayString } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
 import { press, pressSmall } from '../../src/lib/motion';
-import { BILL_STATUS } from '../../src/lib/status';
 import { colors, tapeColorFor } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useMembers, useProfile } from '../../src/store/useSessionStore';
 import type {
   AssignmentWithProfile,
-  BillWithSplits,
   ChoreWithAssignments,
   MemberWithProfile,
 } from '../../src/types';
@@ -73,21 +70,6 @@ export default function HomeScreen() {
     );
     return mineAndDue ?? open[0] ?? null;
   }, [chores.data, today, userId]);
-
-  /** Soonest unpaid bill; ones with no due date sit behind the dated ones. */
-  const nextBill = useMemo(() => {
-    const unpaid = (bills.data ?? []).filter((bill) => !isBillSettled(bill));
-    return (
-      unpaid
-        .slice()
-        .sort((a, b) => {
-          if (a.due_date === b.due_date) return 0;
-          if (!a.due_date) return 1;
-          if (!b.due_date) return -1;
-          return a.due_date.localeCompare(b.due_date);
-        })[0] ?? null
-    );
-  }, [bills.data]);
 
   /**
    * Requests waiting on the person reading this, and the state of their own.
@@ -245,11 +227,49 @@ export default function HomeScreen() {
                   />
                 </View>
 
-                {/* Balance ------------------------------------------- */}
+                {/* Money --------------------------------------------- */}
+                {/* One card, not two. "Where you stand" and "next bill due"
+                    were always halves of the same question — how much is left
+                    and what is coming — and split across two cards the
+                    dashboard answered it twice, in two different units. */}
                 {userId ? (
                   <View>
-                    <SectionTitle>Where you stand</SectionTitle>
-                    <SettleUpCard bills={bills.data ?? []} userId={userId} compact />
+                    <View className="mb-2 flex-row items-center justify-between">
+                      <SectionTitle className="mb-0">This month</SectionTitle>
+                      {unpaidCount > 1 ? (
+                        // 11pt uppercase is a small thing to hit, and it sits
+                        // in the corner of a section header where a thumb has
+                        // nothing else to aim at.
+                        <Pressable
+                          accessibilityRole="button"
+                          hitSlop={12}
+                          onPress={() => router.push('/bills')}
+                          className={`${pressSmall} active:opacity-60`}
+                        >
+                          <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
+                            {unpaidCount - 1} more
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+
+                    {(bills.data ?? []).length > 0 ? (
+                      <MonthBalanceCard
+                        bills={bills.data ?? []}
+                        userId={userId}
+                        compact
+                        onPressBill={(bill) => router.push(`/bills/${bill.id}`)}
+                      />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon="receipt-outline"
+                        title="No bills yet"
+                        message="Add one when the next electricity or internet bill arrives."
+                        actionLabel="Add a bill"
+                        onAction={() => router.push('/bills/new')}
+                      />
+                    )}
                   </View>
                 ) : null}
 
@@ -272,44 +292,6 @@ export default function HomeScreen() {
                       message="Set up a rotation so nobody has to track whose turn it is."
                       actionLabel="Add a chore"
                       onAction={() => router.push('/chores/new')}
-                    />
-                  )}
-                </View>
-
-                {/* Next bill ----------------------------------------- */}
-                <View>
-                  <View className="mb-2 flex-row items-center justify-between">
-                    <SectionTitle className="mb-0">Next bill due</SectionTitle>
-                    {unpaidCount > 1 ? (
-                      // 11pt uppercase is a small thing to hit, and it sits
-                      // in the corner of a section header where a thumb has
-                      // nothing else to aim at.
-                      <Pressable
-                        accessibilityRole="button"
-                        hitSlop={12}
-                        onPress={() => router.push('/bills')}
-                        className={`${pressSmall} active:opacity-60`}
-                      >
-                        <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
-                          {unpaidCount - 1} more
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-
-                  {nextBill ? (
-                    <NextBillCard
-                      bill={nextBill}
-                      onPress={() => router.push(`/bills/${nextBill.id}`)}
-                    />
-                  ) : (
-                    <EmptyState
-                      compact
-                      icon="receipt-outline"
-                      title="No bills outstanding"
-                      message="Add one when the next electricity or internet bill arrives."
-                      actionLabel="Add a bill"
-                      onAction={() => router.push('/bills/new')}
                     />
                   )}
                 </View>
@@ -547,46 +529,6 @@ function TodaysChoreCard({
             <Text className="font-hand-bold text-base leading-5 text-ink">your turn</Text>
           </View>
         ) : null}
-      </View>
-    </NoteCard>
-  );
-}
-
-function NextBillCard({ bill, onPress }: { bill: BillWithSplits; onPress: () => void }) {
-  const meta = categoryMeta(bill.category);
-  const status = billStatus(bill);
-  const badge = BILL_STATUS[status];
-
-  return (
-    <NoteCard
-      onPress={onPress}
-      tape={status === 'overdue' ? colors.brick : colors.mustard}
-      rotate={0.4}
-      className={`pt-5 ${status === 'overdue' ? 'bg-wash-brick' : ''}`}
-    >
-      <View className="flex-row items-center gap-3">
-        <View
-          className="h-11 w-11 items-center justify-center rounded-xl"
-          style={{ backgroundColor: meta.background }}
-        >
-          <Ionicons name={meta.icon} size={20} color={meta.tint} />
-        </View>
-        <View className="flex-1">
-          <Text className="font-ui-bold text-base text-ink" numberOfLines={1}>
-            {bill.title}
-          </Text>
-          <Text className="mt-0.5 font-mono text-[11px] text-ink-muted" numberOfLines={1}>
-            {bill.due_date ? `Due ${formatRelativeDate(bill.due_date)}` : meta.subtitle}
-          </Text>
-        </View>
-        {/* The amount stays neutral — the urgency lives in the pill, so an
-            ordinary bill doesn't shout. */}
-        <View className="items-end gap-1">
-          <Text className="font-mono-bold text-base text-ink">
-            {formatPeso(billOutstanding(bill))}
-          </Text>
-          <Pill label={badge.label} tone={badge.tone} icon={badge.icon} />
-        </View>
       </View>
     </NoteCard>
   );

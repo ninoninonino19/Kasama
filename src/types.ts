@@ -63,12 +63,33 @@ export type LeaveRequestWithVotes = LeaveRequest & {
 
 /** How much the signed-in user owes vs. is owed across all unsettled bills. */
 export type BalanceSummary = {
-  /** What I still have to pay on other people's bills. */
+  /** What I still have to pay, on my own bills as much as anyone else's. */
   owed: number;
-  /** What housemates still owe me on bills I paid for. */
+  /** What housemates still owe me on bills I paid for and have covered. */
   owing: number;
   /** owing - owed. Positive means the household owes me. */
   net: number;
+};
+
+/**
+ * The signed-in user's month: what is left to pay, and what has been already.
+ *
+ * Covers every bill due on or before the end of the current month — carried-over
+ * overdue ones included — plus bills with no due date. See `summariseMonth`.
+ */
+export type MonthBalance = {
+  /** `YYYY-MM` the figures cover. */
+  month: string;
+  /** My unpaid shares in the window. The number the dashboard leads with. */
+  remaining: number;
+  /** My shares in the window I have already ticked off. */
+  paid: number;
+  /** paid + remaining — my whole share of the month. */
+  total: number;
+  /** Everything the house still owes in the same window, mine included. */
+  householdRemaining: number;
+  /** Bills in the window that still carry an unpaid share of mine. */
+  openBills: number;
 };
 
 /** One settled share, for the "who paid whom" ledger. */
