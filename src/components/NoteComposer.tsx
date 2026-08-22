@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import type { TapeColor } from '../lib/database.types';
 import { haptics } from '../lib/haptics';
 import { colors, TAPE_HEX, TAPE_TOKENS } from '../lib/theme';
+import { ReceiptField } from './Receipt';
+import type { ReceiptState } from './Receipt';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { FormScreen, SectionTitle } from './ui/Screen';
@@ -29,6 +31,7 @@ export function NoteComposer({
   subtitle,
   initialContent = '',
   initialTape = 'mustard',
+  initialReceipt = { status: 'none' },
   submitLabel,
   onSubmit,
   footer,
@@ -41,14 +44,17 @@ export function NoteComposer({
   subtitle: string;
   initialContent?: string;
   initialTape?: TapeColor;
+  /** The receipt already on the note, when this is the edit screen. */
+  initialReceipt?: ReceiptState;
   submitLabel: string;
-  onSubmit: (content: string, tape: TapeColor) => Promise<void>;
+  onSubmit: (content: string, tape: TapeColor, receipt: ReceiptState) => Promise<void>;
   footer?: ReactNode;
 }) {
   const [content, setContent] = useState(initialContent);
   // Opens on the colour the note already shows, rather than making the first
   // choice mandatory.
   const [tape, setTape] = useState<TapeColor>(initialTape);
+  const [receipt, setReceipt] = useState<ReceiptState>(initialReceipt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +66,7 @@ export function NoteComposer({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit(content, tape);
+      await onSubmit(content, tape, receipt);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Something went wrong.');
       setBusy(false);
@@ -78,8 +84,16 @@ export function NoteComposer({
           <Avatar name={authorName} userId={authorId} avatarUrl={authorAvatarUrl} size={36} />
           <View className="flex-1">
             <Text className="font-ui-bold text-sm text-ink">{authorName}</Text>
-            <Text className="font-ui text-xs text-ink-muted">{subtitle}</Text>
+            <Text className="font-ui text-xs text-ink-muted">
+              {receipt.status === 'none' ? subtitle : 'with a receipt attached'}
+            </Text>
           </View>
+          {/* Riding in the byline rather than in a section of its own, which is
+              a layout decision the keyboard makes for us: this screen doesn't
+              scroll, and the note sheet below is the flex-1 that pays for
+              every fixed row above it. A whole row for the receipt costs the
+              sheet most of its height on a small phone with the keyboard up. */}
+          <ReceiptField value={receipt} onChange={setReceipt} onError={setError} compact />
         </View>
 
         {/* The sheet itself, drawn the way it will look on the board — same

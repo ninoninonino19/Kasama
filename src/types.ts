@@ -8,6 +8,8 @@ export type BillSplit = Tables<'bill_splits'>;
 export type Chore = Tables<'chores'>;
 export type ChoreAssignment = Tables<'chore_assignments'>;
 export type Announcement = Tables<'announcements'>;
+export type LeaveRequest = Tables<'leave_requests'>;
+export type LeaveRequestVote = Tables<'leave_request_votes'>;
 
 export type MemberWithProfile = HouseholdMember & {
   profile: Profile;
@@ -31,6 +33,32 @@ export type ChoreWithAssignments = Chore & {
 
 export type AnnouncementWithAuthor = Announcement & {
   profile: Profile | null;
+  /**
+   * A viewable link to `image_path`, signed when the board was fetched.
+   *
+   * Not a column — the receipts bucket is private, so the row stores a storage
+   * path and this is what an `<Image>` can actually load. It expires; see
+   * `RECEIPT_URL_TTL_SECONDS`. Undefined on a note that was never signed,
+   * null when the signing failed or the file has gone.
+   */
+  imageUrl?: string | null;
+};
+
+export type LeaveVoteWithVoter = LeaveRequestVote & {
+  voter: Profile | null;
+};
+
+/**
+ * A request to leave, with whoever has answered it so far.
+ *
+ * `votes` only ever holds answers that have been given — silence is not a row.
+ * Who is still to answer is worked out against the current member list rather
+ * than stored, so a housemate who joins while a request is open is asked too.
+ */
+export type LeaveRequestWithVotes = LeaveRequest & {
+  /** The person leaving. */
+  profile: Profile | null;
+  votes: LeaveVoteWithVoter[];
 };
 
 /** How much the signed-in user owes vs. is owed across all unsettled bills. */
@@ -53,6 +81,10 @@ export type LedgerEntry = {
   category: Bill['category'];
   /** Who handed over the money. */
   payerId: string;
-  /** Who had fronted the bill and was paid back. */
+  /**
+   * Who was paid back — whoever is collecting for the bill. Equal to `payerId`
+   * when they were settling their own share, which goes to the biller rather
+   * than to a housemate.
+   */
   payeeId: string;
 };

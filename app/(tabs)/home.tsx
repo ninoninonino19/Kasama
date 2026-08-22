@@ -13,7 +13,13 @@ import { Pill } from '../../src/components/ui/Pill';
 import { Screen, SectionTitle } from '../../src/components/ui/Screen';
 import { EmptyState, ErrorState } from '../../src/components/ui/States';
 import { DashboardSkeleton } from '../../src/components/ui/Skeleton';
-import { useAnnouncements, useBills, useChores } from '../../src/hooks/useHouseholdData';
+import {
+  useAnnouncements,
+  useBills,
+  useChores,
+  useMyLeaveRequest,
+  useOpenLeaveRequests,
+} from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso, formatRelativeDate, formatTimeAgo, todayString } from '../../src/lib/format';
 import { categoryMeta } from '../../src/lib/categories';
@@ -39,6 +45,8 @@ export default function HomeScreen() {
   const bills = useBills();
   const chores = useChores();
   const announcements = useAnnouncements(3);
+  const openRequests = useOpenLeaveRequests();
+  const myRequest = useMyLeaveRequest();
 
   const loading = bills.loading || chores.loading || announcements.loading;
   const refreshing = bills.refreshing || chores.refreshing || announcements.refreshing;
@@ -80,6 +88,27 @@ export default function HomeScreen() {
         })[0] ?? null
     );
   }, [bills.data]);
+
+  /**
+   * Requests waiting on the person reading this, and the state of their own.
+   *
+   * The dashboard is the only screen everybody opens, and a request nobody
+   * answers holds up a housemate indefinitely — so it gets a line here rather
+   * than living only in a settings screen people visit twice a year. Yours is
+   * separate: waiting on a vote isn't a thing to answer, it's a thing to know.
+   */
+  const toAnswer = useMemo(
+    () =>
+      (openRequests.data ?? []).filter(
+        (request) =>
+          request.user_id !== userId &&
+          // Already answered, so it is not asking anything of you any more.
+          !request.votes.some((vote) => vote.voter_id === userId)
+      ),
+    [openRequests.data, userId]
+  );
+
+  const myRequestPending = myRequest.data?.status === 'pending';
 
   const latestPost = (announcements.data ?? [])[0] ?? null;
   const unpaidCount = useMemo(
@@ -160,6 +189,30 @@ export default function HomeScreen() {
           userId={userId}
           onPress={() => router.push('/settings/household')}
         />
+
+        {/* Above everything the dashboard normally leads with, because it is
+            the only thing on it that somebody else is waiting on. */}
+        {toAnswer.length > 0 ? (
+          <LeaveNotice
+            tone="ask"
+            icon="exit-outline"
+            title={
+              toAnswer.length === 1
+                ? `${toAnswer[0].profile?.display_name.split(' ')[0] ?? 'A housemate'} wants to leave`
+                : `${toAnswer.length} housemates want to leave`
+            }
+            message="Check what's still outstanding between you, then accept or decline."
+            onPress={() => router.push('/settings/household')}
+          />
+        ) : myRequestPending ? (
+          <LeaveNotice
+            tone="waiting"
+            icon="hourglass-outline"
+            title="Your housemates are deciding"
+            message="You'll leave once everyone has accepted. Nothing has changed yet."
+            onPress={() => router.push('/settings/household')}
+          />
+        ) : null}
 
         {loading ? (
           <DashboardSkeleton />
@@ -334,6 +387,63 @@ export default function HomeScreen() {
  * list rows, and the pile-of-photos shape says "us" faster than any label. The
  * paper ring on each avatar is what keeps the pile legible.
  */
+/**
+ * The one-line notice a leave request gets on the dashboard.
+ *
+ * A row rather than a card: it has to be impossible to scroll past and not
+ * worth reading twice, and the decision itself belongs on the screen that can
+ * show the money behind it. Two tones, because the two states are opposite
+ * kinds of news — something is being asked of you, or something is being
+ * decided about you.
+ */
+function LeaveNotice({
+  tone,
+  icon,
+  title,
+  message,
+  onPress,
+}: {
+  tone: 'ask' | 'waiting';
+  icon: ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  message: string;
+  onPress: () => void;
+}) {
+  const asking = tone === 'ask';
+  const tint = asking ? colors.deep.brick : colors.deep.mustard;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${message}`}
+      onPress={() => {
+        haptics.tap();
+        onPress();
+      }}
+      className={`flex-row items-center gap-3 rounded-2xl border p-4 ${press} ${
+        asking
+          ? 'border-brick/40 bg-wash-brick active:bg-wash-brick/70'
+          : 'border-mustard/50 bg-wash-mustard active:bg-wash-mustard/70'
+      }`}
+    >
+      <Ionicons name={icon} size={20} color={tint} />
+      <View className="flex-1">
+        <Text className={`font-ui-bold text-sm ${asking ? 'text-deep-brick' : 'text-deep-mustard'}`}>
+          {title}
+        </Text>
+        <Text
+          className={`mt-0.5 font-ui text-xs leading-5 ${
+            asking ? 'text-deep-brick' : 'text-deep-mustard'
+          }`}
+        >
+          {message}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={tint} />
+    </Pressable>
+  );
+}
+
 function HousemateRow({
   members,
   userId,

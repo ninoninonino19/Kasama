@@ -83,10 +83,16 @@ export default function InviteScreen() {
         <View className="gap-3">
           {/* Before they've sent anything this is the quiet way past; once
               they have, continuing is the obvious next thing and the button
-              says so. */}
+              says so.
+
+              Quiet, but still a button. This was `ghost` — transparent, with
+              only its label in moss — which on a screen whose one job is the
+              code above it left the only way onward looking like a line of
+              text nobody had styled. `secondary` keeps it clearly second to
+              the code without pretending it isn't a control. */}
           <Button
             label={shared ? 'Go to my household' : "I'll invite them later"}
-            variant={shared ? 'primary' : 'ghost'}
+            variant={shared ? 'primary' : 'secondary'}
             icon={shared ? 'arrow-forward' : undefined}
             onPress={() => router.replace('/(tabs)/home')}
           />

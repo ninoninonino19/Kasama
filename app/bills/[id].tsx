@@ -24,6 +24,7 @@ import { colors, ripple } from '../../src/lib/theme';
 import {
   useCurrentUserId,
   useHousehold,
+  useMembers,
   useProfile,
   useSessionStore,
 } from '../../src/store/useSessionStore';
@@ -35,6 +36,7 @@ export default function BillDetailScreen() {
   const dialog = useDialog();
   const userId = useCurrentUserId();
   const role = useSessionStore((state) => state.role);
+  const members = useMembers();
 
   const { data: bill, loading, refreshing, error, refresh, setData } = useAsyncData(
     id ? () => fetchBill(id) : null,
@@ -226,6 +228,26 @@ export default function BillDetailScreen() {
   const badge = BILL_STATUS[status];
   const canDelete = bill.created_by === userId || role === 'admin';
 
+  /**
+   * Shares belonging to someone who has since moved out.
+   *
+   * A departed housemate's split stays on the bill on purpose — leaving does
+   * not un-owe what they owed. But an unpaid one keeps the bill open forever,
+   * and for a recurring bill that means next month's copy never gets created,
+   * because `roll_recurring_bill` only rolls a bill that is fully settled. The
+   * house can tick it — anyone can settle anyone's share — but only if they
+   * know that's what's holding things up, so the row says so rather than
+   * showing a nameless person who won't pay.
+   */
+  const departed = new Set(
+    bill.splits
+      .map((split) => split.user_id)
+      .filter((id) => !members.some((member) => member.user_id === id))
+  );
+  const stuckOnDeparted = bill.splits.some(
+    (split) => !split.paid && departed.has(split.user_id)
+  );
+
   return (
     <FormScreen title={bill.title} subtitle={`${meta.label} · ${badge.label}`}>
       <ScrollView
@@ -305,8 +327,12 @@ export default function BillDetailScreen() {
                 .slice()
                 .sort((a, b) => Number(a.paid) - Number(b.paid))
                 .map((split) => {
-                  const name = split.profile?.display_name ?? 'Housemate';
+                  // Their profile stops being readable once you no longer
+                  // share a household, so a past housemate's name genuinely is
+                  // gone rather than merely missing.
+                  const name = split.profile?.display_name ?? 'A past housemate';
                   const isSelf = split.user_id === userId;
+                  const hasLeft = departed.has(split.user_id);
 
                   return (
                     <SwipeRow
@@ -362,11 +388,14 @@ export default function BillDetailScreen() {
                             {split.paid && split.paid_at
                               ? `Paid ${formatTimeAgo(split.paid_at)}`
                               : 'Not yet paid'}
+                            {hasLeft ? ' · has left the household' : ''}
                           </Text>
                         </View>
                         {/* Only the payer, only on unpaid shares, never on
-                            your own. */}
-                        {!split.paid && bill.created_by === userId && !isSelf ? (
+                            your own, and never to a phone that has left the
+                            household — a nudge nobody will receive reads as
+                            sent. */}
+                        {!split.paid && bill.created_by === userId && !isSelf && !hasLeft ? (
                           <Pressable
                             accessibilityRole="button"
                             accessibilityLabel={`Remind ${name} about their share`}
@@ -411,6 +440,18 @@ export default function BillDetailScreen() {
           <Text className="mt-2 px-1 font-ui text-xs text-ink-muted">
             Tap a name to mark it paid or unpaid — or swipe the row across.
           </Text>
+
+          {stuckOnDeparted ? (
+            <View className="mt-2 flex-row items-start gap-2 rounded-xl border border-mustard/50 bg-wash-mustard px-3 py-2.5">
+              <Ionicons name="information-circle-outline" size={16} color={colors.deep.mustard} />
+              <Text className="flex-1 font-ui text-xs leading-5 text-deep-mustard">
+                Someone on this bill has left the household. Their share stays on record either
+                way — but the bill can't settle
+                {bill.recurrence === 'none' ? '' : ", and the next one won't be created,"} until
+                somebody ticks it or writes it off.
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {actionError ? <InlineError message={actionError} /> : null}

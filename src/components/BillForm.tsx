@@ -43,10 +43,10 @@ export type BillFormInitial = {
 /**
  * The add / edit bill form.
  *
- * `splitsLocked` is the interesting part: once a housemate has actually paid
- * their share, the amount and the split stop being editable. Changing them
- * would rewrite what someone has already handed over money for, and there is
- * no honest way to reconcile that silently. The rest of the bill — its name,
+ * `splitsLocked` is the interesting part: once anyone has ticked their share
+ * paid, the amount and the split stop being editable. Changing them would
+ * rewrite what someone has already handed over money for, and there is no
+ * honest way to reconcile that silently. The rest of the bill — its name,
  * category, due date, whether it repeats — stays editable, which covers the
  * typo that sent anyone here in the first place.
  */
@@ -388,8 +388,8 @@ export function BillForm({
             <NoteCard tape={colors.mustard} className="mb-3 pt-5">
               <Text className="font-ui text-xs leading-5 text-ink-muted">
                 Someone has already paid towards this bill, so the amount and the split are
-                locked — what other people have paid can't be changed underneath them. The
-                title, category, due date and repeat schedule are all still editable.
+                locked — what people have paid can't be changed underneath them. The title,
+                category, due date and repeat schedule are all still editable.
               </Text>
             </NoteCard>
           ) : null}
@@ -501,7 +501,8 @@ export function BillForm({
 
         {mode === 'create' ? (
           <Text className="text-center font-ui text-xs leading-5 text-ink-muted">
-            You logged this, so your own share starts as paid. Everyone else is marked as owing you.
+            Everyone starts unpaid, you included — logging a bill isn't the same as paying it.
+            Tick your own share once you have, and the house settles up with you.
           </Text>
         ) : null}
 

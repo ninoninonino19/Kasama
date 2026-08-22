@@ -7,7 +7,9 @@ declare
   boy  uuid := '22222222-2222-2222-2222-222222222222';
   cely uuid := '33333333-3333-3333-3333-333333333333';
   house uuid;
-  rent uuid; kuryente uuid; sofa uuid; tubig uuid;
+  rent uuid; kuryente uuid; sofa uuid; tubig uuid; internet uuid;
+  bins uuid; boys_turn uuid; turn_owner uuid;
+  carried int;
   rolled uuid;
   r record;
   failures int := 0;
@@ -52,12 +54,14 @@ begin
       raise warning 'FAIL 3a: due date is % not 2026-09-01', r.due_date; failures := failures + 1;
     elsif r.created_by <> ana then
       raise warning 'FAIL 3b: payer not preserved'; failures := failures + 1;
-    elsif r.splits <> 2 or r.prepaid <> 1 then
+    elsif r.splits <> 2 or r.prepaid <> 0 then
+      -- Nobody has paid next month's rent yet, the person who logged it
+      -- included. See the splits_start_unpaid migration.
       raise warning 'FAIL 3c: splits=% prepaid=%', r.splits, r.prepaid; failures := failures + 1;
     elsif r.amount <> 12000 then
       raise warning 'FAIL 3d: amount not carried'; failures := failures + 1;
     else
-      raise notice 'PASS 2-3: rolled to %, payer Ana, % splits, % prepaid, ₱%',
+      raise notice 'PASS 2-3: rolled to %, collector Ana, % splits, % prepaid, ₱%',
         r.due_date, r.splits, r.prepaid, r.amount;
     end if;
   end if;
@@ -121,8 +125,52 @@ begin
     raise notice 'PASS 8: undated weekly bill dated a week from today';
   end if;
 
+  -- ---- 9. A housemate who left is not carried into next month ----------
+  insert into public.bills (household_id, title, amount, category, due_date, recurrence, created_by)
+    values (house, 'Internet', 2000, 'internet', date '2026-08-10', 'monthly', ana)
+    returning id into internet;
+  insert into public.bill_splits (bill_id, user_id, amount_owed, paid, paid_at) values
+    (internet, ana, 1000, true, now()), (internet, boy, 1000, true, now());
+
+  -- Boy is midway through a rotation when he goes.
+  insert into public.chores (household_id, title, recurrence)
+    values (house, 'Take the bins out', 'weekly') returning id into bins;
+  insert into public.chore_assignments (chore_id, user_id, due_date)
+    values (bins, boy, date '2026-08-14') returning id into boys_turn;
+  insert into public.chore_assignments (chore_id, user_id, due_date, completed, completed_at)
+    values (bins, boy, date '2026-08-07', true, now());
+
+  delete from public.household_members where household_id = house and user_id = boy;
+
+  rolled := public.roll_recurring_bill(internet);
+  select count(*) into carried from public.bill_splits where bill_id = rolled;
+  if carried <> 1 then
+    raise warning 'FAIL 9: % splits carried, expected 1 (Boy has left)', carried;
+    failures := failures + 1;
+  elsif exists (select 1 from public.bill_splits where bill_id = rolled and user_id = boy) then
+    raise warning 'FAIL 9: Boy left but still owes on next month''s internet';
+    failures := failures + 1;
+  else
+    raise notice 'PASS 9: a departed housemate is left out of the next occurrence';
+  end if;
+
+  -- ---- 10. His unfinished turn moves on; his finished one stays his ----
+  select user_id into turn_owner from public.chore_assignments where id = boys_turn;
+  if turn_owner <> ana then
+    raise warning 'FAIL 10a: open turn went to % rather than Ana', turn_owner;
+    failures := failures + 1;
+  elsif not exists (
+    select 1 from public.chore_assignments a
+    where a.chore_id = bins and a.user_id = boy and a.completed
+  ) then
+    raise warning 'FAIL 10b: a finished turn was rewritten out of the record';
+    failures := failures + 1;
+  else
+    raise notice 'PASS 10: the open turn follows the house, the finished one stays Boy''s';
+  end if;
+
   if failures = 0 then
-    raise notice '=== ALL 8 CHECKS PASSED ===';
+    raise notice '=== ALL 10 CHECKS PASSED ===';
   else
     raise exception '% CHECK(S) FAILED', failures;
   end if;

@@ -3,7 +3,8 @@ import { useCallback } from 'react';
 import { fetchAnnouncements } from '../api/announcements';
 import { fetchBills, fetchLedger } from '../api/bills';
 import { fetchChoreStreaks, fetchChores } from '../api/chores';
-import { useHousehold } from '../store/useSessionStore';
+import { fetchMyLeaveRequest, fetchOpenLeaveRequests } from '../api/household';
+import { useCurrentUserId, useHousehold } from '../store/useSessionStore';
 import { useAsyncData } from './useAsyncData';
 import { useRealtime } from './useRealtime';
 
@@ -142,6 +143,77 @@ export function useAnnouncements(limit = 50) {
     householdId
       ? [{ table: 'announcements', filter: `household_id=eq.${householdId}` }]
       : [],
+    silentRefresh
+  );
+
+  return state;
+}
+
+/**
+ * Requests to leave that the household still has to answer.
+ *
+ * Watches the votes as well as the requests: the tally on screen is "two of
+ * three have said yes", and a housemate answering on their own phone has to
+ * move it on everyone else's without anyone pulling to refresh.
+ */
+export function useOpenLeaveRequests() {
+  const household = useHousehold();
+  const householdId = household?.id ?? null;
+
+  const state = useAsyncData(
+    householdId ? () => fetchOpenLeaveRequests(householdId) : null,
+    [householdId]
+  );
+
+  const { refresh } = state;
+  const silentRefresh = useCallback(() => {
+    void refresh({ silent: true });
+  }, [refresh]);
+
+  useRealtime(
+    `leave-requests:${householdId ?? 'none'}`,
+    householdId
+      ? [
+          { table: 'leave_requests', filter: `household_id=eq.${householdId}` },
+          { table: 'leave_request_votes' },
+        ]
+      : [],
+    silentRefresh
+  );
+
+  return state;
+}
+
+/**
+ * The signed-in user's own most recent request, however it ended.
+ *
+ * Its own hook rather than a filter over the list above, because it has to
+ * survive the request resolving — which is exactly when the list drops it, and
+ * exactly when the person who asked most wants to know what happened.
+ */
+export function useMyLeaveRequest() {
+  const household = useHousehold();
+  const householdId = household?.id ?? null;
+  const userId = useCurrentUserId();
+
+  const state = useAsyncData(
+    householdId && userId ? () => fetchMyLeaveRequest(householdId, userId) : null,
+    [householdId, userId]
+  );
+
+  const { refresh } = state;
+  const silentRefresh = useCallback(() => {
+    void refresh({ silent: true });
+  }, [refresh]);
+
+  // No household filter on the requests here. The moment this one is approved
+  // the user stops being a member, and a filtered subscription would be
+  // evaluated against a membership they no longer have — so the one event that
+  // matters most is the one they'd miss. Their own rows stay readable to them
+  // either way; see the select policy on `leave_requests`.
+  useRealtime(
+    `my-leave-request:${userId ?? 'none'}`,
+    userId ? [{ table: 'leave_requests', filter: `user_id=eq.${userId}` }] : [],
     silentRefresh
   );
 

@@ -3,7 +3,7 @@ import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { billStatus, isBillSettled, summariseBalance } from '../../src/api/bills';
+import { billStatus, isBillSettled, isSettledAmount, summariseBalance } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
 import { SettleUpCard } from '../../src/components/SettleUpCard';
@@ -68,9 +68,9 @@ export default function BillsScreen() {
       <ScreenHeader
         title="Bills"
         subtitle={
-          balance.owed > 0
-            ? `You still owe ${formatPeso(balance.owed)}`
-            : "You're all square"
+          isSettledAmount(balance.owed)
+            ? "You're all square"
+            : `You still owe ${formatPeso(balance.owed)}`
         }
         right={
           <Pressable
