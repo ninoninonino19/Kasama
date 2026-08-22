@@ -87,6 +87,21 @@ module.exports = {
         '2xl': '20px',
         '3xl': '28px',
       },
+      // The class-side half of `src/lib/motion.ts` — the same two curves, so a
+      // `transition-*` class and a Reanimated animation can't drift apart.
+      //
+      // Tailwind's own `ease-out` is cubic-bezier(0, 0, 0.2, 1), which is too
+      // weak to read as deliberate at the 100–250ms this app animates in.
+      // These are the strong versions, and they're named rather than aliased
+      // over the built-ins so a reader can tell which one a component asked
+      // for. `ease-in` has no token on purpose: it starts slow, delaying the
+      // exact moment the user is watching.
+      transitionTimingFunction: {
+        // Entrances, exits, and anything responding to a touch.
+        'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        // Something moving or morphing while it stays on screen.
+        'in-out-strong': 'cubic-bezier(0.77, 0, 0.175, 1)',
+      },
     },
   },
   plugins: [],

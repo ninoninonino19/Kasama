@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { haptics } from '../../lib/haptics';
+import { pressSmall } from '../../lib/motion';
 import { textCap } from '../../lib/theme';
 
 type ChipProps = {
@@ -56,7 +57,9 @@ export function Chip({ label, count, selected = false, onPress }: ChipProps) {
         haptics.select();
         onPress();
       }}
-      className={`${className} active:opacity-80`}
+      // Scale *and* opacity: the dip is the feel, the fade is the part that
+      // still reads if the transform never plays.
+      className={`${className} ${pressSmall} active:opacity-80`}
     >
       {content}
     </Pressable>

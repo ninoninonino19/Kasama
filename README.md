@@ -233,7 +233,7 @@ src/
   api/                      # Supabase queries, grouped by feature
   components/ui/            # NoteCard, Tape, Pill, Avatar, BoardTabBar, states…
   hooks/                    # useAsyncData, useRealtime, useHouseholdData
-  lib/                      # theme tokens, supabase client, formatting, DB types
+  lib/                      # theme + motion tokens, supabase client, formatting, DB types
   providers/                # SessionProvider (auth + household bootstrap)
   store/                    # Zustand session store + the board's "last seen" mark
 supabase/migrations/        # schema + RLS + realtime setup
@@ -316,6 +316,44 @@ optional `Tape` and a fraction of a degree of pin skew). `Tape` is the decorativ
 card's top-left, hidden from screen readers. `Pill` is the status badge. `Avatar` carries a
 paper ring so faces can overlap. `BoardTabBar` replaces react-navigation's default bar.
 Status never rides on colour alone — every pill pairs its tone with a word and a glyph.
+
+### Motion
+
+Motion tokens follow the same two-places rule as colour: `src/lib/motion.ts` for the values
+JS drives (curves, durations, springs) and `tailwind.config.js` for the two easing classes.
+Nothing in the app animates on a number typed at the call site.
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `ease-out-strong` | `cubic-bezier(0.23, 1, 0.32, 1)` | Entrances, exits, anything answering a touch |
+| `ease-in-out-strong` | `cubic-bezier(0.77, 0, 0.175, 1)` | Something moving while it stays on screen |
+| `press` / `pressSmall` / `pressLarge` | 100ms, `scale` 0.97 / 0.96 / 0.94 | Press feedback, sized to the target |
+| `duration.state` / `.panel` / `.fill` | 150 / 240 / 320ms | A state flip, a card arriving, a progress bar travelling |
+
+There is no `ease-in` token. It starts slow, which delays the exact moment the user is
+watching.
+
+Three rules decide whether something animates at all:
+
+- **Frequency sets the budget.** The tab rail is tapped dozens of times a day, so it
+  switches instantly and always will — four tabs are peers, and a transition there is a tax
+  paid on every switch. Press feedback is felt rather than watched, so it gets 100ms.
+  Sheets, dialogs and a chore leaving its section get a real animation. Nothing gets more.
+- **Press feedback starts on press-*in*.** Waiting for the tap to complete is the latency
+  people actually notice. The dip is on the whole surface so the label and icon travel with
+  it, which is what makes it read as something physical rather than a colour swap.
+- **Reduced motion ships with the animation.** Every entrance, exit and layout transition
+  carries `ReduceMotion.System`, the stack cross-fades instead of sliding, and the loading
+  skeletons hold a dimmed state instead of pulsing. Movement goes; the opacity and colour
+  changes that explain *what* happened stay.
+
+The class-driven transitions compile through NativeWind to Reanimated shared values, so they
+run on the UI thread — they keep going while the JS thread is busy with the fetch that
+prompted them. Two things bite when adding one: the `transition-*` class has to be on the
+element from its first render (NativeWind upgrades a component to an animated one once, and
+adding it later remounts the component), and a `transform` in the `style` prop beats the
+class that drives the press dip and silently cancels it. `NoteCard` puts its pin-skew on a
+wrapper for that second reason.
 
 ### Every screen draws its own header
 

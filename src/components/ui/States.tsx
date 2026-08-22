@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
+import { press } from '../../lib/motion';
 import { colors } from '../../lib/theme';
 import { Button } from './Button';
 
@@ -80,7 +81,7 @@ export function EmptyState({
         accessibilityRole="button"
         accessibilityLabel={actionLabel ?? title}
         onPress={onAction}
-        className="active:opacity-80"
+        className={`${press} active:opacity-80`}
       >
         {body}
       </Pressable>

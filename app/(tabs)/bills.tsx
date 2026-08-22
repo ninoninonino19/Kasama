@@ -12,6 +12,7 @@ import { EmptyState, ErrorState } from '../../src/components/ui/States';
 import { Fab } from '../../src/components/ui/Fab';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { haptics } from '../../src/lib/haptics';
+import { pressSmall } from '../../src/lib/motion';
 import { useBills } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso } from '../../src/lib/format';
@@ -79,7 +80,7 @@ export default function BillsScreen() {
               haptics.tap();
               router.push('/bills/ledger');
             }}
-            className="h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper active:bg-page"
+            className={`h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper ${pressSmall} active:bg-page`}
           >
             <Ionicons name="time-outline" size={20} color={colors.ink.soft} />
           </Pressable>

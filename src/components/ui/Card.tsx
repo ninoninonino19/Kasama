@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import type { ReactNode } from 'react';
 
+import { press, pressRetention } from '../../lib/motion';
 import { ripple } from '../../lib/theme';
 
 type Props = {
@@ -18,7 +19,8 @@ export function Card({ children, onPress, className = '' }: Props) {
         accessibilityRole="button"
         onPress={onPress}
         android_ripple={{ color: ripple.card }}
-        className={`${base} active:bg-page`}
+        pressRetentionOffset={pressRetention}
+        className={`${base} ${press} active:bg-page`}
       >
         {children}
       </Pressable>

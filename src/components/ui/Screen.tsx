@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { haptics } from '../../lib/haptics';
+import { pressSmall } from '../../lib/motion';
 import { colors } from '../../lib/theme';
 
 type Props = {
@@ -100,7 +101,7 @@ export function FormHeader({
           if (router.canGoBack()) router.back();
           else router.replace('/(tabs)/home');
         }}
-        className="h-11 w-11 items-center justify-center rounded-full active:bg-page"
+        className={`h-11 w-11 items-center justify-center rounded-full ${pressSmall} active:bg-page`}
       >
         <Ionicons name="arrow-back" size={22} color={colors.ink.DEFAULT} />
       </Pressable>

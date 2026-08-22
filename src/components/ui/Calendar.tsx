@@ -13,6 +13,7 @@ import {
   weekdayIndex,
 } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
+import { press, pressSmall } from '../../lib/motion';
 import { colors, textCap } from '../../lib/theme';
 
 import { SectionTitle } from './Screen';
@@ -111,7 +112,7 @@ export function Calendar({
                   haptics.select();
                   onChange(day);
                 }}
-                className={`flex-1 items-center justify-center rounded-lg border ${
+                className={`flex-1 items-center justify-center rounded-lg border ${pressSmall} ${
                   selected
                     ? 'border-moss bg-moss'
                     : isToday
@@ -156,7 +157,7 @@ function MonthButton({
       accessibilityLabel={label}
       hitSlop={8}
       onPress={onPress}
-      className="h-11 w-11 items-center justify-center rounded-lg active:bg-page"
+      className={`h-11 w-11 items-center justify-center rounded-lg ${pressSmall} active:bg-page`}
     >
       <Ionicons name={icon} size={18} color={colors.ink.soft} />
     </Pressable>
@@ -200,7 +201,7 @@ export function DateField({
           haptics.tap();
           setOpen((current) => !current);
         }}
-        className="min-h-[56px] flex-row items-center justify-between rounded-xl border border-line bg-paper px-4 py-4 active:bg-page"
+        className={`min-h-[56px] flex-row items-center justify-between rounded-xl border border-line bg-paper px-4 py-4 ${press} active:bg-page`}
       >
         <Text
           className={

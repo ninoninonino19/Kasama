@@ -9,6 +9,7 @@ import { Screen } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
+import { pressSmall } from '../../src/lib/motion';
 import { colors } from '../../src/lib/theme';
 import { useSessionStore } from '../../src/store/useSessionStore';
 
@@ -62,7 +63,7 @@ export default function CreateHouseholdScreen() {
             accessibilityLabel="Go back"
             onPress={() => router.back()}
             hitSlop={8}
-            className="h-10 w-10 items-center justify-center rounded-full border border-line bg-paper active:bg-page"
+            className={`h-10 w-10 items-center justify-center rounded-full border border-line bg-paper ${pressSmall} active:bg-page`}
           >
             <Ionicons name="arrow-back" size={20} color={colors.ink.DEFAULT} />
           </Pressable>
@@ -93,7 +94,7 @@ export default function CreateHouseholdScreen() {
                   key={suggestion}
                   accessibilityRole="button"
                   onPress={() => setName(suggestion)}
-                  className="min-h-11 justify-center rounded-full border border-line bg-paper px-4 py-2 active:bg-page"
+                  className={`min-h-11 justify-center rounded-full border border-line bg-paper px-4 py-2 ${pressSmall} active:bg-page`}
                 >
                   <Text className="font-ui-semibold text-sm text-ink-soft">{suggestion}</Text>
                 </Pressable>

@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { haptics } from '../../lib/haptics';
+import { pressLarge, pressRetention } from '../../lib/motion';
 import { colors, ripple } from '../../lib/theme';
 
 /**
@@ -33,8 +34,12 @@ export function Fab({
           onPress();
         }}
         android_ripple={{ color: ripple.light, borderless: false }}
+        pressRetentionOffset={pressRetention}
         // 56dp is the platform minimum for a comfortable primary target.
-        className={`h-14 flex-row items-center justify-center rounded-full bg-moss active:bg-bezel ${
+        //
+        // A deeper dip than the rest of the app: this is the largest target on
+        // screen, and the same 3% on a 56dp circle is nearly invisible.
+        className={`h-14 flex-row items-center justify-center rounded-full bg-moss ${pressLarge} active:bg-bezel ${
           label ? 'gap-2 px-5' : 'w-14'
         }`}
         style={{

@@ -16,6 +16,7 @@ import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
 import { haptics } from '../../src/lib/haptics';
 import { pushSupported, registerForPush } from '../../src/lib/push';
+import { press } from '../../src/lib/motion';
 import { colors } from '../../src/lib/theme';
 import { useSession } from '../../src/providers/SessionProvider';
 import { useSessionStore } from '../../src/store/useSessionStore';
@@ -306,7 +307,7 @@ export default function AccountSettingsScreen() {
               haptics.tap();
               setSignOutArmed(true);
             }}
-            className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
+            className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 ${press} active:bg-page`}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.deep.brick} />
             <Text className="flex-1 font-ui-semibold text-sm text-ink">Sign out of this device</Text>
@@ -324,7 +325,7 @@ export default function AccountSettingsScreen() {
             haptics.tap();
             router.push('/settings/household');
           }}
-          className="flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 active:bg-page"
+          className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 ${press} active:bg-page`}
         >
           <Ionicons name="home-outline" size={20} color={colors.ink.soft} />
           <View className="flex-1">
