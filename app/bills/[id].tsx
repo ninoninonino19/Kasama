@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { billOutstanding, billProgress, billStatus, deleteBill, fetchBill, isBillSettled, rollRecurringBill, setSplitPaid, settleWholeBill } from '../../src/api/bills';
 import { notifyHousehold } from '../../src/api/notify';
@@ -12,7 +12,7 @@ import { Card } from '../../src/components/ui/Card';
 import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { SwipeRow } from '../../src/components/ui/SwipeRow';
-import { SectionTitle } from '../../src/components/ui/Screen';
+import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { ErrorState, InlineError, LoadingState } from '../../src/components/ui/States';
 import { messageFrom, useAsyncData } from '../../src/hooks/useAsyncData';
 import { haptics } from '../../src/lib/haptics';
@@ -187,21 +187,34 @@ export default function BillDetailScreen() {
     });
   }
 
-  if (loading) return <LoadingState label="Loading bill…" />;
+  // Each of these carries the header itself. A bill can be opened straight
+  // from a notification, so "this no longer exists" is a screen someone can
+  // legitimately land on first — with nothing else on it to leave by.
+  if (loading) {
+    return (
+      <FormScreen title="Bill">
+        <LoadingState label="Loading bill…" />
+      </FormScreen>
+    );
+  }
 
   if (error && !bill) {
     return (
-      <View className="flex-1 justify-center bg-canvas p-5">
-        <ErrorState message={error} onRetry={() => void refresh()} />
-      </View>
+      <FormScreen title="Bill">
+        <View className="flex-1 justify-center p-5">
+          <ErrorState message={error} onRetry={() => void refresh()} />
+        </View>
+      </FormScreen>
     );
   }
 
   if (!bill) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas p-5">
-        <Text className="font-ui text-base text-ink-soft">This bill no longer exists.</Text>
-      </View>
+      <FormScreen title="Bill">
+        <View className="flex-1 items-center justify-center p-5">
+          <Text className="font-ui text-base text-ink-soft">This bill no longer exists.</Text>
+        </View>
+      </FormScreen>
     );
   }
 
@@ -214,10 +227,9 @@ export default function BillDetailScreen() {
   const canDelete = bill.created_by === userId || role === 'admin';
 
   return (
-    <>
-      <Stack.Screen options={{ title: bill.title }} />
+    <FormScreen title={bill.title} subtitle={`${meta.label} · ${badge.label}`}>
       <ScrollView
-        className="flex-1 bg-canvas"
+        className="flex-1"
         contentContainerClassName="gap-5 p-5 pb-10"
         refreshControl={
           <RefreshControl
@@ -430,6 +442,6 @@ export default function BillDetailScreen() {
           Added {formatTimeAgo(bill.created_at)}
         </Text>
       </ScrollView>
-    </>
+    </FormScreen>
   );
 }

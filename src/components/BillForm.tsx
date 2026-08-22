@@ -14,7 +14,7 @@ import { Button } from './ui/Button';
 import { Chip } from './ui/Chip';
 import { DateField } from './ui/Calendar';
 import { NoteCard } from './ui/NoteCard';
-import { SectionTitle } from './ui/Screen';
+import { FormScreen, SectionTitle } from './ui/Screen';
 import { InlineError } from './ui/States';
 import { TextField } from './ui/TextField';
 import { WeekdayPicker } from './ui/WeekdayPicker';
@@ -51,6 +51,7 @@ export type BillFormInitial = {
  */
 export function BillForm({
   mode,
+  title: screenTitle,
   initial,
   splitsLocked = false,
   submitLabel,
@@ -58,6 +59,8 @@ export function BillForm({
   footer,
 }: {
   mode: 'create' | 'edit';
+  /** The header's title. The form owns its header — see `FormHeader`. */
+  title: string;
   initial?: BillFormInitial;
   splitsLocked?: boolean;
   submitLabel: string;
@@ -172,10 +175,11 @@ export function BillForm({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-canvas"
-    >
+    <FormScreen title={screenTitle}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1"
+      >
       <ScrollView
         contentContainerClassName="gap-6 p-5 pb-10"
         keyboardShouldPersistTaps="handled"
@@ -502,6 +506,7 @@ export function BillForm({
 
         {footer}
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </FormScreen>
   );
 }

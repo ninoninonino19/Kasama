@@ -10,7 +10,7 @@ import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { useConfirm } from '../../src/components/ui/Dialog';
-import { SectionTitle } from '../../src/components/ui/Screen';
+import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
@@ -168,8 +168,9 @@ export default function AccountSettingsScreen() {
   }
 
   return (
+    <FormScreen title="Your account">
     <ScrollView
-      className="flex-1 bg-canvas"
+      className="flex-1"
       contentContainerClassName="gap-6 p-5 pb-12"
       keyboardDismissMode="on-drag"
     >
@@ -338,6 +339,7 @@ export default function AccountSettingsScreen() {
 
       <Text className="text-center font-ui text-xs text-ink-muted">Kasama v1.0.0</Text>
     </ScrollView>
+    </FormScreen>
   );
 }
 

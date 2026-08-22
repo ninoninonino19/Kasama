@@ -11,7 +11,7 @@ import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { Chip } from './ui/Chip';
 import { DateField } from './ui/Calendar';
-import { SectionTitle } from './ui/Screen';
+import { FormScreen, SectionTitle } from './ui/Screen';
 import { InlineError } from './ui/States';
 import { TextField } from './ui/TextField';
 import { WeekdayPicker } from './ui/WeekdayPicker';
@@ -34,12 +34,15 @@ export type ChoreFormValues = {
  */
 export function ChoreForm({
   mode,
+  title: screenTitle,
   initial,
   submitLabel,
   onSubmit,
   footer,
 }: {
   mode: 'create' | 'edit';
+  /** The header's title. The form owns its header — see `FormHeader`. */
+  title: string;
   initial?: Partial<ChoreFormValues>;
   submitLabel: string;
   onSubmit: (values: ChoreFormValues & { assigneeId: string }) => Promise<void>;
@@ -77,10 +80,11 @@ export function ChoreForm({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-canvas"
-    >
+    <FormScreen title={screenTitle}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1"
+      >
       <ScrollView
         contentContainerClassName="gap-6 p-5 pb-10"
         keyboardShouldPersistTaps="handled"
@@ -202,6 +206,7 @@ export function ChoreForm({
 
         {footer}
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </FormScreen>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { Avatar } from '../../src/components/ui/Avatar';
 import { NoteCard } from '../../src/components/ui/NoteCard';
-import { Screen, SectionTitle } from '../../src/components/ui/Screen';
+import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { ListSkeleton } from '../../src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '../../src/components/ui/States';
 import { useLedger } from '../../src/hooks/useHouseholdData';
@@ -72,7 +72,7 @@ export default function LedgerScreen() {
   );
 
   return (
-    <Screen topInset={false}>
+    <FormScreen title="Payment history">
       {loading ? (
         <ListSkeleton rows={5} />
       ) : error && entries.length === 0 ? (
@@ -142,7 +142,7 @@ export default function LedgerScreen() {
           }
         />
       )}
-    </Screen>
+    </FormScreen>
   );
 }
 

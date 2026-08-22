@@ -10,7 +10,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { useConfirm, useDialog } from '../../src/components/ui/Dialog';
 import { Pill } from '../../src/components/ui/Pill';
-import { SectionTitle } from '../../src/components/ui/Screen';
+import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError, LoadingState } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
@@ -183,21 +183,24 @@ export default function HouseholdSettingsScreen() {
 
   if (!household) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas p-6">
-        {status === 'loading' ? (
-          <LoadingState />
-        ) : (
-          <Text className="font-ui text-base text-ink-soft">
-            You are not in a household right now.
-          </Text>
-        )}
-      </View>
+      <FormScreen title="Household">
+        <View className="flex-1 items-center justify-center p-6">
+          {status === 'loading' ? (
+            <LoadingState />
+          ) : (
+            <Text className="font-ui text-base text-ink-soft">
+              You are not in a household right now.
+            </Text>
+          )}
+        </View>
+      </FormScreen>
     );
   }
 
   return (
+    <FormScreen title="Household" subtitle={household.name}>
     <ScrollView
-      className="flex-1 bg-canvas"
+      className="flex-1"
       contentContainerClassName="gap-6 p-5 pb-12"
       keyboardDismissMode="on-drag"
     >
@@ -353,6 +356,7 @@ export default function HouseholdSettingsScreen() {
         <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
       </Pressable>
     </ScrollView>
+    </FormScreen>
   );
 }
 
