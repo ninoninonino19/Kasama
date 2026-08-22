@@ -631,6 +631,33 @@ Who gets a reminder is decided by `pending_reminders(date)` in SQL, where it can
 how many notifications that becomes is decided in `_shared/push.ts`, likewise. Someone with
 four bills due tomorrow gets one buzz naming all four, not four buzzes.
 
+### Starting over with fresh data
+
+Two scripts, and most of the time you want the first:
+
+| | What it does | When |
+| --- | --- | --- |
+| `supabase/reset_data.sql` | Deletes every household, bill, chore, note, leave request and account. Schema, policies and functions stay | "Give me a clean household to test with" |
+| `supabase/reset.sql` | Drops every table, view, function and enum the app owns, so the migrations can be replayed from nothing | The schema itself is wrong |
+
+```bash
+psql "$DATABASE_URL" -f supabase/reset_data.sql     # data only
+node supabase/reset_storage.mjs                     # the files behind it
+```
+
+Both scripts end in a check query — counts that should read zero, or a list of
+objects that should be empty — because a reset that half-worked looks exactly like one that
+worked.
+
+Uploaded files are cleared separately, by `reset_storage.mjs`. Storage objects are rows
+pointing at files, so Supabase blocks `delete from storage.objects` outright: the row would
+go and the file would be stranded. That script walks both buckets through the Storage API
+instead, and needs the **service role key** — the anon key can only delete your own folder.
+Pass a bucket name (`node supabase/reset_storage.mjs receipts`) to clear just one.
+
+After a data reset, log out on the device or reinstall: the stored session points at a user
+that no longer exists, and the app will sit on a signed-in screen with nothing behind it.
+
 ### Testing the database
 
 The SQL that can't be checked by `tsc` — the `SECURITY DEFINER` functions and the rules they

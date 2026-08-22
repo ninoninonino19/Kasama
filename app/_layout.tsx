@@ -22,12 +22,41 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useReducedMotion } from 'react-native-reanimated';
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { DialogProvider } from '../src/components/ui/Dialog';
 import { SessionProvider } from '../src/providers/SessionProvider';
 import { colors } from '../src/lib/theme';
+
+/**
+ * Reanimated's strict mode, off — and only strict mode.
+ *
+ * It warns when a shared value is read or written while React is rendering,
+ * which is a real bug when it's your own code doing it. None of ours does:
+ * `ProgressBar` reads `fill` inside its `useAnimatedStyle` worklet, and the
+ * dialog and the chore rows animate declaratively through `entering`/`exiting`.
+ *
+ * The source is NativeWind, which compiles every `transition-*` class into a
+ * shared value and touches it during render in its interop layer. `press`,
+ * `pressSmall` and `pressLarge` are on almost every tappable surface in the
+ * app (see `src/lib/motion.ts`), so the warning fires constantly and names a
+ * library nobody here can fix. A log that cries wolf on every screen is worse
+ * than no log: the next genuine one scrolls past unread.
+ *
+ * `level` stays at `warn`, so Reanimated still reports everything else it
+ * would have. If this ever needs revisiting — a NativeWind release that fixes
+ * the interop, or a suspicion that one of ours has started doing it — delete
+ * this call and the warnings come straight back.
+ *
+ * Must run before any animated component mounts, which is why it sits at
+ * module scope in the root layout rather than inside it.
+ */
+configureReanimatedLogger({ level: ReanimatedLogLevel.warn, strict: false });
 
 // Hold the native splash until the faces are in memory. Without this the first
 // frame paints in the system font and every card reflows a beat later, which on
