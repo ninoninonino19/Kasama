@@ -140,10 +140,13 @@ export default function AccountSettingsScreen() {
 
   function confirmSignOut() {
     void confirm({
-      title: 'Sign out of this device?',
+      title: household ? `Leave ${household.name} and sign out?` : 'Sign out of this device?',
       message:
         `There is no password to sign back in with, so this ends "${profile?.display_name ?? 'your'}" ` +
-        'for good. Rejoining means a new invite code and a new name in the list.',
+        'for good. Rejoining means a new invite code and a new name in the list.' +
+        (household
+          ? ' Your housemates take on anything you still owe, split equally between them.'
+          : ''),
       confirmLabel: 'Sign out for good',
       onConfirm: handleSignOut,
     });
@@ -263,9 +266,11 @@ export default function AccountSettingsScreen() {
       <View className="gap-2">
         <SectionTitle>Session</SectionTitle>
         {/* Kasama has no password, so signing out is not the reversible
-            convenience it is in most apps — it throws this identity away.
-            Arming first, and saying plainly what it costs, keeps it off the
-            list of things you can do by mis-tapping on the way past. */}
+            convenience it is in most apps — it throws this identity away, and
+            with it the membership: there is nobody left for a leave request to
+            resolve to, so moving out happens here rather than being asked
+            about. Arming first, and saying plainly what it costs, keeps it off
+            the list of things you can do by mis-tapping on the way past. */}
         {signOutArmed ? (
           <View className="gap-3 rounded-2xl border border-brick/40 bg-wash-brick p-4">
             <View className="flex-row items-center gap-2">
@@ -278,7 +283,15 @@ export default function AccountSettingsScreen() {
             <View className="gap-1.5">
               <CautionLine text="There is no password, so there is no signing back in as yourself." />
               <CautionLine text="Rejoining needs a new invite code, and you appear as a new person." />
-              <CautionLine text="What you owe and are owed stays on record under the old name." />
+              {household ? (
+                <>
+                  <CautionLine
+                    text={`You leave ${household.name}, and your name comes off the split lists.`}
+                  />
+                  <CautionLine text="What you still owe is divided equally among your housemates, and your open chores are shared out between them." />
+                  <CautionLine text="Shares you have already paid stay on record as paid." />
+                </>
+              ) : null}
             </View>
 
             <View className="mt-1 flex-row gap-2">
@@ -310,7 +323,9 @@ export default function AccountSettingsScreen() {
             className={`flex-row items-center gap-3 rounded-2xl border border-line bg-paper p-4 ${press} active:bg-page`}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.deep.brick} />
-            <Text className="flex-1 font-ui-semibold text-sm text-ink">Sign out of this device</Text>
+            <Text className="flex-1 font-ui-semibold text-sm text-ink">
+              {household ? 'Sign out and leave the household' : 'Sign out of this device'}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.ink.faint} />
           </Pressable>
         )}

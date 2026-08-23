@@ -196,6 +196,24 @@ export async function fetchMyLeaveRequest(
   return (data ?? null) as unknown as LeaveRequestWithVotes | null;
 }
 
+/**
+ * Leaves every household the signed-in user belongs to, without a vote.
+ *
+ * Paired with signing out, which in an app with no password is the end of the
+ * person rather than the end of a session — there is nobody for a leave
+ * request to resolve to afterwards. The database hands their unpaid shares and
+ * open chore turns to the housemates still there; see
+ * `20260823000000_sign_out_leaves_household.sql`.
+ *
+ * `requestLeave` is still the door for somebody who is staying signed in: they
+ * are around to be asked about, so the house gets asked.
+ */
+export async function leaveAllHouseholds(): Promise<number> {
+  const { data, error } = await supabase.rpc('leave_all_households');
+  if (error) throw error;
+  return data ?? 0;
+}
+
 export async function renameHousehold(householdId: string, name: string): Promise<Household> {
   const { data, error } = await supabase
     .from('households')
