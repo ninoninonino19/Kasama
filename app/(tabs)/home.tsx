@@ -226,7 +226,7 @@ export default function HomeScreen() {
                         <Pressable
                           accessibilityRole="button"
                           hitSlop={12}
-                          onPress={() => router.push('/bills')}
+                          onPress={() => router.navigate('/(tabs)/bills')}
                           className={`${pressSmall} active:opacity-60`}
                         >
                           <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
@@ -265,7 +265,7 @@ export default function HomeScreen() {
                       assignment={todaysChore.assignment}
                       userId={userId}
                       today={today}
-                      onPress={() => router.push('/chores')}
+                      onPress={() => router.navigate('/(tabs)/chores')}
                     />
                   ) : (
                     <EmptyState
@@ -288,7 +288,7 @@ export default function HomeScreen() {
                     <Pressable
                       accessibilityRole="button"
                       hitSlop={12}
-                      onPress={() => router.push('/announcements')}
+                      onPress={() => router.navigate('/(tabs)/announcements')}
                       className={`${pressSmall} active:opacity-60`}
                     >
                       <Text className="font-ui-bold text-[11px] uppercase tracking-wider text-moss">
@@ -299,7 +299,7 @@ export default function HomeScreen() {
 
                   {latestPost ? (
                     <NoteCard
-                      onPress={() => router.push('/announcements')}
+                      onPress={() => router.navigate('/(tabs)/announcements')}
                       tape={tapeColorFor(latestPost.id, latestPost.tape_color)}
                       rotate={-0.5}
                       className="pt-5"
@@ -336,29 +336,34 @@ export default function HomeScreen() {
                     />
                   )}
                 </View>
-
-                {/* Quick actions ------------------------------------- */}
-                {/* Home has no FAB, so these are the two doors out of the
-                    dashboard — and they sit at the end of it. Everything above
-                    is the house reporting in; adding something is what you do
-                    once you've read it, so the summary gets the top of the
-                    screen and the actions close the page. */}
-                <View className="flex-row gap-3">
-                  <QuickAction
-                    icon="receipt-outline"
-                    label="Add a bill"
-                    onPress={() => router.push('/bills/new')}
-                  />
-                  <QuickAction
-                    icon="checkmark-done-outline"
-                    label="Add a chore"
-                    onPress={() => router.push('/chores/new')}
-                  />
-                </View>
               </>
             )}
           </>
         )}
+
+        {/* Quick actions ----------------------------------------------- */}
+        {/* Home has no FAB, so these are the two doors out of the dashboard —
+            and they sit at the end of it. Everything above is the house
+            reporting in; adding something is what you do once you've read it,
+            so the summary gets the top of the screen and the actions close the
+            page.
+
+            Outside every branch above on purpose: they are the same two doors
+            whether the house is brand new, still loading, or failed to load,
+            and a dashboard you can't add anything from is the one state where
+            they matter most. */}
+        <View className="flex-row gap-3">
+          <QuickAction
+            icon="receipt-outline"
+            label="Add a bill"
+            onPress={() => router.push('/bills/new')}
+          />
+          <QuickAction
+            icon="checkmark-done-outline"
+            label="Add a chore"
+            onPress={() => router.push('/chores/new')}
+          />
+        </View>
       </ScrollView>
     </Screen>
   );
