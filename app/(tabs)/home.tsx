@@ -206,7 +206,7 @@ export default function HomeScreen() {
               <GetStarted
                 onAddBill={() => router.push('/bills/new')}
                 onAddChore={() => router.push('/chores/new')}
-                onPost={() => router.push('/announcements/new')}
+                onPost={() => router.navigate('/(tabs)/announcements')}
               />
             ) : (
               <>
@@ -331,8 +331,8 @@ export default function HomeScreen() {
                       icon="reader-outline"
                       title="Nothing on the board"
                       message="Post a quick update so everyone knows what's happening at home."
-                      actionLabel="Write one"
-                      onAction={() => router.push('/announcements/new')}
+                      actionLabel="Open the board"
+                      onAction={() => router.navigate('/(tabs)/announcements')}
                     />
                   )}
                 </View>
@@ -596,7 +596,7 @@ function GetStarted({
     {
       icon: 'reader-outline' as const,
       title: 'Say hello',
-      body: 'Pin a note so everyone sees it in one place.',
+      body: 'Write on the board so everyone sees it in one place.',
       onPress: onPost,
     },
   ];

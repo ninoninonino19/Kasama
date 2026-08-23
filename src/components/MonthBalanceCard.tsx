@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
-  billOutstanding,
+  billShareOutstanding,
   billStatus,
   isSettledAmount,
   nextBillDue,
@@ -131,6 +131,7 @@ export function MonthBalanceCard({
           {nextBill ? (
             <NextDueRow
               bill={nextBill}
+              userId={userId}
               onPress={onPressBill ? () => onPressBill(nextBill) : undefined}
             />
           ) : (
@@ -194,12 +195,31 @@ export function MonthBalanceCard({
 /**
  * The soonest unpaid bill, as one line.
  *
- * The amount is what is left on it rather than its face value: a bill two
- * housemates have already settled is not still a ₱3,000 problem.
+ * The amount is the reader's own share of what is left, not the household's.
+ * Everything else on this card is a figure they personally have to find, and a
+ * ₱3,000 total split four ways sitting under "remaining this month" reads as
+ * ₱3,000 they owe. The bill's own screen is where the house-wide number
+ * belongs, next to who has paid which part of it.
+ *
+ * Their share can already be settled while the bill is not — the next one due
+ * is the house's next, not theirs — so that case says so rather than printing
+ * a ₱0.00 they would have to interpret.
  */
-function NextDueRow({ bill, onPress }: { bill: BillWithSplits; onPress?: () => void }) {
+function NextDueRow({
+  bill,
+  userId,
+  onPress,
+}: {
+  bill: BillWithSplits;
+  userId: string;
+  onPress?: () => void;
+}) {
   const meta = categoryMeta(bill.category);
   const badge = BILL_STATUS[billStatus(bill)];
+
+  const share = billShareOutstanding(bill, userId);
+  const mineSettled = isSettledAmount(share);
+  const amountLabel = mineSettled ? 'Yours is paid' : formatPeso(share);
 
   const body = (
     <View className="flex-row items-center gap-3">
@@ -216,13 +236,22 @@ function NextDueRow({ bill, onPress }: { bill: BillWithSplits; onPress?: () => v
         </Text>
         <Text className="mt-0.5 font-mono text-[11px] text-ink-muted" numberOfLines={1}>
           {bill.due_date ? `Due ${formatRelativeDate(bill.due_date)}` : meta.subtitle}
+          {mineSettled ? '' : ' · your share'}
         </Text>
       </View>
 
       {/* The amount stays neutral — the urgency lives in the pill, so an
           ordinary bill doesn't shout. */}
       <View className="items-end gap-1">
-        <Text className="font-mono-bold text-sm text-ink">{formatPeso(billOutstanding(bill))}</Text>
+        <Text
+          className={
+            mineSettled
+              ? 'font-ui-semibold text-xs text-ink-muted'
+              : 'font-mono-bold text-sm text-ink'
+          }
+        >
+          {amountLabel}
+        </Text>
         <Pill label={badge.label} tone={badge.tone} icon={badge.icon} />
       </View>
     </View>
@@ -233,7 +262,11 @@ function NextDueRow({ bill, onPress }: { bill: BillWithSplits; onPress?: () => v
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${bill.title}. ${formatPeso(billOutstanding(bill))} outstanding.`}
+      accessibilityLabel={
+        mineSettled
+          ? `${bill.title}. Your share is paid.`
+          : `${bill.title}. ${formatPeso(share)} is your share.`
+      }
       onPress={() => {
         haptics.tap();
         onPress();

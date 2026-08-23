@@ -145,7 +145,6 @@ export default function RootLayout() {
               <Stack.Screen name="bills/ledger" />
               <Stack.Screen name="chores/new" options={{ presentation: 'modal' }} />
               <Stack.Screen name="chores/edit" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="announcements/new" options={{ presentation: 'modal' }} />
               <Stack.Screen name="announcements/edit" options={{ presentation: 'modal' }} />
               {/* Two screens rather than one: what belongs to you, and what
                   belongs to the house. Home routes to them separately. */}

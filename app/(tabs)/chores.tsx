@@ -34,7 +34,7 @@ import {
   WEEKDAY_INITIALS,
 } from '../../src/lib/format';
 import { colors, textCap } from '../../src/lib/theme';
-import { useCurrentUserId, useMembers } from '../../src/store/useSessionStore';
+import { useCurrentUserId, useHousehold, useMembers } from '../../src/store/useSessionStore';
 import type { AssignmentWithProfile, ChoreWithAssignments, MemberWithProfile } from '../../src/types';
 
 /** How long a just-ticked chore stays in place before it moves to "Done". */
@@ -68,6 +68,7 @@ type Entry = { chore: ChoreWithAssignments; assignment: AssignmentWithProfile };
 export default function ChoresScreen() {
   const router = useRouter();
   const userId = useCurrentUserId();
+  const household = useHousehold();
   const members = useMembers();
   const { data, loading, refreshing, error, refresh, setData } = useChores();
   const { data: streaks } = useChoreStreaks();
@@ -214,9 +215,6 @@ export default function ChoresScreen() {
   );
 
   const hasOpenWork = overdue.length + thisWeek.length + upcoming.length > 0;
-  // Rows held for the payoff moment are already done, so they shouldn't count
-  // towards "still to do" in the header.
-  const stillDue = [...overdue, ...thisWeek].filter(({ assignment }) => !assignment.completed).length;
 
   const renderList = (entries: Entry[], overdueSection = false) => (
     <View className="gap-2.5">
@@ -244,12 +242,7 @@ export default function ChoresScreen() {
 
   return (
     <Screen>
-      <ScreenHeader
-        title="Chores"
-        subtitle={
-          stillDue > 0 ? `${stillDue} due this week` : 'Nothing due — the house is on top of it'
-        }
-      />
+      <ScreenHeader title="Chores" subtitle={household?.name ?? undefined} />
 
       {loading ? (
         <ListSkeleton rows={3} />

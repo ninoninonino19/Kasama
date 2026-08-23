@@ -3,7 +3,7 @@ import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { billStatus, isBillSettled, isSettledAmount, summariseBalance } from '../../src/api/bills';
+import { billStatus, isBillSettled } from '../../src/api/bills';
 import { Chip } from '../../src/components/ui/Chip';
 import { BillRow } from '../../src/components/BillRow';
 import { MonthBalanceCard } from '../../src/components/MonthBalanceCard';
@@ -15,9 +15,8 @@ import { haptics } from '../../src/lib/haptics';
 import { pressSmall } from '../../src/lib/motion';
 import { useBills } from '../../src/hooks/useHouseholdData';
 import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
-import { formatPeso } from '../../src/lib/format';
 import { colors } from '../../src/lib/theme';
-import { useCurrentUserId } from '../../src/store/useSessionStore';
+import { useCurrentUserId, useHousehold } from '../../src/store/useSessionStore';
 import type { BillWithSplits } from '../../src/types';
 
 type Filter = 'all' | 'unpaid' | 'paid';
@@ -25,6 +24,7 @@ type Filter = 'all' | 'unpaid' | 'paid';
 export default function BillsScreen() {
   const router = useRouter();
   const userId = useCurrentUserId();
+  const household = useHousehold();
   const { data, loading, refreshing, error, refresh } = useBills();
   const [filter, setFilter] = useState<Filter>('unpaid');
 
@@ -45,11 +45,6 @@ export default function BillsScreen() {
     return matching.slice().sort(byDueDate);
   }, [bills, filter]);
 
-  const balance = useMemo(
-    () => (userId ? summariseBalance(bills, userId) : { owed: 0, owing: 0, net: 0 }),
-    [bills, userId]
-  );
-
   const counts = useMemo(() => {
     const settled = bills.filter(isBillSettled).length;
     return { all: bills.length, paid: settled, unpaid: bills.length - settled };
@@ -64,11 +59,7 @@ export default function BillsScreen() {
     <Screen>
       <ScreenHeader
         title="Bills"
-        subtitle={
-          isSettledAmount(balance.owed)
-            ? "You're all square"
-            : `You still owe ${formatPeso(balance.owed)}`
-        }
+        subtitle={household?.name ?? undefined}
         right={
           <Pressable
             accessibilityRole="button"
