@@ -31,7 +31,7 @@ import {
   startOfWeek,
   toDateString,
   todayString,
-  WEEKDAY_INITIALS,
+  WEEKDAY_SHORT,
 } from '../../src/lib/format';
 import { colors, textCap } from '../../src/lib/theme';
 import { useCurrentUserId, useHousehold, useMembers } from '../../src/store/useSessionStore';
@@ -252,7 +252,7 @@ export default function ChoresScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerClassName="gap-6 px-5 pb-28"
+          contentContainerClassName="grow gap-6 px-5 pb-28"
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
@@ -285,14 +285,19 @@ export default function ChoresScreen() {
             </View>
           ) : null}
 
+          {/* `grow` on the content container is what gives this something to
+              centre in — otherwise the scroll view is only as tall as the one
+              card inside it. */}
           {chores.length === 0 ? (
-            <EmptyState
-              icon="sparkles-outline"
-              title="No chores yet"
-              message="Dishes, sweeping, laundry — assign it once and Kasama rotates it around the house."
-              actionLabel="Add a chore"
-              onAction={() => router.push('/chores/new')}
-            />
+            <View className="flex-1 justify-center">
+              <EmptyState
+                icon="sparkles-outline"
+                title="No chores yet"
+                message="Dishes, sweeping, laundry — assign it once and Kasama rotates it around the house."
+                actionLabel="Add a chore"
+                onAction={() => router.push('/chores/new')}
+              />
+            </View>
           ) : null}
 
           {/* Overdue never hides behind a day: something three days late is the
@@ -390,7 +395,8 @@ export default function ChoresScreen() {
 }
 
 /**
- * The current week as seven cells, with the whole week as the leading option.
+ * The current week as seven cells, Sunday first, with the whole week as the
+ * leading option.
  *
  * It filters rather than scrolls: on a household with a daily rotation the
  * unfiltered list runs well past a screen, and "what's on for Thursday" is the
@@ -409,8 +415,8 @@ function WeekPicker({
   onSelect: (day: string | null) => void;
 }) {
   const days = useMemo(() => {
-    const monday = startOfWeek();
-    return Array.from({ length: 7 }, (_, index) => toDateString(addDays(monday, index)));
+    const sunday = startOfWeek();
+    return Array.from({ length: 7 }, (_, index) => toDateString(addDays(sunday, index)));
   }, []);
 
   return (
@@ -474,14 +480,20 @@ function WeekPicker({
             {/* Seven cells share the width of the screen, so nothing in here
                 is allowed to grow much: the accessible label on the cell
                 spells the day and its count out in full for anyone who needs
-                it larger than this can go. */}
+                it larger than this can go.
+
+                Three letters, not one. `M T W T F S S` makes you count along
+                the row to separate Tuesday from Thursday, and this strip
+                filters the whole screen — tapping one day short of the one you
+                meant hides the work you opened the tab to find. */}
             <Text
               className={`font-ui-bold text-[11px] uppercase ${
                 isSelected ? 'text-paper/80' : 'text-ink-muted'
               }`}
+              numberOfLines={1}
               maxFontSizeMultiplier={textCap.grid}
             >
-              {WEEKDAY_INITIALS[index]}
+              {WEEKDAY_SHORT[index]}
             </Text>
             <Text
               className={`font-mono-bold text-sm ${isSelected ? 'text-paper' : 'text-ink'}`}

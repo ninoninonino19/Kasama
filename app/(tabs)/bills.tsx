@@ -110,7 +110,7 @@ export default function BillsScreen() {
         <FlatList
           data={visible}
           keyExtractor={(bill) => bill.id}
-          contentContainerClassName="gap-3 px-5 pb-28"
+          contentContainerClassName="grow gap-3 px-5 pb-28"
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
@@ -139,26 +139,31 @@ export default function BillsScreen() {
               onPress={() => router.push(`/bills/${item.id}`)}
             />
           )}
+          // `grow` on the content container plus `flex-1` here is what centres
+          // an empty tab: the container fills the list, and this view takes
+          // whatever the header and footer leave it.
           ListEmptyComponent={
-            bills.length === 0 ? (
-              <EmptyState
-                icon="receipt-outline"
-                title="No bills yet — add your first one"
-                message="Electricity, water, internet, rent — log it once and Kasama splits it across the house."
-                actionLabel="Add a bill"
-                onAction={() => router.push('/bills/new')}
-              />
-            ) : (
-              <EmptyState
-                icon="checkmark-circle-outline"
-                title={filter === 'unpaid' ? 'Nothing outstanding' : 'Nothing settled yet'}
-                message={
-                  filter === 'unpaid'
-                    ? 'Every bill in the house is settled.'
-                    : 'Once a bill is fully paid it will show up here.'
-                }
-              />
-            )
+            <View className="flex-1 justify-center">
+              {bills.length === 0 ? (
+                <EmptyState
+                  icon="receipt-outline"
+                  title="No bills yet — add your first one"
+                  message="Electricity, water, internet, rent — log it once and Kasama splits it across the house."
+                  actionLabel="Add a bill"
+                  onAction={() => router.push('/bills/new')}
+                />
+              ) : (
+                <EmptyState
+                  icon="checkmark-circle-outline"
+                  title={filter === 'unpaid' ? 'Nothing outstanding' : 'Nothing settled yet'}
+                  message={
+                    filter === 'unpaid'
+                      ? 'Every bill in the house is settled.'
+                      : 'Once a bill is fully paid it will show up here.'
+                  }
+                />
+              )}
+            </View>
           }
           ListFooterComponent={
             bills.length > 0 ? (

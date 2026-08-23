@@ -143,49 +143,38 @@ export function MonthBalanceCard({
       ) : null}
 
       {/* Settle up ----------------------------------------------------- */}
-      {compact ? null : (
-        <View className="mt-4 border-t border-line pt-3">
-          <Text className="font-ui-bold text-[11px] uppercase tracking-[1.4px] text-ink-muted">
-            Settle up
-          </Text>
-
-          {people.length > 0 ? (
-            <View className="mt-2.5 gap-2.5">
-              {people.map((person) => (
-                <View key={person.userId} className="flex-row items-center gap-2.5">
-                  <Avatar
-                    name={person.name}
-                    userId={person.userId}
-                    avatarUrl={person.avatarUrl}
-                    size={28}
-                  />
-                  <Text className="flex-1 font-ui-semibold text-sm text-ink" numberOfLines={1}>
-                    {person.name}
-                  </Text>
-                  {/* The direction is spelled out, not left to the sign — "owes
-                      you" and "you owe" are the whole question. */}
-                  <Text className="font-ui text-xs text-ink-muted">
-                    {person.net > 0 ? 'owes you' : 'you owe'}
-                  </Text>
-                  <Text
-                    className={`font-mono-bold text-sm ${
-                      person.net > 0 ? 'text-deep-sage' : 'text-deep-brick'
-                    }`}
-                  >
-                    {formatPeso(Math.abs(person.net))}
-                  </Text>
-                </View>
-              ))}
+      {/* Rows only — no heading, and nothing at all when there is nothing
+          between anybody. Each row already spells out its own direction
+          ("owes you" / "you owe"), so the label above them was naming a
+          section that explains itself, and the paragraph under it explained
+          an emptiness better shown by the section not being there. */}
+      {compact || people.length === 0 ? null : (
+        <View className="mt-4 gap-2.5 border-t border-line pt-3">
+          {people.map((person) => (
+            <View key={person.userId} className="flex-row items-center gap-2.5">
+              <Avatar
+                name={person.name}
+                userId={person.userId}
+                avatarUrl={person.avatarUrl}
+                size={28}
+              />
+              <Text className="flex-1 font-ui-semibold text-sm text-ink" numberOfLines={1}>
+                {person.name}
+              </Text>
+              {/* The direction is spelled out, not left to the sign — "owes
+                  you" and "you owe" are the whole question. */}
+              <Text className="font-ui text-xs text-ink-muted">
+                {person.net > 0 ? 'owes you' : 'you owe'}
+              </Text>
+              <Text
+                className={`font-mono-bold text-sm ${
+                  person.net > 0 ? 'text-deep-sage' : 'text-deep-brick'
+                }`}
+              >
+                {formatPeso(Math.abs(person.net))}
+              </Text>
             </View>
-          ) : (
-            // Says why it is empty, because "nothing here" and "you have not
-            // covered a bill yet" look identical otherwise — and the second one
-            // is the state a new household is actually in.
-            <Text className="mt-2 font-ui text-sm text-ink-muted">
-              Nothing owed between housemates. A bill you logged lands here once
-              you have paid your own share of it.
-            </Text>
-          )}
+          ))}
         </View>
       )}
     </NoteCard>

@@ -264,11 +264,10 @@ export default function AnnouncementsScreen() {
              EmptyState handed to `ListEmptyComponent` arrives upside down.
              There is nothing to scroll when the board is empty anyway.
 
-             Sits under the header rather than centred in the space: bills and
-             chores put their empty cards in exactly that spot, and one tab
-             floating its card down the middle makes moving between them feel
-             like three different apps. */
-          <View className="flex-1 px-5">
+             Centred in what is left of the screen, as on bills and chores —
+             an empty tab is mostly empty space, and a card pinned to the top
+             of it reads as the first item of a list that failed to load. */
+          <View className="flex-1 justify-center px-5 pb-4">
             <EmptyState
               icon="reader-outline"
               title="Quiet in here"
