@@ -698,7 +698,7 @@ npm run test:functions           # pure logic behind the notify Edge Function
 
 `supabase/tests/00_supabase_stubs.sql` stands in for the pieces plain Postgres doesn't have
 (`auth.users`, `auth.uid()`, the Supabase roles, the realtime publication) so the real
-migrations run unmodified. Eight suites run today:
+migrations run unmodified. Nine suites run today:
 
 | File | Covers |
 | --- | --- |
@@ -710,6 +710,7 @@ migrations run unmodified. Eight suites run today:
 | `pending_reminders_test.sql` | Only the person who still owes is reminded, with their own share quoted; settling stops it; a finished chore turn is skipped; an empty day produces nothing; housemates can't run it to enumerate each other's debts |
 | `leave_requests_test.sql` | You can't vote on your own departure and outsiders can't vote at all; asking twice returns the open request; one accept isn't enough and one decline ends it, with its reason kept; unanimity removes them and moves their open chore turn; withdrawing is open to the leaver and to an admin; the last person in a household doesn't wait for a vote; removing the last undecided voter completes the request; the tables have no write policies |
 | `board_receipts_test.sql` | The bucket is private, capped at 6MB and images only; `<household>/<user>/<file>` resolves to both halves and a malformed path denies rather than throws; reads are household-scoped; uploads must land in your own folder inside your own house; the note stores a path rather than a signed URL |
+| `sign_out_leaves_household_test.sql` | Signing out leaves without a vote; an unpaid share is divided equally over the house and an indivisible one keeps every centavo; a share nobody else was on falls to the housemates not on the bill; open turns are dealt evenly while a finished one stays on the record; a housemate who has already paid is left alone; signing out with no household is a no-op; an admin removal settles up through the same trigger |
 
 `npm run test:functions` covers the sending decisions — who gets skipped (the actor, anyone
 who turned the category off, anyone with no device), Expo's 100-message batching, the rule
