@@ -219,6 +219,24 @@ export function billOutstanding(bill: BillWithSplits): number {
     .reduce((total, split) => total + Number(split.amount_owed), 0);
 }
 
+/**
+ * What one housemate still owes on a bill — their own unpaid shares, not the
+ * household's.
+ *
+ * The distinction matters wherever a bill is shown to a person rather than to
+ * the house: "₱3,000 due Friday" on a bill split four ways is not what any of
+ * them has to find, and the dashboard is read as a personal to-do list.
+ * `billOutstanding` stays the house-wide figure, which is the right one on a
+ * bill's own screen.
+ */
+export function billShareOutstanding(bill: BillWithSplits, userId: string): number {
+  return toCentavos(
+    bill.splits
+      .filter((split) => split.user_id === userId && !split.paid)
+      .reduce((total, split) => total + Number(split.amount_owed), 0)
+  );
+}
+
 /** How many of the splits are settled — drives the "2 of 3 paid" indicator. */
 export function billProgress(bill: BillWithSplits): { paid: number; total: number; ratio: number } {
   const total = bill.splits.length;
@@ -250,9 +268,9 @@ export function billFronted(bill: BillWithSplits): boolean {
 /**
  * The soonest unpaid bill in the household — undated ones sit behind the dated.
  *
- * Lives here rather than in the dashboard because the balance card and the
- * bills tab both lead with it, and "next due" meaning two different bills on
- * two screens is the kind of disagreement this file exists to prevent.
+ * Lives here rather than in the dashboard so that "next due" can only ever
+ * mean one bill, whichever screen grows a use for it — the bills tab reads the
+ * same order out of `byDueDate` to sort its list.
  */
 export function nextBillDue(bills: BillWithSplits[]): BillWithSplits | null {
   return (

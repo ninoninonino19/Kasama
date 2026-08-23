@@ -262,8 +262,13 @@ export default function AnnouncementsScreen() {
           /* Outside the feed on purpose. The list below is `inverted`, which
              flips every child it draws — its empty component included — so an
              EmptyState handed to `ListEmptyComponent` arrives upside down.
-             There is nothing to scroll when the board is empty anyway. */
-          <View className="flex-1 justify-center px-5 pb-8">
+             There is nothing to scroll when the board is empty anyway.
+
+             Sits under the header rather than centred in the space: bills and
+             chores put their empty cards in exactly that spot, and one tab
+             floating its card down the middle makes moving between them feel
+             like three different apps. */
+          <View className="flex-1 px-5">
             <EmptyState
               icon="reader-outline"
               title="Quiet in here"
