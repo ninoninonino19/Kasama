@@ -1,7 +1,8 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { WEEKDAY_INITIALS, WEEKDAY_NAMES } from '../../lib/format';
+import { WEEKDAY_NAMES, WEEKDAY_SHORT } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
+import { textCap } from '../../lib/theme';
 
 /**
  * Which day of the week a weekly bill or chore lands on.
@@ -13,20 +14,20 @@ import { haptics } from '../../lib/haptics';
  * schedule follows from it. A separate column would be a second source of
  * truth that the rollover could drift away from.
  *
- * Monday-first, matching the calendar and the chores week strip.
+ * Sunday-first, matching the calendar and the chores week strip.
  */
 export function WeekdayPicker({
   value,
   onChange,
 }: {
-  /** Monday = 0 … Sunday = 6. */
+  /** Sunday = 0 … Saturday = 6. */
   value: number;
   onChange: (index: number) => void;
 }) {
   return (
     <View>
       <View className="flex-row gap-1.5">
-        {WEEKDAY_INITIALS.map((initial, index) => {
+        {WEEKDAY_SHORT.map((label, index) => {
           const selected = index === value;
 
           return (
@@ -43,10 +44,14 @@ export function WeekdayPicker({
                 selected ? 'border-moss bg-moss' : 'border-line bg-paper active:bg-page'
               }`}
             >
+              {/* Seven cells share the row, so the label can't grow much —
+                  the accessible name on the cell says the day in full. */}
               <Text
-                className={`font-ui-bold text-sm ${selected ? 'text-paper' : 'text-ink-soft'}`}
+                className={`font-ui-bold text-xs ${selected ? 'text-paper' : 'text-ink-soft'}`}
+                numberOfLines={1}
+                maxFontSizeMultiplier={textCap.grid}
               >
-                {initial}
+                {label}
               </Text>
             </Pressable>
           );

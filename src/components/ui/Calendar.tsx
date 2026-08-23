@@ -9,7 +9,7 @@ import {
   formatShortDate,
   isSameDay,
   startOfMonth,
-  WEEKDAY_INITIALS,
+  WEEKDAY_SHORT,
   weekdayIndex,
 } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
@@ -27,7 +27,7 @@ import { SectionTitle } from './Screen';
  * both forms, so it is worth owning — and a grid answers the question people
  * actually have ("which Saturday is that?") in a way a spinner never does.
  *
- * Monday-first, matching `startOfWeek` and the chores week strip.
+ * Sunday-first, matching `startOfWeek` and the chores week strip.
  */
 export function Calendar({
   value,
@@ -77,14 +77,15 @@ export function Calendar({
       </View>
 
       <View className="flex-row">
-        {WEEKDAY_INITIALS.map((initial, index) => (
-          <View key={`${initial}-${index}`} className="flex-1 items-center pb-1">
+        {WEEKDAY_SHORT.map((label) => (
+          <View key={label} className="flex-1 items-center pb-1">
             {/* Seven to a row in a fixed grid; the dates below carry the meaning. */}
             <Text
               className="font-ui-bold text-[11px] uppercase text-ink-muted"
+              numberOfLines={1}
               maxFontSizeMultiplier={textCap.grid}
             >
-              {initial}
+              {label}
             </Text>
           </View>
         ))}

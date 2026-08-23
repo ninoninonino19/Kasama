@@ -33,11 +33,10 @@ export function addDays(date: Date, days: number): Date {
   return next;
 }
 
-/** Monday-based start of the week containing `date`. */
+/** Sunday-based start of the week containing `date`. */
 export function startOfWeek(date = new Date()): Date {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const weekday = (start.getDay() + 6) % 7; // Monday = 0
-  return addDays(start, -weekday);
+  return addDays(start, -start.getDay()); // getDay() is already Sunday = 0
 }
 
 export function endOfWeek(date = new Date()): Date {
@@ -45,31 +44,37 @@ export function endOfWeek(date = new Date()): Date {
 }
 
 /**
- * Monday-first weekday labels, matching `startOfWeek` and `weekdayIndex`.
+ * Sunday-first weekday labels, matching `startOfWeek` and `weekdayIndex`.
  *
  * The calendar grid, the weekly-repeat picker and the chores week strip all
  * need these, and three private copies is three chances for one of them to
- * start on Sunday while the maths still says Monday.
+ * start on Monday while the maths still says Sunday.
+ *
+ * Three letters rather than one. A column of `M T W T F S S` asks you to count
+ * along the row to tell Tuesday from Thursday and Saturday from Sunday, and
+ * the day strip on the chores tab is a control you tap, not a legend you read
+ * off a grid — tapping the wrong day there filters the screen to the wrong
+ * work. Nothing keys off the string length, so the grids stay seven-wide.
  */
-export const WEEKDAY_INITIALS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
+export const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export const WEEKDAY_NAMES = [
+  'Sunday',
   'Monday',
   'Tuesday',
   'Wednesday',
   'Thursday',
   'Friday',
   'Saturday',
-  'Sunday',
 ] as const;
 
-/** Monday = 0 … Sunday = 6. */
+/** Sunday = 0 … Saturday = 6. */
 export function weekdayIndex(date: Date): number {
-  return (date.getDay() + 6) % 7;
+  return date.getDay();
 }
 
 /**
- * The first day on or after `from` falling on Monday-based `index`.
+ * The first day on or after `from` falling on Sunday-based `index`.
  *
  * Used when someone picks "repeats weekly, on Wednesday": the due date moves
  * to the coming Wednesday rather than the schedule being stored separately.

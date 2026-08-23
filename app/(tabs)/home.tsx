@@ -155,14 +155,17 @@ export default function HomeScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Your account"
+            accessibilityLabel="Settings"
             onPress={() => {
               haptics.tap();
               router.push('/settings/account');
             }}
             className={`h-11 w-11 items-center justify-center rounded-xl border border-line bg-paper ${pressSmall} active:bg-page`}
           >
-            <Ionicons name="person-circle-outline" size={22} color={colors.ink.soft} />
+            {/* A cog, not a face. The avatar row directly below is already the
+                app's picture of a person, and two person glyphs a few points
+                apart read as the same control twice. */}
+            <Ionicons name="settings-outline" size={22} color={colors.ink.soft} />
           </Pressable>
         </View>
 
