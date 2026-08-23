@@ -366,6 +366,11 @@ export type Database = {
         Args: { request: string };
         Returns: Database['public']['Tables']['leave_requests']['Row'];
       };
+      leave_all_households: {
+        Args: Record<string, never>;
+        /** How many households the caller was in. */
+        Returns: number;
+      };
       is_household_member: {
         Args: { hid: string };
         Returns: boolean;

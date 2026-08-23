@@ -8,7 +8,8 @@ the announcements.
 - Rotate recurring chores and tick them off
 - Post short announcements to the household feed, with a photo of the receipt so the house
   can check a total before it becomes a bill
-- Leaving is something the household agrees to, with what you still owe on the table
+- Leaving is something the household agrees to, with what you still owe on the table —
+  and signing out, which has no way back, hands what you owe to the house
 - Everything syncs live across everyone's phone
 
 Built with Expo (React Native) + TypeScript, NativeWind, and Supabase. One codebase for
@@ -504,6 +505,8 @@ Several flows deliberately run through database functions rather than direct wri
 - **Leaving a household** — see below. `leave_requests` and `leave_request_votes` have a
   select policy and nothing else; every write goes through
   `request_household_leave`, `vote_on_leave_request` or `cancel_leave_request`.
+- **Signing out** — `leave_all_households()` drops the caller's memberships without a vote,
+  because signing out has no way back. See below.
 
 ### Leaving is something the house answers
 
@@ -535,10 +538,34 @@ Three things about it are easy to get wrong and are handled:
   evaluates the `household_members` policy against a membership they no longer have and the
   one event they most need never arrives. `leave_requests` stays readable to the person it
   belongs to afterwards, and the session watches that row instead.
-- Whichever way a membership ends — an approved leave, an admin removing someone — the
-  `on_household_member_removed` trigger hands their *unfinished* chore turns to whoever is
-  next in the rotation. Bills, splits and finished turns stay exactly where they are: that's
-  the record of what happened, and moving out doesn't un-owe what you owed.
+- Whichever way a membership ends — an approved leave, an admin removing someone, signing
+  out — the `on_household_member_removed` trigger settles up behind them. See below.
+
+### Signing out is moving out
+
+There is no password, so a session *is* the identity: signing out doesn't end a session, it
+ends a person. That makes the leave request the wrong instrument — there is nobody left for
+a pending vote to resolve to — so `leave_all_households()` removes the membership outright
+and lets the trigger do the rest. `request_household_leave` is still the door for someone
+who is staying signed in and can be asked about.
+
+The trigger is the one place that knows what a departure costs the house, because four
+different doors lead into it (signing out, an accepted request, an admin removal, a deleted
+household) and they should all end in the same state:
+
+- **Unpaid shares** are divided equally among the housemates still here. Recipients are the
+  ones whose own share of that bill is still unpaid; failing that, housemates not on the
+  bill at all; failing both, the share is written off, because everybody left has already
+  paid and there's no one to hand it to. Amounts are floored to the centavo and the
+  remainder dealt out one centavo each from the longest-standing member, so the parts still
+  add back up to what was owed. Kasama already allows an uneven split, so a redistribution
+  landing on round numbers was never the point.
+- **Open chore turns** are dealt round-robin across everyone left, starting at whoever is
+  next in the rotation. A single turn goes where it always went; four turns don't all land
+  on one person.
+- **Paid splits, bills themselves and finished turns** stay exactly where they are. That's
+  the record of what happened, and moving out doesn't un-pay what you paid or un-do what
+  you did.
 
 ### Push notifications
 

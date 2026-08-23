@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { fetchMembers, fetchMembership, fetchProfile } from '../api/household';
+import { fetchMembers, fetchMembership, fetchProfile, leaveAllHouseholds } from '../api/household';
 import { messageFrom } from '../hooks/useAsyncData';
 import { useRealtime } from '../hooks/useRealtime';
 import { unregisterFromPush } from '../lib/push';
@@ -227,6 +227,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        * can sign in as. The UI treats this as destructive, and should.
        */
       signOut: async () => {
+        // Moving out comes first, and unlike the two calls after it this one
+        // is allowed to fail the sign-out.
+        //
+        // It needs a live session — it is the household leaving, not the
+        // device forgetting — and it is the half that the house is relying on:
+        // a session cleared with the membership still standing leaves open
+        // chore turns and unpaid shares pointing at somebody who can no longer
+        // open the app, and no later run can fix it, because the identity that
+        // owned them is gone. Better to surface the error and let them try
+        // again with the session they still have.
+        await leaveAllHouseholds();
+
         // Before the session goes, so the next person on a shared phone
         // doesn't inherit the last person's notifications. Best-effort
         // already, but keep it from blocking the sign-out itself.
