@@ -18,6 +18,7 @@ import { useRefreshOnFocus } from '../../src/hooks/useRefreshOnFocus';
 import { formatPeso } from '../../src/lib/format';
 import { colors } from '../../src/lib/theme';
 import { useCurrentUserId } from '../../src/store/useSessionStore';
+import type { BillWithSplits } from '../../src/types';
 
 type Filter = 'all' | 'unpaid' | 'paid';
 
@@ -32,20 +33,16 @@ export default function BillsScreen() {
 
   const bills = useMemo(() => data ?? [], [data]);
 
+  // Every filter reads as a deadline list, not a log of when things were
+  // typed in: the bill you have to deal with soonest is the first receipt on
+  // the screen, and the card above it no longer has to name it separately.
   const visible = useMemo(() => {
-    if (filter === 'all') return bills;
-    const wantSettled = filter === 'paid';
-    const matching = bills.filter((bill) => isBillSettled(bill) === wantSettled);
-    if (wantSettled) return matching;
+    const matching =
+      filter === 'all'
+        ? bills
+        : bills.filter((bill) => isBillSettled(bill) === (filter === 'paid'));
 
-    // Unpaid bills are a to-do list, so order them by deadline rather than by
-    // when someone happened to log them. Bills with no due date sit at the end.
-    return matching.slice().sort((a, b) => {
-      if (a.due_date === b.due_date) return 0;
-      if (!a.due_date) return 1;
-      if (!b.due_date) return -1;
-      return a.due_date.localeCompare(b.due_date);
-    });
+    return matching.slice().sort(byDueDate);
   }, [bills, filter]);
 
   const balance = useMemo(
@@ -137,11 +134,10 @@ export default function BillsScreen() {
           ListHeaderComponent={
             userId && bills.length > 0 ? (
               <View className="pb-1">
-                <MonthBalanceCard
-                  bills={bills}
-                  userId={userId}
-                  onPressBill={(bill) => router.push(`/bills/${bill.id}`)}
-                />
+                {/* No `onPressBill`: the card's only tappable bill was the
+                    next-due row, which the dashboard keeps and this screen
+                    doesn't — the receipts below are the way into a bill here. */}
+                <MonthBalanceCard bills={bills} userId={userId} />
               </View>
             ) : null
           }
@@ -188,4 +184,18 @@ export default function BillsScreen() {
       <Fab accessibilityLabel="Add a bill" onPress={() => router.push('/bills/new')} />
     </Screen>
   );
+}
+
+/**
+ * Nearest due date first.
+ *
+ * Undated bills go to the end rather than the front: no due date means nobody
+ * said when, which is the opposite of due today — sorting them as an empty
+ * string would put every one of them above tomorrow's electricity.
+ */
+function byDueDate(a: BillWithSplits, b: BillWithSplits): number {
+  if (!a.due_date && !b.due_date) return 0;
+  if (!a.due_date) return 1;
+  if (!b.due_date) return -1;
+  return a.due_date.localeCompare(b.due_date);
 }

@@ -22,7 +22,8 @@ import { Pill } from './ui/Pill';
 import { ProgressBar } from './ui/ProgressBar';
 
 /**
- * The one money card — what is left to pay this month, and what falls due next.
+ * The one money card — what is left to pay this month, plus, on the dashboard,
+ * what falls due next.
  *
  * It replaces the pair the dashboard used to stack: a "where you stand" balance
  * above a separate "next bill due" row. Two cards, one question. Worse, the
@@ -51,7 +52,7 @@ export function MonthBalanceCard({
   onPressBill?: (bill: BillWithSplits) => void;
 }) {
   const month = summariseMonth(bills, userId);
-  const nextBill = nextBillDue(bills);
+  const nextBill = compact ? nextBillDue(bills) : null;
   const people = compact ? [] : settleUp(bills, userId);
 
   const monthName = formatMonthName(fromDateString(`${month.month}-01`));
@@ -118,18 +119,27 @@ export function MonthBalanceCard({
       </View>
 
       {/* Next due ------------------------------------------------------ */}
-      <View className="mt-4 border-t border-line pt-3">
-        <Text className="font-ui-bold text-[11px] uppercase tracking-[1.4px] text-ink-muted">
-          Next bill due
-        </Text>
-        {nextBill ? (
-          <NextDueRow bill={nextBill} onPress={onPressBill ? () => onPressBill(nextBill) : undefined} />
-        ) : (
-          <Text className="mt-2 font-ui text-sm text-ink-muted">
-            Nothing outstanding — every bill in the house is settled.
+      {/* Dashboard only. On the bills screen the soonest bill is the first row
+          of the list directly underneath this card — the receipts are ordered
+          by due date — so a "next bill due" panel there just prints the row
+          below it twice, in a different shape. */}
+      {compact ? (
+        <View className="mt-4 border-t border-line pt-3">
+          <Text className="font-ui-bold text-[11px] uppercase tracking-[1.4px] text-ink-muted">
+            Next bill due
           </Text>
-        )}
-      </View>
+          {nextBill ? (
+            <NextDueRow
+              bill={nextBill}
+              onPress={onPressBill ? () => onPressBill(nextBill) : undefined}
+            />
+          ) : (
+            <Text className="mt-2 font-ui text-sm text-ink-muted">
+              Nothing outstanding — every bill in the house is settled.
+            </Text>
+          )}
+        </View>
+      ) : null}
 
       {/* Settle up ----------------------------------------------------- */}
       {compact ? null : (

@@ -258,6 +258,20 @@ export default function AnnouncementsScreen() {
           <View className="px-5">
             <ErrorState message={error} onRetry={() => void refresh()} />
           </View>
+        ) : conversation.length === 0 ? (
+          /* Outside the feed on purpose. The list below is `inverted`, which
+             flips every child it draws — its empty component included — so an
+             EmptyState handed to `ListEmptyComponent` arrives upside down.
+             There is nothing to scroll when the board is empty anyway. */
+          <View className="flex-1 justify-center px-5 pb-8">
+            <EmptyState
+              icon="reader-outline"
+              title="Quiet in here"
+              message="Pin the first note — payment reminders, visitors, or whose turn it is to chase the internet."
+              actionLabel="Write one"
+              onAction={() => composer.current?.focus()}
+            />
+          </View>
         ) : (
           <>
             <PinnedStrip
@@ -355,15 +369,6 @@ export default function AnnouncementsScreen() {
                   </NoteCard>
                 );
               }}
-              ListEmptyComponent={
-                <EmptyState
-                  icon="reader-outline"
-                  title="Quiet in here"
-                  message="Pin the first note — payment reminders, visitors, or whose turn it is to chase the internet."
-                  actionLabel="Write one"
-                  onAction={() => composer.current?.focus()}
-                />
-              }
             />
           </>
         )}
