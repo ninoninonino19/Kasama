@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import type { PushPreferences } from '../../src/api/household';
 import { updateDisplayName, updatePushPreferences } from '../../src/api/household';
 import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../../src/api/avatars';
+import { isSettledAmount, summariseBalance } from '../../src/api/bills';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
@@ -13,6 +14,8 @@ import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
 import { messageFrom } from '../../src/hooks/useAsyncData';
+import { useBills } from '../../src/hooks/useHouseholdData';
+import { formatPeso } from '../../src/lib/format';
 import { haptics } from '../../src/lib/haptics';
 import { pushSupported, registerForPush } from '../../src/lib/push';
 import { press } from '../../src/lib/motion';
@@ -35,6 +38,15 @@ export default function AccountSettingsScreen() {
   const household = useSessionStore((state) => state.household);
   const profile = useSessionStore((state) => state.profile);
   const userId = useSessionStore((state) => state.userId);
+
+  // Your own number, before you sign out — the same figure household
+  // settings shows before a leave request goes out, so what you owe is never
+  // a surprise you find out about after the fact.
+  const bills = useBills();
+  const myBalance = userId
+    ? summariseBalance(bills.data ?? [], userId)
+    : { owed: 0, owing: 0, net: 0 };
+  const iOweSomething = !isSettledAmount(myBalance.owed);
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -276,6 +288,18 @@ export default function AccountSettingsScreen() {
                 <CautionLine text="What you still owe splits equally among your housemates, and your open chores go to them too." />
               ) : null}
             </View>
+
+            {/* Same callout household settings shows before a leave request —
+                the exact figure, not just the fact that it splits. */}
+            {household && iOweSomething ? (
+              <View className="flex-row items-center gap-2 rounded-xl bg-paper px-3 py-2.5">
+                <Ionicons name="wallet-outline" size={16} color={colors.deep.brick} />
+                <Text className="flex-1 font-ui text-xs leading-5 text-deep-brick">
+                  You still owe {formatPeso(myBalance.owed)}. It splits equally among your
+                  housemates the moment you sign out.
+                </Text>
+              </View>
+            ) : null}
 
             <View className="mt-1 flex-row gap-2">
               <Button
