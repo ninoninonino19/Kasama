@@ -38,6 +38,8 @@ export default function AccountSettingsScreen() {
   const household = useSessionStore((state) => state.household);
   const profile = useSessionStore((state) => state.profile);
   const userId = useSessionStore((state) => state.userId);
+  const role = useSessionStore((state) => state.role);
+  const members = useSessionStore((state) => state.members);
 
   // Your own number, before you sign out — the same figure household
   // settings shows before a leave request goes out, so what you owe is never
@@ -47,6 +49,14 @@ export default function AccountSettingsScreen() {
     ? summariseBalance(bills.data ?? [], userId)
     : { owed: 0, owing: 0, net: 0 };
   const iOweSomething = !isSettledAmount(myBalance.owed);
+
+  // Same check household settings makes before a leave request: signing out
+  // removes you from the household just as leaving does, so the sole admin
+  // stranding everyone else is exactly as real a risk here.
+  const lastAdmin =
+    role === 'admin' &&
+    members.filter((member) => member.role === 'admin').length === 1 &&
+    members.length > 1;
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -276,7 +286,7 @@ export default function AccountSettingsScreen() {
             <View className="flex-row items-center gap-2">
               <Ionicons name="warning-outline" size={20} color={colors.deep.brick} />
               <Text className="flex-1 font-ui-bold text-sm text-deep-brick">
-                This cannot be undone
+                {household ? `Leaving ${household.name} for good` : 'Signing out for good'}
               </Text>
             </View>
 
@@ -286,6 +296,12 @@ export default function AccountSettingsScreen() {
               />
               {household ? (
                 <CautionLine text="What you still owe splits equally among your housemates, and your open chores go to them too." />
+              ) : null}
+              {lastAdmin ? (
+                <CautionLine
+                  emphasis
+                  text="You are the only admin. Nobody will be left who can manage this household."
+                />
               ) : null}
             </View>
 
@@ -366,11 +382,17 @@ export default function AccountSettingsScreen() {
   );
 }
 
-function CautionLine({ text }: { text: string }) {
+function CautionLine({ text, emphasis = false }: { text: string; emphasis?: boolean }) {
   return (
     <View className="flex-row gap-2">
       <Text className="font-ui text-xs leading-5 text-deep-brick">•</Text>
-      <Text className="flex-1 font-ui text-xs leading-5 text-deep-brick">{text}</Text>
+      <Text
+        className={`flex-1 text-xs leading-5 text-deep-brick ${
+          emphasis ? 'font-ui-bold' : 'font-ui'
+        }`}
+      >
+        {text}
+      </Text>
     </View>
   );
 }
