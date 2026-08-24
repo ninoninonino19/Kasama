@@ -287,15 +287,6 @@ export default function ChoresScreen() {
             </View>
           ) : null}
 
-          {hasOpenWork ? (
-            <View className="-mb-3 flex-row items-center gap-1.5">
-              <Ionicons name="hand-left-outline" size={13} color={colors.ink.muted} />
-              <Text className="flex-1 font-ui text-xs text-ink-muted">
-                Tap the box — or swipe a chore across — to tick it off.
-              </Text>
-            </View>
-          ) : null}
-
           {/* `grow` on the content container is what gives this something to
               centre in — otherwise the scroll view is only as tall as the one
               card inside it. */}

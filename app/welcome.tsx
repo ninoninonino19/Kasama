@@ -123,14 +123,7 @@ export default function WelcomeScreen() {
             loading={submitting}
             disabled={!canSubmit}
           />
-
-          <NoteCard tape={colors.mustard} className="pt-5">
-            <Text className="font-ui text-xs leading-5 text-ink-muted">
-              Next you'll create a household or join one with a six-character code from a
-              housemate. Because there's no password, this name lives on this phone — keep the
-              app installed and you stay yourself.
-            </Text>
-          </NoteCard>
+          
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
