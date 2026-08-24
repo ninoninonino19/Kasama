@@ -42,3 +42,6 @@ yarn-error.*
 
 # env
 .env
+
+# Google Play service account key (see eas.json submit.production.android)
+google-service-account.json

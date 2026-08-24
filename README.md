@@ -745,9 +745,10 @@ those tables so Realtime can evaluate the policies against changed rows.
 
 ---
 
-## Shipping to the App Store / Play Store
+## Shipping to Google Play
 
-The app is EAS-ready (`eas.json` has `development`, `preview` and `production` profiles).
+The app is EAS-ready (`eas.json` has `development`, `preview` and `production` profiles,
+and `submit.production.android` already points at a service account key — see step 6).
 Remaining steps, none of which can be done from this repo alone:
 
 1. **Set up EAS.**
@@ -774,33 +775,47 @@ Remaining steps, none of which can be done from this repo alone:
    review requires. Re-run `python3 tools/generate-icons.py` only if the palette or the
    geometry changes.
 
-4. **Confirm the bundle identifiers.** They're currently `com.kasama.app` for both
-   platforms (`app.json`); change them before the first build, since they can't be changed
-   after a store listing exists.
+4. **Confirm the bundle identifier.** Currently `com.kasama.app` (`app.json`'s
+   `android.package`); change it before the first build, since it can't be changed after a
+   store listing exists.
 
 5. **Build.**
 
    ```bash
-   eas build --profile preview  --platform android   # installable APK for testing
-   eas build --profile production --platform all     # AAB + IPA for the stores
+   eas build --profile preview    --platform android   # installable APK for testing
+   eas build --profile production --platform android   # AAB for the Play Store
    ```
 
-6. **iOS specifics.** An Apple Developer Program membership ($99/yr) is required. EAS can
-   manage signing credentials for you. Fill in App Store Connect: app name, subtitle,
-   privacy policy URL, screenshots (6.7" and 5.5" iPhone at minimum), and the App Privacy
-   questionnaire — Kasama collects email, display name, and user-generated content, none of
-   it used for tracking.
+6. **Register with Play Console.** A one-time $25 Google Play Console registration.
 
-7. **Android specifics.** A one-time $25 Play Console registration. Provide a privacy
-   policy URL, complete the Data Safety form (same disclosures as above), set the content
-   rating, and upload the AAB to a testing track before promoting to production.
+   - Host `docs/privacy-policy.html` somewhere public — the quickest option is GitHub
+     Pages: repo **Settings → Pages → Deploy from a branch**, branch `main`, folder
+     `/docs`. That publishes it at
+     `https://<your-username>.github.io/<repo>/privacy-policy.html`. Fill in the
+     `REPLACE_WITH_YOUR_CONTACT_EMAIL` placeholder in that file first.
+   - Fill in the store listing from `docs/play-store-listing.md` (app name, descriptions,
+     category, screenshots — capture from the `preview` build above).
+   - Complete the Data Safety form and content rating questionnaire; both are covered in
+     `docs/play-store-listing.md`.
+   - For automated `eas submit`, create a Google Cloud service account with the "Editor"
+     role on your Play Console API access (Play Console → **Setup → API access**),
+     download its JSON key, and save it as `google-service-account.json` at the repo root
+     (already gitignored — never commit it). `eas.json` is already wired to use it and
+     submit to the `internal` testing track first.
+   - Upload a build to internal testing before promoting to production; Play Console
+     requires at least one closed/internal test before a first production release.
 
-8. **Submit.**
+7. **Submit.**
 
    ```bash
-   eas submit --platform ios
    eas submit --platform android
    ```
+
+8. **iOS, later.** The same `eas.json`/`app.json` also cover iOS (`ios.bundleIdentifier`
+   is already set) if an Apple Developer Program membership ($99/yr) becomes worth it —
+   `eas build --platform ios` and `eas submit --platform ios` are the only extra steps,
+   plus filling in App Store Connect's privacy questionnaire from the same disclosures as
+   `docs/privacy-policy.html`.
 
 9. **Before launch, think about identity.** An anonymous session lives on one device, so a
    lost phone is a lost identity — see the note below. Review the anonymous sign-in rate
