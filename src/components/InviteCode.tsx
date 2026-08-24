@@ -66,7 +66,7 @@ export function InviteCode({
   }
 
   async function share() {
-    const message = `Join "${householdName}" on Kasama. Invite code: ${code}`;
+    const message = `Join "${householdName}" on Kasama — one house, one app. Invite code: ${code}`;
 
     try {
       await Share.share({ message });
