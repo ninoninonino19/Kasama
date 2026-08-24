@@ -5,6 +5,7 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { InviteCode } from '../src/components/InviteCode';
 import { Button } from '../src/components/ui/Button';
+import { LogoMark } from '../src/components/ui/Logo';
 import { NoteCard } from '../src/components/ui/NoteCard';
 import { Screen } from '../src/components/ui/Screen';
 import { InlineError } from '../src/components/ui/States';
@@ -55,6 +56,12 @@ export default function InviteScreen() {
     <Screen>
       <ScrollView contentContainerClassName="grow justify-center gap-6 px-6 py-10">
         <View className="gap-2">
+          {/* The same mark welcome.tsx showed on the way in — quiet here,
+              mark only, no wordmark: the headline below already carries the
+              name, and this screen's job is the code, not the brand. */}
+          <View className="mb-1">
+            <LogoMark size={40} />
+          </View>
           <Text className="font-hand-bold text-4xl leading-[44px] text-ink">
             {householdName} is yours.
           </Text>
