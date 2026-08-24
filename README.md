@@ -762,9 +762,11 @@ Remaining steps, none of which can be done from this repo alone:
    eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value … --environment production
    ```
 
-3. **Replace the placeholder assets.** `assets/icon.png`, `assets/splash-icon.png` and the
-   Android adaptive icon layers are still the Expo template art. Store review requires a
-   1024×1024 icon with no transparency and no alpha channel.
+3. **Icon and splash are already done.** `assets/icon.png`, `assets/splash-icon.png` and the
+   Android adaptive icon layers are Kasama's own mark — see *The mark* above — not the Expo
+   template art. `icon.png` is already opaque, full-bleed and 1024×1024, which is what store
+   review requires. Re-run `python3 tools/generate-icons.py` only if the palette or the
+   geometry changes.
 
 4. **Confirm the bundle identifiers.** They're currently `com.kasama.app` for both
    platforms (`app.json`); change them before the first build, since they can't be changed
