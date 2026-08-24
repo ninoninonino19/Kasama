@@ -92,13 +92,17 @@ without the step below installs fine and then shows the setup notice, because
 and every profile picks them up:
 
 ```bash
-eas env:create --name EXPO_PUBLIC_SUPABASE_URL --value https://<project-ref>.supabase.co \
+eas env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://<project-ref>.supabase.co \
   --environment development --environment preview --environment production \
-  --visibility plaintext
-eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon public key> \
+  --visibility plaintext --non-interactive
+eas env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon public key> \
   --environment development --environment preview --environment production \
-  --visibility plaintext
+  --visibility plaintext --non-interactive
 ```
+
+`env:set`, not `env:create` — that command was renamed, and the old name now falls through to
+an interactive wizard that asks for everything over again, flags or not. `--non-interactive`
+is what actually holds it to the flags you passed.
 
 They live in EAS rather than in `eas.json` on purpose. This repository is public, and
 while the anon key is safe by design — it ships inside the APK either way — a key sitting
@@ -596,7 +600,7 @@ eas build --profile development --platform android
 ```
 
 Install the APK it produces, then `npm start` and open it from there. The build reads the
-Supabase values from EAS, not from `.env`, so run the `eas env:create` commands above first
+Supabase values from EAS, not from `.env`, so run the `eas env:set` commands above first
 or it will come up on the setup notice.
 
 To deploy the sender:
@@ -758,13 +762,17 @@ Remaining steps, none of which can be done from this repo alone:
    `eas.json`, or (preferred) create them as EAS environment variables:
 
    ```bash
-   eas env:create --name EXPO_PUBLIC_SUPABASE_URL --value https://… --environment production
-   eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value … --environment production
+   eas env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://… --environment production \
+     --visibility plaintext --non-interactive
+   eas env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value … --environment production \
+     --visibility plaintext --non-interactive
    ```
 
-3. **Replace the placeholder assets.** `assets/icon.png`, `assets/splash-icon.png` and the
-   Android adaptive icon layers are still the Expo template art. Store review requires a
-   1024×1024 icon with no transparency and no alpha channel.
+3. **Icon and splash are already done.** `assets/icon.png`, `assets/splash-icon.png` and the
+   Android adaptive icon layers are Kasama's own mark — see *The mark* above — not the Expo
+   template art. `icon.png` is already opaque, full-bleed and 1024×1024, which is what store
+   review requires. Re-run `python3 tools/generate-icons.py` only if the palette or the
+   geometry changes.
 
 4. **Confirm the bundle identifiers.** They're currently `com.kasama.app` for both
    platforms (`app.json`); change them before the first build, since they can't be changed
