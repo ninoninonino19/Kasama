@@ -9,7 +9,6 @@ import { AvatarError, pickAndUploadAvatar, removeAvatar } from '../../src/api/av
 import { Avatar } from '../../src/components/ui/Avatar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
-import { useConfirm } from '../../src/components/ui/Dialog';
 import { FormScreen, SectionTitle } from '../../src/components/ui/Screen';
 import { InlineError } from '../../src/components/ui/States';
 import { TextField } from '../../src/components/ui/TextField';
@@ -31,7 +30,6 @@ import { useSessionStore } from '../../src/store/useSessionStore';
  */
 export default function AccountSettingsScreen() {
   const router = useRouter();
-  const confirm = useConfirm();
   const { refreshHousehold, signOut } = useSession();
 
   const household = useSessionStore((state) => state.household);
@@ -138,25 +136,15 @@ export default function AccountSettingsScreen() {
     }
   }
 
-  function confirmSignOut() {
-    void confirm({
-      title: household ? `Leave ${household.name} and sign out?` : 'Sign out of this device?',
-      message:
-        `There is no password to sign back in with, so this ends "${profile?.display_name ?? 'your'}" ` +
-        'for good. Rejoining means a new invite code and a new name in the list.' +
-        (household
-          ? ' Your housemates take on anything you still owe, split equally between them.'
-          : ''),
-      confirmLabel: 'Sign out for good',
-      onConfirm: handleSignOut,
-    });
-  }
-
   /**
    * Settings is a root stack screen with no auth guard of its own, so clearing
    * the session used to leave the user sitting right here looking at an empty
    * profile — which reads as "Log out did nothing". Send them back through the
    * entry point, which decides where a signed-out person belongs.
+   *
+   * The armed panel below is the only confirmation — it already states what
+   * signing out costs, so a second "are you sure" dialog on top of it would
+   * only repeat itself.
    */
   async function handleSignOut() {
     setSigningOut(true);
@@ -281,16 +269,11 @@ export default function AccountSettingsScreen() {
             </View>
 
             <View className="gap-1.5">
-              <CautionLine text="There is no password, so there is no signing back in as yourself." />
-              <CautionLine text="Rejoining needs a new invite code, and you appear as a new person." />
+              <CautionLine
+                text={`There's no password, so this ends "${profile?.display_name ?? 'your name'}" for good — rejoining needs a new invite code and a new person in the list.`}
+              />
               {household ? (
-                <>
-                  <CautionLine
-                    text={`You leave ${household.name}, and your name comes off the split lists.`}
-                  />
-                  <CautionLine text="What you still owe is divided equally among your housemates, and your open chores are shared out between them." />
-                  <CautionLine text="Shares you have already paid stay on record as paid." />
-                </>
+                <CautionLine text="What you still owe splits equally among your housemates, and your open chores go to them too." />
               ) : null}
             </View>
 
@@ -303,13 +286,13 @@ export default function AccountSettingsScreen() {
                 onPress={() => setSignOutArmed(false)}
               />
               <Button
-                label="Sign out"
+                label="Sign out for good"
                 variant="danger"
                 size="md"
                 className="flex-1"
                 icon="log-out-outline"
                 loading={signingOut}
-                onPress={confirmSignOut}
+                onPress={handleSignOut}
               />
             </View>
           </View>

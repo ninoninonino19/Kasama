@@ -84,6 +84,7 @@ export default function HouseholdSettingsScreen() {
     isAdmin &&
     members.filter((member) => member.role === 'admin').length === 1 &&
     members.length > 1;
+  const alone = members.length <= 1;
 
   const allBills = bills.data ?? [];
   // Everyone else's open requests. Yours is shown by `MyLeaveRequestCard`,
@@ -194,78 +195,55 @@ export default function HouseholdSettingsScreen() {
   }
 
   /**
-   * Step two. The caution panel has already said what leaving costs; this is
-   * the deliberate second tap, in a dialogue that can't be hit by accident on
-   * the way past.
+   * The armed panel below is the only confirmation — it already says what
+   * leaving costs, so this runs straight from its button rather than opening
+   * a second dialogue that repeats the same warning.
    *
    * What it sends is a request, not a departure — unless there is nobody left
    * to ask, in which case `request_household_leave` completes it on the spot
    * and this navigates straight out. Waiting for a vote that can never be cast
    * would lock the last person in the house into it.
    */
-  function confirmLeave() {
+  async function handleLeave() {
     if (!household || !userId) return;
     haptics.tap();
+    setLeaveBusy(true);
+    try {
+      const request = await requestLeave(household.id, leaveReason);
+      setLeaveArmed(false);
+      setLeaveReason('');
 
-    const alone = members.length <= 1;
+      if (request.status === 'completed') {
+        await refreshHousehold();
+        router.replace('/onboarding');
+        return;
+      }
 
-    // Said in the dialogue as well as in the panel behind it. This is the
-    // last screen before the house is asked, and "you still owe ₱1,240" is
-    // the fact that decides how that goes — it should not be something you
-    // have to scroll back to check.
-    const owedLine = iOweSomething
-      ? ` You still owe ${formatPeso(myBalance.owed)}.`
-      : '';
+      haptics.success();
+      await myRequest.refresh({ silent: true });
+      await openRequests.refresh({ silent: true });
 
-    void confirm({
-      title: alone ? `Leave ${household.name}?` : `Ask to leave ${household.name}?`,
-      message: alone
-        ? `There's nobody else here, so this happens straight away.${owedLine} You'll need a new invite code to come back.`
-        : lastAdmin
-          ? `You are the only admin. Your housemates each have to accept, and once they have, nobody will be left who can manage this household.${owedLine}`
-          : `Each of your housemates has to accept before you go.${owedLine} They can see what you still owe and are owed, and can decline until it is settled.`,
-      confirmLabel: alone ? 'Leave household' : 'Send request',
-      cancelLabel: 'Stay',
-      onConfirm: async () => {
-        setLeaveBusy(true);
-        try {
-          const request = await requestLeave(household.id, leaveReason);
-          setLeaveArmed(false);
-          setLeaveReason('');
-
-          if (request.status === 'completed') {
-            await refreshHousehold();
-            router.replace('/onboarding');
-            return;
-          }
-
-          haptics.success();
-          await myRequest.refresh({ silent: true });
-          await openRequests.refresh({ silent: true });
-
-          notifyHousehold({
-            householdId: household.id,
-            // The board's own category. A leave request is a household notice
-            // rather than a bill or a chore, and giving it a fourth category
-            // would mean a new preference column, a new switch in settings and
-            // a change to the notify function — for one message a housemate
-            // sends at most once.
-            category: 'board',
-            title: `${profileFirstName} wants to leave the household`,
-            body: 'Open Kasama to accept or decline — check what is still outstanding first.',
-            data: { screen: 'household' },
-            only: members
-              .filter((member) => member.user_id !== userId)
-              .map((member) => member.user_id),
-          });
-        } catch (caught) {
-          haptics.error();
-          setError(messageFrom(caught));
-        } finally {
-          setLeaveBusy(false);
-        }
-      },
-    });
+      notifyHousehold({
+        householdId: household.id,
+        // The board's own category. A leave request is a household notice
+        // rather than a bill or a chore, and giving it a fourth category
+        // would mean a new preference column, a new switch in settings and
+        // a change to the notify function — for one message a housemate
+        // sends at most once.
+        category: 'board',
+        title: `${profileFirstName} wants to leave the household`,
+        body: 'Open Kasama to accept or decline — check what is still outstanding first.',
+        data: { screen: 'household' },
+        only: members
+          .filter((member) => member.user_id !== userId)
+          .map((member) => member.user_id),
+      });
+    } catch (caught) {
+      haptics.error();
+      setError(messageFrom(caught));
+    } finally {
+      setLeaveBusy(false);
+    }
   }
 
   /** Withdraws my own open request. Plans change. */
@@ -558,11 +536,13 @@ export default function HouseholdSettingsScreen() {
             </View>
 
             <View className="gap-1.5">
-              {members.length > 1 ? (
-                <CautionLine text="Every housemate has to accept before you go." />
-              ) : null}
-              <CautionLine text="You lose access to its bills, chores and board." />
-              <CautionLine text="Getting back in needs a new invite code from a housemate." />
+              <CautionLine
+                text={
+                  alone
+                    ? "There's nobody else here, so this happens right away — you'll need a new invite code to come back."
+                    : "Every housemate has to accept before you go, and you'll need a new invite code to come back."
+                }
+              />
               <CautionLine text="What you owe and are owed stays on record — leaving settles nothing." />
               {lastAdmin ? (
                 <CautionLine
@@ -586,7 +566,7 @@ export default function HouseholdSettingsScreen() {
               </View>
             ) : null}
 
-            {members.length > 1 ? (
+            {!alone ? (
               <TextField
                 label="Anything to tell them? (optional)"
                 placeholder="e.g. Moving back to Cebu at the end of the month"
@@ -608,13 +588,13 @@ export default function HouseholdSettingsScreen() {
                 }}
               />
               <Button
-                label={members.length > 1 ? 'Ask the house' : 'Leave household'}
+                label={alone ? 'Leave household' : 'Ask the house'}
                 variant="danger"
                 size="md"
                 className="flex-1"
                 icon="exit-outline"
                 loading={leaveBusy}
-                onPress={confirmLeave}
+                onPress={handleLeave}
               />
             </View>
           </View>

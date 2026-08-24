@@ -161,9 +161,19 @@ export default function ChoresScreen() {
    * Ticks the box straight away rather than after the round trip — completing a
    * chore should feel instant. The server may also queue the next turn in the
    * rotation, so a silent refetch follows either way.
+   *
+   * A turn can't be finished before its day arrives — otherwise the rota is
+   * just a checklist someone clears on Monday for the whole week. Undoing a
+   * turn, and finishing one that's today or already late, are unrestricted:
+   * catching up on Tuesday's dishes on Wednesday is the point of "Overdue".
    */
   const handleToggle = useCallback(
     async (chore: ChoreWithAssignments, assignment: AssignmentWithProfile, completed: boolean) => {
+      if (completed && assignment.due_date > todayString()) {
+        haptics.tap();
+        return;
+      }
+
       haptics.select();
       setActionError(null);
 
@@ -230,6 +240,7 @@ export default function ChoresScreen() {
             assignment={assignment}
             userId={userId}
             members={members}
+            today={today}
             overdue={overdueSection || assignment.due_date < today}
             rotate={index % 2 === 0 ? -0.4 : 0.4}
             onEdit={() => router.push({ pathname: '/chores/edit', params: { id: chore.id } })}
@@ -594,6 +605,7 @@ function ChoreCard({
   assignment,
   userId,
   members,
+  today,
   overdue = false,
   rotate = 0,
   onEdit,
@@ -603,6 +615,7 @@ function ChoreCard({
   assignment: AssignmentWithProfile;
   userId: string | null;
   members: MemberWithProfile[];
+  today: string;
   overdue?: boolean;
   rotate?: number;
   onEdit: () => void;
@@ -615,6 +628,9 @@ function ChoreCard({
   const name = assignment.profile?.display_name ?? 'Housemate';
   const isMine = assignment.user_id === userId;
   const done = assignment.completed;
+  // Not due yet — the day it's assigned to hasn't come around, so it can't be
+  // ticked off early. Overdue and today's turns are unaffected.
+  const notYetDue = !done && assignment.due_date > today;
 
   const upNextId = nextAssigneeId(assignment.user_id, members);
   const upNext = members.find((member) => member.user_id === upNextId);
@@ -625,7 +641,7 @@ function ChoreCard({
   return (
     <SwipeRow
       left={
-        done
+        done || notYetDue
           ? undefined
           : {
               label: 'Done',
@@ -653,13 +669,21 @@ function ChoreCard({
         <View className="flex-row items-center gap-3">
           <Pressable
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: done }}
-            accessibilityLabel={`${chore.title}, ${done ? 'done' : 'not done'}`}
-            accessibilityHint="Double tap to switch between done and not done"
+            accessibilityState={{ checked: done, disabled: notYetDue }}
+            accessibilityLabel={`${chore.title}, ${done ? 'done' : notYetDue ? 'not due yet' : 'not done'}`}
+            accessibilityHint={
+              notYetDue
+                ? `Opens ${formatRelativeDate(assignment.due_date)}`
+                : 'Double tap to switch between done and not done'
+            }
             hitSlop={16}
             onPress={() => onToggle(chore, assignment, !done)}
             className={`h-8 w-8 items-center justify-center rounded-lg border-2 ${pressSmall} ${
-              done ? 'border-moss bg-moss' : 'border-moss-light active:bg-wash-sage'
+              done
+                ? 'border-moss bg-moss'
+                : notYetDue
+                  ? 'border-dashed border-ink-faint opacity-70'
+                  : 'border-moss-light active:bg-wash-sage'
             }`}
           >
             {/* The tick is always mounted, at nothing-yet size, so that
@@ -700,6 +724,8 @@ function ChoreCard({
             <Pill label="Done" tone="ok" icon="checkmark-circle" />
           ) : overdue ? (
             <Pill label="Overdue" tone="alert" icon="alert-circle" />
+          ) : notYetDue ? (
+            isMine ? <Pill label="Not yet" tone="muted" icon="lock-closed-outline" /> : null
           ) : isMine ? (
             <TurnTag />
           ) : null}
