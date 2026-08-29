@@ -28,6 +28,9 @@ and Android.
 | Client state | Zustand |
 | Builds | EAS Build (`eas.json`) |
 
+Deeper notes — the data model, the design system, push, releasing, known limitations — live
+in [`docs/`](docs/README.md).
+
 ---
 
 ## Running it
@@ -53,7 +56,10 @@ npm install
    app — leave it off and the welcome screen answers every name with *"anonymous sign-ins are
    disabled"*. Email/password can stay off. (Running locally with the CLI, the same switch is
    `enable_anonymous_sign_ins` in `supabase/config.toml`, already on there.)
-4. **Database → Replication**: the migrations already add the app tables to the
+4. **Auth → Rate Limits**: anonymous sign-ins are rate-limited per IP (30/hour by default).
+   A household is a handful of people, so the default is generous — but a shared Wi-Fi
+   network counts as one IP, which is worth knowing if a whole house signs up at once.
+5. **Database → Replication**: the migrations already add the app tables to the
    `supabase_realtime` publication, so live updates work out of the box.
 
 ### 3. Point the app at your project
