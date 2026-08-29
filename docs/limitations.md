@@ -33,6 +33,5 @@ plenty of split apps keep shares atomic on purpose.
 
 ## Nice-to-haves not built yet
 
-- A design pass over onboarding, settings and the auth screens (see [One palette, everywhere](design-system.md#one-palette-everywhere))
 - Partial payments (see above)
 - Comments or reactions on board notes — the board is post-and-read today
