@@ -108,6 +108,10 @@ otherwise. `npm run go` pins Expo Go instead; press **s** at any time to switch 
 two. Expo Go runs everything here except push notifications, which it cannot receive at all —
 testing those needs `eas build --profile development --platform android`.
 
+`npm run go` and `npm run usb` are Android-only — both start with `adb reverse`. On an
+iPhone it is `npx expo start --go` and the Camera app; [Running on iOS,
+locally](docs/ios-local.md) covers that and the ways to install a build on the phone.
+
 Checks:
 
 ```bash
